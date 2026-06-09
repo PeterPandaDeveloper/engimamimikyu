@@ -271,7 +271,11 @@ class PanelPostRonda(discord.ui.View):
 
     @discord.ui.button(label="❌ Terminar de Jugar", style=discord.ButtonStyle.danger, row=0)
     async def btn_cerrar(self, inter: discord.Interaction, btn: discord.ui.Button):
-        # Limpiamos la lista de jugadores para vaciar el lobby
-        self.partida.jugadores = []
-        await inter.response.edit_message(view=None)
-        await inter.channel.send("🧹 **El lobby ha sido cerrado.** ¡Gracias por jugar! Usen `pkmi!register` para abrir uno nuevo más tarde.")
+            self.partida.jugadores = []
+            
+            # EJECUTAMOS LA LIMPIEZA
+            if hasattr(self.partida, 'limpiar_memoria'):
+                self.partida.limpiar_memoria()
+                
+            await inter.response.edit_message(view=None)
+            await inter.channel.send("🧹 **El lobby ha sido cerrado.** ¡Gracias por jugar! Usen `pkmi!register` para abrir uno nuevo más tarde.")

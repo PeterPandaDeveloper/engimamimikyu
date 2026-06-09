@@ -98,7 +98,7 @@ class Partida:
             # Si el tipo específico falla, damos el tipo como pista de seguridad
             self.pista_generada = opciones_pista.get(tipo_pista, opciones_pista['tipo'])
 
-        # 4. Enviar DMs
+# 4. Enviar DMs
         for j in self.jugadores:
             try:
                 if j in self.impostores:
@@ -106,4 +106,7 @@ class Partida:
                 else:
                     await j.send(f"✅ Eres tripulante. El Pokémon es: **{dp['nombre']}**.")
             except Exception as e:
-                print(f"No se pudo enviar un DM a {j.display_name}. Dile que abra sus mensajes. Error: {e}")
+                # Avisa en la consola de Linux
+                print(f"No se pudo enviar un DM a {j.display_name}. Error: {e}")
+                # Avisa públicamente en el canal de Discord
+                await self.canal.send(f"⚠️ **¡ALERTA!** No pude enviarle su rol secreto a {j.mention}. Es casi seguro que tiene los **Mensajes Directos bloqueados** en este servidor.\nPor favor, que habilite los DMs y usen el botón de revancha/reiniciar para repartir los roles correctamente.")

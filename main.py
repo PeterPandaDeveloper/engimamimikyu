@@ -21,8 +21,13 @@ async def on_ready():
 
 @bot.command()
 async def register(ctx):
-    # Instanciamos una nueva partida para este canal
+    if ctx.channel.id in partidas_activas:
+        return await ctx.send("⚠️ Ya hay una partida activa o un lobby abierto en este canal. Termínenla primero.")
+    
     nueva_partida = Partida(ctx.channel)
+    # Le inyectamos la orden de autodestruirse de la memoria al terminar
+    nueva_partida.limpiar_memoria = lambda: partidas_activas.pop(ctx.channel.id, None)
+    
     partidas_activas[ctx.channel.id] = nueva_partida
     
     embed = discord.Embed(
@@ -32,6 +37,6 @@ async def register(ctx):
     )
     vista = PanelInscripcion(nueva_partida)
     await ctx.send(embed=embed, view=vista)
-
+    
 if __name__ == '__main__':
     bot.run(TOKEN)
