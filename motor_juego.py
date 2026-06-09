@@ -17,15 +17,22 @@ class Partida:
         self.pista_generada = ""
 
     async def arrancar_ronda(self):
+        # LIMPIEZA DE MEMORIA PARA REVANCHAS
         self.impostores.clear()
         self.jugadores_iniciales.clear()
-        self.imp
-        # 1. Filtro de regiones
+        self.impostores_iniciales.clear()
+        
+        # 1. Filtro de regiones (ACTUALIZADO A LAS 9 GENERACIONES)
         rangos = {
-            "gen1": range(1, 152), 
-            "gen2": range(152, 252), 
-            "gen3": range(252, 387), 
-            "gen4": range(387, 494)
+            "gen1": range(1, 152),      # Kanto (1 - 151)
+            "gen2": range(152, 252),    # Johto (152 - 251)
+            "gen3": range(252, 387),    # Hoenn (252 - 386)
+            "gen4": range(387, 494),    # Sinnoh (387 - 493)
+            "gen5": range(494, 650),    # Teselia (494 - 649)
+            "gen6": range(650, 722),    # Kalos (650 - 721)
+            "gen7": range(722, 810),    # Alola (722 - 809)
+            "gen8": range(810, 906),    # Galar (810 - 905)
+            "gen9": range(906, 1026)    # Paldea (906 - 1025)
         }
         ids_validos = []
         

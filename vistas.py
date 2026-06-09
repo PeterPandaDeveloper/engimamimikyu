@@ -58,13 +58,18 @@ class PanelConfiguracion(discord.ui.View):
         self.partida.config['ventaja'] = sel.values[0]
         await inter.response.defer()
 
-    # NUEVO SELECTOR DE REGIONES
-    @discord.ui.select(placeholder="Regiones (Elige varias)", min_values=1, max_values=4, options=[
-        discord.SelectOption(label="Todas", value="todas"),
+    # SELECTOR DE REGIONES (Actualizado hasta la Gen 9)
+    @discord.ui.select(placeholder="Regiones (Elige varias)", min_values=1, max_values=10, options=[
+        discord.SelectOption(label="Todas (1-9)", value="todas"),
         discord.SelectOption(label="Kanto (Gen 1)", value="gen1"),
         discord.SelectOption(label="Johto (Gen 2)", value="gen2"),
         discord.SelectOption(label="Hoenn (Gen 3)", value="gen3"),
-        discord.SelectOption(label="Sinnoh (Gen 4)", value="gen4")
+        discord.SelectOption(label="Sinnoh (Gen 4)", value="gen4"),
+        discord.SelectOption(label="Teselia (Gen 5)", value="gen5"),
+        discord.SelectOption(label="Kalos (Gen 6)", value="gen6"),
+        discord.SelectOption(label="Alola (Gen 7)", value="gen7"),
+        discord.SelectOption(label="Galar (Gen 8)", value="gen8"),
+        discord.SelectOption(label="Paldea (Gen 9)", value="gen9")
     ], row=2)
     async def sel_region(self, inter, sel): 
         self.partida.config['regiones'] = sel.values
@@ -115,6 +120,10 @@ class PanelVotacion(discord.ui.View):
         self.add_item(self.sel_votos)
 
     async def registrar_voto(self, inter):
+        # Bloqueamos a los muertos para que no voten (Bug arreglado)
+        if inter.user not in self.partida.jugadores:
+            return await inter.response.send_message("👻 Los muertos y los espectadores no votan.", ephemeral=True)
+        
         if inter.user.id in self.votos_emitidos:
             return await inter.response.send_message("Ya votaste.", ephemeral=True)
             
@@ -170,6 +179,14 @@ class PanelVotacion(discord.ui.View):
             self.partida.jugadores.remove(expulsado)
             embed.description = f"**{expulsado.display_name} NO ERA IMPOSTOR.**\n\n🐘 **El Donphan sigue en la sala.**"
 
+        # LÓGICA DE VICTORIA PARA LOS IMPOSTORES (Bug arreglado)
+        tripulantes_vivos = len(self.partida.jugadores) - len(self.partida.impostores)
+        if len(self.partida.impostores) >= tripulantes_vivos:
+            embed.description += "\n\n💀 **¡LOS IMPOSTORES HAN TOMADO EL CONTROL!** Ya son mayoría. Han ganado."
+            await inter.response.edit_message(view=None)
+            await self.pantalla_final(inter.channel, embed)
+            return
+
         await inter.response.edit_message(view=None)
         await inter.channel.send(embed=embed)
         
@@ -184,7 +201,6 @@ class PanelVotacion(discord.ui.View):
         await canal.send(f"Iniciando Ronda {self.partida.ronda}...", view=PanelAbreVotacion(self.partida))
 
     async def pregunta_caos(self, canal):
-        # Referenciamos el método pantalla_final correcto
         metodo_final = self.pantalla_final 
         
         class VotoCaos(discord.ui.View):
@@ -219,11 +235,10 @@ class PanelVotacion(discord.ui.View):
         lista_trip = "\n".join([f"✅ {j.display_name}" for j in self.partida.jugadores_iniciales if j not in self.partida.impostores_iniciales])
         embed.add_field(name="Los Amigos Eran:", value=lista_trip or "Ninguno", inline=True)
         
-        # AQUI agregamos la llamada a PanelPostRonda
         await canal.send(embed=embed, view=PanelPostRonda(self.partida))
 
 
-# NUEVA CLASE INDEPENDIENTE (Fuera de cualquier función)
+# CLASE INDEPENDIENTE: El menú de después del juego
 class PanelPostRonda(discord.ui.View):
     def __init__(self, partida):
         super().__init__(timeout=None)
@@ -232,6 +247,10 @@ class PanelPostRonda(discord.ui.View):
     @discord.ui.button(label="🔄 Revancha Rápida", style=discord.ButtonStyle.success, row=0)
     async def btn_revancha(self, inter: discord.Interaction, btn: discord.ui.Button):
         await inter.response.edit_message(view=None)
+        
+        # Revivir a todos los jugadores de la partida anterior (Bug arreglado)
+        self.partida.jugadores = self.partida.jugadores_iniciales.copy()
+        
         self.partida.ronda += 1
         await self.partida.arrancar_ronda()
         
