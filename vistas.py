@@ -23,7 +23,7 @@ class PanelInscripcion(discord.ui.View):
     @discord.ui.button(label="⚙️ Configurar (Admin)", style=discord.ButtonStyle.secondary, row=1)
     async def btn_config(self, inter: discord.Interaction, btn: discord.ui.Button):
         if not inter.user.guild_permissions.administrator:
-            return await inter.response.send_message("Solo admins.", ephemeral=True)
+            return await inter.response.send_message("Solo admins pueden configurar la partida.", ephemeral=True)
         await inter.response.send_message(view=PanelConfiguracion(self.partida), ephemeral=True)
 
     async def actualizar_lobby(self, inter):
@@ -38,11 +38,13 @@ class PanelConfiguracion(discord.ui.View):
         self.partida = partida
 
     @discord.ui.select(placeholder="Modo de Juego", options=[
-        discord.SelectOption(label="Clásico", value="classico", description="Un solo impostor"),
-        discord.SelectOption(label="Extendido", value="extendido", description="Escala con jugadores, nunca 0 o todos"),
-        discord.SelectOption(label="Caos", value="caos", description="Aleatorio total (0 a Todos)")
+        discord.SelectOption(label="Clásico", value="classico"),
+        discord.SelectOption(label="Extendido", value="extendido"),
+        discord.SelectOption(label="Caos", value="caos")
     ], row=0)
-    async def sel_modo(self, inter, sel): self.partida.config['modo_juego'] = sel.values[0]; await inter.response.defer()
+    async def sel_modo(self, inter, sel): 
+        self.partida.config['modo_juego'] = sel.values[0]
+        await inter.response.defer()
 
     @discord.ui.select(placeholder="Ventaja del Impostor", options=[
         discord.SelectOption(label="Aleatorio cada ronda", value="aleatorio"),
@@ -52,11 +54,27 @@ class PanelConfiguracion(discord.ui.View):
         discord.SelectOption(label="Tipo", value="tipo"),
         discord.SelectOption(label="Rango de Región", value="rango_region")
     ], row=1)
-    async def sel_pista(self, inter, sel): self.partida.config['ventaja'] = sel.values[0]; await inter.response.defer()
+    async def sel_pista(self, inter, sel): 
+        self.partida.config['ventaja'] = sel.values[0]
+        await inter.response.defer()
 
-    @discord.ui.button(label="🚀 INICIAR RONDA", style=discord.ButtonStyle.primary, row=2)
+    # NUEVO SELECTOR DE REGIONES
+    @discord.ui.select(placeholder="Regiones (Elige varias)", min_values=1, max_values=4, options=[
+        discord.SelectOption(label="Todas", value="todas"),
+        discord.SelectOption(label="Kanto (Gen 1)", value="gen1"),
+        discord.SelectOption(label="Johto (Gen 2)", value="gen2"),
+        discord.SelectOption(label="Hoenn (Gen 3)", value="gen3"),
+        discord.SelectOption(label="Sinnoh (Gen 4)", value="gen4")
+    ], row=2)
+    async def sel_region(self, inter, sel): 
+        self.partida.config['regiones'] = sel.values
+        await inter.response.defer()
+
+    @discord.ui.button(label="🚀 INICIAR RONDA", style=discord.ButtonStyle.primary, row=3)
     async def btn_iniciar(self, inter, btn):
-        if len(self.partida.jugadores) < 3: return await inter.response.send_message("Mínimo 3 jugadores.")
+        if len(self.partida.jugadores) < 3: 
+            return await inter.response.send_message("Mínimo 3 jugadores.")
+        
         await self.partida.arrancar_ronda()
         await inter.channel.send(embed=discord.Embed(
             title=f"🏆 RONDA {self.partida.ronda}", 
@@ -128,7 +146,7 @@ class PanelVotacion(discord.ui.View):
         
         if len(candidatos) > 1:
             await inter.channel.send("⚖️ Empate. Nadie es expulsado.")
-            return await self.evaluar_continuacion(inter)
+            return await self.evaluar_continuacion(inter.channel)
 
         expulsado = discord.utils.get(self.partida.jugadores, id=int(candidatos[0]))
         es_impostor = expulsado in self.partida.impostores
@@ -167,6 +185,9 @@ class PanelVotacion(discord.ui.View):
         await canal.send(f"Iniciando Ronda {self.partida.ronda}...", view=PanelAbreVotacion(self.partida))
 
     async def pregunta_caos(self, canal):
+        # Referenciamos el método pantalla_final correcto
+        metodo_final = self.pantalla_final 
+        
         class VotoCaos(discord.ui.View):
             def __init__(self, partida): super().__init__(); self.p = partida
             @discord.ui.button(label="Sí, hay más", style=discord.ButtonStyle.danger)
@@ -177,16 +198,24 @@ class PanelVotacion(discord.ui.View):
             @discord.ui.button(label="No, era el último", style=discord.ButtonStyle.success)
             async def b_no(self, i, b):
                 await i.response.edit_message(content="Terminando juego...", view=None)
-                await PantallaFinal(self.p, i.channel)
+                # AQUI ESTA LA CORRECCION DEL CRASH
+                await metodo_final(i.channel) 
+                
         await canal.send("🔥 **Modo Caos:** ¿Creen que hay MÁS impostores ocultos?", view=VotoCaos(self.partida))
 
     async def pantalla_final(self, canal):
         dp = self.partida.datos_pokemon
         embed = discord.Embed(title="🚨 JUEGO TERMINADO 🚨", color=discord.Color.dark_theme())
-        embed.set_image(url=dp['sprite'])
+        embed.set_thumbnail(url=dp['sprite'])
         
-        if getattr(self.partida, '_impostores_originales', None) is None:
-            # Fallback simple
-            embed.add_field(name="El Pokémon Secreto era:", value=f"**{dp['nombre']}**", inline=False)
+        embed.add_field(name="El Pokémon Secreto era:", value=f"**{dp['nombre']}**", inline=False)
+        
+        # Listar Impostores originales usando nuestra memoria
+        lista_imp = "\n".join([f"🔪 {imp.display_name}" for imp in self.partida.impostores_iniciales])
+        embed.add_field(name="Los Impostores Eran:", value=lista_imp or "Ninguno", inline=True)
+        
+        # Listar Tripulantes originales
+        lista_trip = "\n".join([f"✅ {j.display_name}" for j in self.partida.jugadores_iniciales if j not in self.partida.impostores_iniciales])
+        embed.add_field(name="Los Amigos Eran:", value=lista_trip or "Ninguno", inline=True)
         
         await canal.send(embed=embed)
