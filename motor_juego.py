@@ -17,6 +17,9 @@ class Partida:
         self.pista_generada = ""
 
     async def arrancar_ronda(self):
+        self.impostores.clear()
+        self.jugadores_iniciales.clear()
+        self.imp
         # 1. Filtro de regiones
         rangos = {
             "gen1": range(1, 152), 

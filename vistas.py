@@ -162,8 +162,7 @@ class PanelVotacion(discord.ui.View):
             if len(self.partida.impostores) == 0:
                 embed.description = f"**{expulsado.display_name} SÍ ERA IMPOSTOR.**\n\n🎉 ¡Felicidades! **El Zoroark salió de su madriguera y fue revelado.**"
                 await inter.response.edit_message(view=None)
-                await inter.channel.send(embed=embed)
-                await self.pantalla_final(inter.channel)
+                await self.pantalla_final(inter.channel, embed)
                 return
             else:
                 embed.description = f"**{expulsado.display_name} SÍ ERA IMPOSTOR.**\n\nQuedan más traidores..."
@@ -198,12 +197,14 @@ class PanelVotacion(discord.ui.View):
             @discord.ui.button(label="No, era el último", style=discord.ButtonStyle.success)
             async def b_no(self, i, b):
                 await i.response.edit_message(content="Terminando juego...", view=None)
-                # AQUI ESTA LA CORRECCION DEL CRASH
                 await metodo_final(i.channel) 
                 
         await canal.send("🔥 **Modo Caos:** ¿Creen que hay MÁS impostores ocultos?", view=VotoCaos(self.partida))
 
-    async def pantalla_final(self, canal):
+    async def pantalla_final(self, canal, embed_pre=None):
+        if embed_pre:
+            await canal.send(embed=embed_pre)
+            
         dp = self.partida.datos_pokemon
         embed = discord.Embed(title="🚨 JUEGO TERMINADO 🚨", color=discord.Color.dark_theme())
         embed.set_thumbnail(url=dp['sprite'])
@@ -218,4 +219,40 @@ class PanelVotacion(discord.ui.View):
         lista_trip = "\n".join([f"✅ {j.display_name}" for j in self.partida.jugadores_iniciales if j not in self.partida.impostores_iniciales])
         embed.add_field(name="Los Amigos Eran:", value=lista_trip or "Ninguno", inline=True)
         
-        await canal.send(embed=embed)
+        # AQUI agregamos la llamada a PanelPostRonda
+        await canal.send(embed=embed, view=PanelPostRonda(self.partida))
+
+
+# NUEVA CLASE INDEPENDIENTE (Fuera de cualquier función)
+class PanelPostRonda(discord.ui.View):
+    def __init__(self, partida):
+        super().__init__(timeout=None)
+        self.partida = partida
+
+    @discord.ui.button(label="🔄 Revancha Rápida", style=discord.ButtonStyle.success, row=0)
+    async def btn_revancha(self, inter: discord.Interaction, btn: discord.ui.Button):
+        await inter.response.edit_message(view=None)
+        self.partida.ronda += 1
+        await self.partida.arrancar_ronda()
+        
+        embed = discord.Embed(
+            title=f"🏆 RONDA {self.partida.ronda} (REVANCHA)", 
+            description="¡Nueva partida iniciada con los mismos jugadores!\nRevisen sus DMs. Tómense su tiempo para hablar.",
+            color=discord.Color.gold()
+        )
+        await inter.channel.send(embed=embed, view=PanelAbreVotacion(self.partida))
+
+    @discord.ui.button(label="⚙️ Cambiar Configuración", style=discord.ButtonStyle.primary, row=0)
+    async def btn_config(self, inter: discord.Interaction, btn: discord.ui.Button):
+        await inter.response.edit_message(view=None)
+        await inter.channel.send(
+            embed=discord.Embed(title="⚙️ Mesa del Game Master", description="Ajusten las reglas para la siguiente partida.", color=discord.Color.blue()), 
+            view=PanelConfiguracion(self.partida)
+        )
+
+    @discord.ui.button(label="❌ Terminar de Jugar", style=discord.ButtonStyle.danger, row=0)
+    async def btn_cerrar(self, inter: discord.Interaction, btn: discord.ui.Button):
+        # Limpiamos la lista de jugadores para vaciar el lobby
+        self.partida.jugadores = []
+        await inter.response.edit_message(view=None)
+        await inter.channel.send("🧹 **El lobby ha sido cerrado.** ¡Gracias por jugar! Usen `pkmi!register` para abrir uno nuevo más tarde.")
