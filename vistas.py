@@ -26,12 +26,24 @@ class PanelInscripcion(discord.ui.View):
             return await inter.response.send_message("Solo admins pueden configurar la partida.", ephemeral=True)
         await inter.response.send_message(view=PanelConfiguracion(self.partida), ephemeral=True)
 
+    # NUEVO BOTÓN PARA CANCELAR EL LOBBY
+    @discord.ui.button(label="❌ Cancelar Lobby", style=discord.ButtonStyle.danger, row=1)
+    async def btn_cancelar(self, inter: discord.Interaction, btn: discord.ui.Button):
+        if not inter.user.guild_permissions.administrator:
+            return await inter.response.send_message("Solo admins pueden cancelar el lobby.", ephemeral=True)
+        
+        # Ejecutamos la limpieza de memoria para liberar el canal
+        if hasattr(self.partida, 'limpiar_memoria'):
+            self.partida.limpiar_memoria()
+            
+        # Borramos el panel verde y avisamos que se canceló
+        await inter.response.edit_message(content="🛑 **El lobby ha sido cancelado por un administrador.**", embed=None, view=None)
+
     async def actualizar_lobby(self, inter):
         embed = inter.message.embeds[0]
         embed.description = f"Un juego está a punto de empezar.\n**Jugadores en el lobby: {len(self.partida.jugadores)}**"
         await inter.response.edit_message(embed=embed)
-
-
+        
 class PanelConfiguracion(discord.ui.View):
     def __init__(self, partida: Partida):
         super().__init__()
