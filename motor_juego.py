@@ -104,7 +104,10 @@ class Partida:
                 if j in self.impostores:
                     await j.send(f"🤫 **ERES EL IMPOSTOR**.\n🔍 **Tu ventaja:** {self.pista_generada}")
                 else:
-                    await j.send(f"✅ Eres tripulante. El Pokémon es: **{dp['nombre']}**.")
+                    # Creamos un embed para que el Pokémon se vea profesional
+                    embed = discord.Embed(title="✅ Eres tripulante", description=f"El Pokémon secreto es: **{dp['nombre']}**", color=discord.Color.green())
+                    embed.set_image(url=dp['sprite']) # AQUÍ INCLUIMOS LA IMAGEN
+                    await j.send(embed=embed)
             except Exception as e:
                 # Avisa en la consola de Linux
                 print(f"No se pudo enviar un DM a {j.display_name}. Error: {e}")
