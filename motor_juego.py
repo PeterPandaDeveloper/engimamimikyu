@@ -1,4 +1,5 @@
 import random
+import discord  # <--- ESTO ES LO QUE FALTABA
 from api import obtener_datos_completos_pokemon
 
 class Partida:
@@ -98,15 +99,15 @@ class Partida:
             # Si el tipo específico falla, damos el tipo como pista de seguridad
             self.pista_generada = opciones_pista.get(tipo_pista, opciones_pista['tipo'])
 
-# 4. Enviar DMs
+        # 4. Enviar DMs
         for j in self.jugadores:
             try:
                 if j in self.impostores:
                     await j.send(f"🤫 **ERES EL IMPOSTOR**.\n🔍 **Tu ventaja:** {self.pista_generada}")
                 else:
-                    # Creamos un embed para que el Pokémon se vea profesional
+                    # Usamos discord.Embed gracias al import que añadimos arriba
                     embed = discord.Embed(title="✅ Eres tripulante", description=f"El Pokémon secreto es: **{dp['nombre']}**", color=discord.Color.green())
-                    embed.set_image(url=dp['sprite']) # AQUÍ INCLUIMOS LA IMAGEN
+                    embed.set_image(url=dp['sprite'])
                     await j.send(embed=embed)
             except Exception as e:
                 # Avisa en la consola de Linux
