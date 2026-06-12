@@ -1,15 +1,16 @@
 """
 main.py — Entry point de PokeImpostor
-Registra los slash commands y gestiona el ciclo de vida del bot.
 """
 import discord
 from discord.ext import commands
+from discord import app_commands
 import os
 from dotenv import load_dotenv
 
 from motor_juego import Partida
 from vistas import PanelInscripcion, _build_embed_lobby
 from api import cerrar_session
+from i18n import t, set_lang, get_lang
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -20,141 +21,158 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="pkmi!", intents=intents)
 
-# Registro central de partidas activas: { channel_id: Partida }
+# Registro central: { channel_id: Partida }
 partidas_activas: dict[int, Partida] = {}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  EVENTOS DEL BOT
+#  EVENTOS
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @bot.event
 async def on_ready():
-    print(f"⚡ {bot.user} conectado. Esperando entrenadores...")
+    print(f"⚡ {bot.user} online. Waiting for trainers...")
     try:
         sync = await bot.tree.sync()
-        print(f"🌐 {len(sync)} slash commands sincronizados.")
+        print(f"🌐 {len(sync)} slash commands synced.")
     except Exception as e:
-        print(f"Error sincronizando comandos: {e}")
+        print(f"Sync error: {e}")
 
 @bot.event
 async def on_close():
     await cerrar_session()
-    print("🔌 Sesión HTTP cerrada correctamente.")
+    print("🔌 HTTP session closed.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  SLASH COMMANDS
+#  /impregister
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@bot.tree.command(name="impregister", description="Abre un nuevo lobby de PokeImpostor")
+@bot.tree.command(name="impregister", description="Open a new PokeImpostor lobby")
 async def impregister(interaction: discord.Interaction):
+    gid = interaction.guild_id
     if interaction.channel.id in partidas_activas:
         return await interaction.response.send_message(
-            "⚠️ Ya hay una partida activa en este canal. Termínenla antes de abrir otra.",
-            ephemeral=True,
+            t("register_already_active", gid), ephemeral=True
         )
-
-    # fix-11: Partida recibe la referencia al dict — no más monkey-patch
     nueva = Partida(canal=interaction.channel, partidas_activas=partidas_activas)
     partidas_activas[interaction.channel.id] = nueva
-
     await interaction.response.send_message(
         embed=_build_embed_lobby(nueva),
         view=PanelInscripcion(nueva),
     )
 
 
-@bot.tree.command(name="impver", description="Vuelve a enviarte tu rol por DM (solo durante la partida)")
+# ═══════════════════════════════════════════════════════════════════════════════
+#  /impver — reenviar rol por DM
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@bot.tree.command(name="impver", description="Re-send your role by DM (only during an active game)")
 async def impver(interaction: discord.Interaction):
-    """fix-9: los tripulantes pueden volver a ver el Pokémon si cerraron el DM."""
+    gid     = interaction.guild_id
     partida = partidas_activas.get(interaction.channel.id)
 
-    if partida is None or partida.datos_pokemon is None:
-        return await interaction.response.send_message(
-            "No hay una partida activa en este canal.", ephemeral=True
-        )
+    if partida is None or (partida.datos_pokemon is None and not partida.pokemons_ebrios and partida.objetivo_humano is None):
+        return await interaction.response.send_message(t("impver_no_game", gid), ephemeral=True)
+
     if interaction.user not in partida.jugadores_iniciales:
-        return await interaction.response.send_message(
-            "No participaste en esta ronda.", ephemeral=True
-        )
+        return await interaction.response.send_message(t("impver_not_player", gid), ephemeral=True)
 
-    dp = partida.datos_pokemon
     try:
-        if interaction.user in partida.impostores_iniciales:
-            await interaction.user.send(
-                embed=discord.Embed(
-                    title="🕵️ Tu rol — IMPOSTOR",
-                    description=f"🔍 **Tu pista:** {partida.pista_generada}",
+        es_impostor  = interaction.user in partida.impostores_iniciales
+        es_ebrios    = partida.config.caos_ebrios and bool(partida.pokemons_ebrios)
+        es_cj        = partida.objetivo_humano is not None
+
+        if es_cj:
+            # Modo Caos Jugador
+            if es_impostor:
+                pista = partida.pistas_impostores.get(interaction.user.id, "—")
+                await interaction.user.send(embed=discord.Embed(
+                    title=t("impver_impostor_title", gid),
+                    description=t("dm_caos_jugador_detective_desc", gid, hint=pista),
                     color=discord.Color.from_rgb(180, 30, 30),
-                )
-            )
+                ))
+            else:
+                await interaction.user.send(embed=discord.Embed(
+                    title=t("impver_crew_title", gid),
+                    description=t("dm_caos_jugador_crew_desc", gid, target=f"**{partida.objetivo_humano.display_name}**"),
+                    color=discord.Color.from_rgb(30, 160, 80),
+                ).set_image(url=partida.objetivo_humano.display_avatar.url))
+
+        elif es_ebrios:
+            # Modo Ebrios
+            dp = partida.pokemons_ebrios.get(interaction.user.id)
+            if dp:
+                await interaction.user.send(embed=discord.Embed(
+                    title=t("dm_ebrios_title", gid),
+                    description=t("dm_ebrios_desc", gid, name=dp["nombre"], types=" / ".join(dp["tipos"])),
+                    color=discord.Color.from_rgb(120, 80, 200),
+                ).set_image(url=dp["sprite"]).set_footer(text=t("dm_ebrios_footer", gid)))
+
+        elif es_impostor:
+            # Impostor normal
+            pista = partida.pistas_impostores.get(interaction.user.id, partida.pista_generada)
+            await interaction.user.send(embed=discord.Embed(
+                title=t("impver_impostor_title", gid),
+                description=t("dm_impostor_desc", gid, hint=pista),
+                color=discord.Color.from_rgb(180, 30, 30),
+            ))
         else:
-            embed = discord.Embed(
-                title="✅ Tu rol — TRIPULANTE",
-                description=f"El Pokémon secreto es: **{dp['nombre']}**",
+            # Tripulante normal
+            dp = partida.datos_pokemon
+            await interaction.user.send(embed=discord.Embed(
+                title=t("impver_crew_title", gid),
+                description=t("dm_crew_desc", gid, name=dp["nombre"], types=" / ".join(dp["tipos"])),
                 color=discord.Color.from_rgb(30, 160, 80),
-            )
-            embed.set_image(url=dp["sprite"])
-            await interaction.user.send(embed=embed)
+            ).set_image(url=dp["sprite"]))
 
-        await interaction.response.send_message(
-            "✅ Te reenvié tu rol por DM.", ephemeral=True
-        )
+        await interaction.response.send_message(t("impver_sent", gid), ephemeral=True)
+
     except discord.Forbidden:
-        await interaction.response.send_message(
-            "❌ No pude enviarte un DM. Revisa que tengas los DMs del servidor habilitados.",
-            ephemeral=True,
+        await interaction.response.send_message(t("impver_dm_blocked", gid), ephemeral=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  /implanguage — cambiar idioma del servidor
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@bot.tree.command(name="implanguage", description="Change the bot language for this server / Cambiar idioma del bot")
+@app_commands.describe(language="Choose language / Elige idioma")
+@app_commands.choices(language=[
+    app_commands.Choice(name="🇬🇧 English", value="en"),
+    app_commands.Choice(name="🇪🇸 Español", value="es"),
+])
+async def implanguage(interaction: discord.Interaction, language: str):
+    gid = interaction.guild_id
+    if not interaction.user.guild_permissions.administrator:
+        # Mensaje de error bilingüe (no sabemos el idioma actual del usuario)
+        return await interaction.response.send_message(
+            t("lang_only_admin", gid), ephemeral=True
         )
+    set_lang(gid, language)
+    # Confirmación en el idioma recién elegido (ya está guardado)
+    key = "lang_changed_en" if language == "en" else "lang_changed_es"
+    await interaction.response.send_message(t(key, gid))
 
 
-@bot.tree.command(name="imphelp", description="Cómo jugar a PokeImpostor")
+# ═══════════════════════════════════════════════════════════════════════════════
+#  /imphelp
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@bot.tree.command(name="imphelp", description="How to play PokeImpostor / Cómo jugar")
 async def imphelp(interaction: discord.Interaction):
+    gid = interaction.guild_id
     embed = discord.Embed(
-        title="📖 PokeImpostor — Guía Rápida",
-        description="El juego de deducción donde el conocimiento Pokémon es tu arma.",
+        title=t("help_title",  gid),
+        description=t("help_desc", gid),
         color=discord.Color.from_rgb(255, 203, 5),
     )
-    embed.add_field(
-        name="1️⃣  Unirse al Lobby",
-        value="Usa `/impregister` para abrir la sala. Todos presionan **⚡ Unirse**.",
-        inline=False,
-    )
-    embed.add_field(
-        name="2️⃣  Revisar el DM",
-        value=(
-            "**Tripulantes** reciben la imagen y nombre del Pokémon secreto.\n"
-            "**El Impostor** recibe solo una pista y debe fingir que lo conoce.\n"
-            "Si cerraste el DM, usa `/impver` para volver a verlo."
-        ),
-        inline=False,
-    )
-    embed.add_field(
-        name="3️⃣  El Debate",
-        value=(
-            "Hablen del Pokémon sin decir su nombre directamente.\n"
-            "Observen quién titubea, da pistas demasiado vagas o demasiado generales."
-        ),
-        inline=False,
-    )
-    embed.add_field(
-        name="4️⃣  Votación",
-        value=(
-            "El admin abre la votación. Elijan a sus sospechosos (anónimo).\n"
-            "El más votado es expulsado. ¡Descubran a todos los impostores para ganar!"
-        ),
-        inline=False,
-    )
-    embed.add_field(
-        name="⚙️  Modos de Juego",
-        value=(
-            "**Clásico** — Siempre 1 impostor.\n"
-            "**Extendido** — 1 impostor por cada 3 jugadores.\n"
-            "**Caos** — Cantidad aleatoria. ¡Puede haber 0!"
-        ),
-        inline=False,
-    )
-    embed.set_footer(text="¡Buena suerte, entrenador!")
+    embed.add_field(name=t("help_step1_name", gid), value=t("help_step1_value", gid), inline=False)
+    embed.add_field(name=t("help_step2_name", gid), value=t("help_step2_value", gid), inline=False)
+    embed.add_field(name=t("help_step3_name", gid), value=t("help_step3_value", gid), inline=False)
+    embed.add_field(name=t("help_step4_name", gid), value=t("help_step4_value", gid), inline=False)
+    embed.add_field(name=t("help_modes_name", gid), value=t("help_modes_value", gid), inline=False)
+    embed.set_footer(text=t("help_footer", gid))
     await interaction.response.send_message(embed=embed)
 
 
@@ -164,6 +182,6 @@ async def imphelp(interaction: discord.Interaction):
 
 if __name__ == "__main__":
     if not TOKEN:
-        print("❌ DISCORD_TOKEN no encontrado. Crea un archivo .env con DISCORD_TOKEN=tu_token")
+        print("❌ DISCORD_TOKEN not found. Create a .env file with DISCORD_TOKEN=your_token")
     else:
         bot.run(TOKEN)
