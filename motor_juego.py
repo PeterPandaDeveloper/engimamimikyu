@@ -17,10 +17,19 @@ from i18n import t
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class ModoJuego(str, Enum):
-    CLASICO      = "clasico"
-    EXTENDIDO    = "extendido"
-    CAOS         = "caos"
-    CAOS_JUGADOR = "caos_jugador"  # un jugador ES el objetivo en lugar de un Pokémon
+    CLASICO   = "clasico"
+    EXTENDIDO = "extendido"
+    CAOS      = "caos"
+
+
+class CaosVariante(str, Enum):
+    """
+    Sub-modificadores EXCLUSIVOS del modo CAOS (radio buttons: solo uno activo).
+    Nunca se revelan en el embed público — solo el admin los ve al configurar.
+    """
+    NORMAL          = "normal"            # Caos estándar (impostores 0..N sobre un Pokémon)
+    OBJETIVO_HUMANO = "objetivo_humano"   # un jugador real es el "secreto" en vez de un Pokémon
+    DANZA_CAOS      = "danza_caos"        # cada jugador recibe un Pokémon distinto (sin impostores)
 
 
 class Ventaja(str, Enum):
@@ -35,25 +44,17 @@ class Ventaja(str, Enum):
     HABILIDAD    = "habilidad"
 
 
-class DuracionDebate(int, Enum):
-    SIN_LIMITE = 0
-    DOS_MIN    = 120
-    CINCO_MIN  = 300
-    DIEZ_MIN   = 600
-
-
 # ═══════════════════════════════════════════════════════════════════════════════
 #  CONFIG DATACLASS
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @dataclass
 class ConfigPartida:
-    regiones:        list[str]      = field(default_factory=lambda: ["todas"])
-    modo_juego:      ModoJuego      = ModoJuego.CLASICO
-    ventaja:         Ventaja        = Ventaja.ALEATORIO
-    duracion_debate: DuracionDebate = DuracionDebate.SIN_LIMITE
-    # Modificador exclusivo del modo CAOS: cada jugador recibe su propio Pokémon
-    caos_ebrios:     bool           = False
+    regiones:      list[str]    = field(default_factory=lambda: ["todas"])
+    modo_juego:    ModoJuego    = ModoJuego.CLASICO
+    ventaja:       Ventaja      = Ventaja.ALEATORIO
+    # Sub-modificador exclusivo de CAOS (radio button). Se ignora en otros modos.
+    caos_variante: CaosVariante = CaosVariante.NORMAL
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -92,16 +93,22 @@ class Partida:
         self.datos_pokemon:       dict | None = None
         self.caos_sin_impostores: bool        = False
 
+        # Anti-estancamiento: si pasan demasiadas rondas sin ninguna
+        # expulsión (ej. todos votando nulo), se revela una pista pública
+        # para presionar al grupo a decidirse.
+        self.rondas_sin_expulsion: int  = 0
+        self.pista_publica_revelada: bool = False
+
         # fix: cada impostor tiene su propia pista
         # { jugador.id: texto_de_pista }
         self.pistas_impostores: dict[int, str] = {}
         # para /impver y compatibilidad — pista del primer impostor o única
         self.pista_generada: str = ""
 
-        # modo CAOS_JUGADOR: quién es el "objetivo" (jugador que los demás describen)
+        # variante Objetivo Humano: quién es el "objetivo" (jugador que los demás describen)
         self.objetivo_humano: discord.Member | None = None
 
-        # modo Ebrios (CAOS + caos_ebrios=True): cada tripulante tiene su propio Pokémon
+        # variante Danza Caos: cada tripulante tiene su propio Pokémon
         # { jugador.id: dict_pokemon }
         self.pokemons_ebrios: dict[int, dict] = {}
 
@@ -114,6 +121,23 @@ class Partida:
 
     def limpiar_memoria(self) -> None:
         self._partidas_activas.pop(self.canal.id, None)
+
+    # ── pista pública anti-estancamiento (visible para TODOS) ────────────────
+    def generar_pista_publica(self) -> str | None:
+        """
+        Genera un dato público sobre el Pokémon secreto, distinto de las
+        pistas ya entregadas a los impostores, para presionar al grupo
+        cuando llevan demasiadas rondas sin expulsar a nadie.
+        Devuelve None si no aplica (variantes sin Pokémon secreto tradicional).
+        """
+        if self.datos_pokemon is None:
+            return None
+        gid = self.canal.guild.id
+        dp  = self.datos_pokemon
+        # Reutilizamos el generador de pistas, excluyendo las ya repartidas
+        # a los impostores para no dar información redundante.
+        excluir = set(self.pistas_impostores.values())
+        return self._generar_pista_para(dp, excluir=excluir)
 
     # ── selección de ID sin repetición ───────────────────────────────────────
     def _elegir_id_pokemon(self) -> int:
@@ -167,11 +191,41 @@ class Partida:
     # ── cantidad de impostores ─────────────────────────────────────────────
     def _calcular_impostores(self, total: int) -> int:
         modo = self.config.modo_juego
-        if modo == ModoJuego.CLASICO:        return 1
-        if modo == ModoJuego.EXTENDIDO:      return min(max(1, total // 3), total - 1)
-        if modo == ModoJuego.CAOS:           return random.randint(0, total)
-        if modo == ModoJuego.CAOS_JUGADOR:   return 1
+        if modo == ModoJuego.CLASICO:   return 1
+        if modo == ModoJuego.EXTENDIDO: return min(max(1, total // 3), total - 1)
+        if modo == ModoJuego.CAOS:
+            if self.config.caos_variante == CaosVariante.OBJETIVO_HUMANO:
+                return 1
+            return self._roll_caos_impostores(total)
         return 1
+
+    @staticmethod
+    def _roll_caos_impostores(total: int) -> int:
+        """
+        Tira el dado del Caos: cuántos impostores habrá.
+
+        Reglas de diseño para que el Caos se sienta "dominado" y no un
+        sorteo sin sentido:
+        - Nunca TODOS son impostores (eso mata la partida en la ronda 1
+          sin debate posible).
+        - 0 impostores sigue siendo posible (es la sorpresa icónica del
+          Caos: "esta ronda no hay traidores"), pero es poco frecuente.
+        - El resto de la probabilidad se concentra en valores "jugables":
+          de 1 hasta la mitad de los jugadores (redondeando hacia abajo,
+          mínimo 1), que es donde el debate y la votación tienen sentido.
+        """
+        maximo_jugable = max(1, total // 2)  # ej. 6 jugadores → hasta 3 impostores
+        # Pesos: 0 impostores tiene peso fijo bajo; el resto se reparte
+        # uniformemente entre 1..maximo_jugable. Para grupos pequeños
+        # (pocas opciones jugables), el peso de 0 se reduce más para que
+        # no domine la distribución.
+        opciones = [0] + list(range(1, maximo_jugable + 1))
+        peso_cero = 1 if maximo_jugable >= 2 else 0.5
+        pesos     = [peso_cero] + [3] * maximo_jugable
+        elegido   = random.choices(opciones, weights=pesos, k=1)[0]
+        # Salvaguarda final: jamás todos los jugadores (se necesita al
+        # menos 1 tripulante para que haya partida).
+        return min(elegido, total - 1)
 
     # ── DM impostor clásico/extendido/caos ───────────────────────────────────
     def _build_dm_impostor(self, jugador: discord.Member) -> discord.Embed:
@@ -189,14 +243,15 @@ class Partida:
         if modo == ModoJuego.EXTENDIDO and total_imp > 1:
             nombres = ", ".join(f"**{c.display_name}**" for c in complices)
             embed.add_field(
-                name=t("dm_impostor_accomplices_title", gid, count=total_imp),
+                name=t("dm_impostor_accomplices_title_hidden", gid),
                 value=t("dm_impostor_accomplices_value", gid, names=nombres),
                 inline=False,
             )
-        elif modo == ModoJuego.CAOS:
+        elif modo == ModoJuego.CAOS and total_imp > 1:
+            nombres = ", ".join(f"**{c.display_name}**" for c in complices)
             embed.add_field(
-                name=t("dm_impostor_caos_title", gid),
-                value=t("dm_impostor_caos_value", gid, count=total_imp),
+                name=t("dm_impostor_accomplices_title_hidden", gid),
+                value=t("dm_impostor_accomplices_value", gid, names=nombres),
                 inline=False,
             )
         embed.set_footer(text=t("dm_impostor_footer", gid))
@@ -214,12 +269,9 @@ class Partida:
         embed.set_footer(text=t("dm_crew_footer", gid))
         return embed
 
-    # ── DM modo CAOS_JUGADOR ──────────────────────────────────────────────────
-    def _build_dm_caos_jugador_detective(self, objetivo: discord.Member) -> discord.Embed:
+    # ── DM variante Objetivo Humano ──────────────────────────────────────────
+    def _build_dm_caos_jugador_detective(self, objetivo: discord.Member, pista: str) -> discord.Embed:
         gid = self.canal.guild.id
-        pista = self.pistas_impostores.get(
-            list(self.pistas_impostores.keys())[0] if self.pistas_impostores else 0, ""
-        )
         return discord.Embed(
             title=t("dm_caos_jugador_detective_title", gid),
             description=t("dm_caos_jugador_detective_desc", gid, hint=pista),
@@ -234,16 +286,31 @@ class Partida:
             color=discord.Color.from_rgb(30, 160, 80),
         ).set_image(url=objetivo.display_avatar.url)
 
-    # ── DM modo Ebrios (CAOS + caos_ebrios) ──────────────────────────────────
+    def _build_dm_caos_jugador_objetivo(self) -> discord.Embed:
+        """
+        DM para el propio objetivo. NUNCA debe decir "describe a [tu nombre]"
+        — eso lo delataría al instante. En su lugar recibe un mensaje neutro
+        que no revela su rol especial.
+        """
+        gid = self.canal.guild.id
+        return discord.Embed(
+            title=t("dm_caos_jugador_crew_title", gid),
+            description=t("dm_caos_jugador_target_desc", gid),
+            color=discord.Color.from_rgb(30, 160, 80),
+        )
+
+    # ── DM variante Danza Caos — NO debe revelar el sub-modo ─────────────────
     def _build_dm_amigos_ebrios(self, jugador: discord.Member) -> discord.Embed:
         gid = self.canal.guild.id
         dp  = self.pokemons_ebrios.get(jugador.id)
         if not dp:
             return discord.Embed(title="Error", description="No se asignó Pokémon.")
+        # Usamos el mismo título/footer que un tripulante normal de Caos,
+        # para no delatar que este sub-modo está activo.
         return discord.Embed(
-            title=t("dm_ebrios_title", gid),
+            title=t("dm_crew_title", gid),
             description=t("dm_ebrios_desc", gid, name=dp["nombre"], types=" / ".join(dp["tipos"])),
-            color=discord.Color.from_rgb(120, 80, 200),
+            color=discord.Color.from_rgb(30, 160, 80),
         ).set_image(url=dp["sprite"]).set_footer(text=t("dm_ebrios_footer", gid))
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -258,15 +325,16 @@ class Partida:
         self.caos_sin_impostores = False
         self.objetivo_humano  = None
         self.pokemons_ebrios.clear()
+        self.rondas_sin_expulsion   = 0
+        self.pista_publica_revelada = False
 
         modo = self.config.modo_juego
 
-        # ── Modo CAOS con modificador Ebrios — todos reciben pokémon distintos ─
-        if modo == ModoJuego.CAOS and self.config.caos_ebrios:
+        # ── Sub-modificadores exclusivos de CAOS ──────────────────────────────
+        if modo == ModoJuego.CAOS and self.config.caos_variante == CaosVariante.DANZA_CAOS:
             return await self._arrancar_amigos_ebrios()
 
-        # ── Modo CAOS_JUGADOR — un jugador es el objetivo ─────────────────────
-        if modo == ModoJuego.CAOS_JUGADOR:
+        if modo == ModoJuego.CAOS and self.config.caos_variante == CaosVariante.OBJETIVO_HUMANO:
             return await self._arrancar_caos_jugador()
 
         # ── Modos normales (Clásico / Extendido / Caos) ───────────────────────
@@ -358,15 +426,22 @@ class Partida:
         self.jugadores_iniciales  = self.jugadores.copy()
         self.impostores_iniciales = self.impostores.copy()
 
-        # la "pista" del detective: un dato del perfil del objetivo
-        # usamos una pista generada aleatoriamente sobre el jugador objetivo
+        # La pista del detective: 1 o 2 datos sobre el objetivo, según
+        # cuántos tripulantes normales habrá describiéndolo. Con pocos
+        # jugadores (3-4), solo 1-2 personas describen al objetivo, así
+        # que el detective recibe 2 pistas para que siga siendo jugable.
         gid = self.canal.guild.id
-        pistas_sobre_objetivo = [
+        pistas_posibles = [
             t("caos_jugador_hint_avatar",  gid, target=self.objetivo_humano.display_name),
             t("caos_jugador_hint_name",    gid, target=self.objetivo_humano.display_name[0]),
             t("caos_jugador_hint_join",    gid, target=self.objetivo_humano.display_name),
         ]
-        pista_detective = random.choice(pistas_sobre_objetivo)
+        random.shuffle(pistas_posibles)
+
+        tripulantes_normales = len(resto) - 1  # resto sin contar al detective
+        n_pistas = 2 if tripulantes_normales <= 2 else 1
+        pista_detective = "\n".join(f"• {p}" for p in pistas_posibles[:n_pistas])
+
         self.pistas_impostores[detective.id] = pista_detective
         self.pista_generada = pista_detective
 
@@ -374,7 +449,10 @@ class Partida:
         for jugador in self.jugadores:
             try:
                 if jugador == detective:
-                    await jugador.send(embed=self._build_dm_caos_jugador_detective(self.objetivo_humano))
+                    await jugador.send(embed=self._build_dm_caos_jugador_detective(self.objetivo_humano, pista_detective))
+                elif jugador == self.objetivo_humano:
+                    # El objetivo NUNCA debe recibir "describe a [tu propio nombre]"
+                    await jugador.send(embed=self._build_dm_caos_jugador_objetivo())
                 else:
                     await jugador.send(embed=self._build_dm_caos_jugador_tripulante(self.objetivo_humano))
             except Exception as e:

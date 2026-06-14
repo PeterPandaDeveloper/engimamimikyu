@@ -80,7 +80,7 @@ async def impver(interaction: discord.Interaction):
 
     try:
         es_impostor  = interaction.user in partida.impostores_iniciales
-        es_ebrios    = partida.config.caos_ebrios and bool(partida.pokemons_ebrios)
+        es_ebrios    = bool(partida.pokemons_ebrios)
         es_cj        = partida.objetivo_humano is not None
 
         if es_cj:
@@ -100,13 +100,14 @@ async def impver(interaction: discord.Interaction):
                 ).set_image(url=partida.objetivo_humano.display_avatar.url))
 
         elif es_ebrios:
-            # Modo Ebrios
+            # Variante Danza Caos — usar el mismo título/color que tripulante normal
+            # para no revelar el sub-modo activo.
             dp = partida.pokemons_ebrios.get(interaction.user.id)
             if dp:
                 await interaction.user.send(embed=discord.Embed(
-                    title=t("dm_ebrios_title", gid),
+                    title=t("dm_crew_title", gid),
                     description=t("dm_ebrios_desc", gid, name=dp["nombre"], types=" / ".join(dp["tipos"])),
-                    color=discord.Color.from_rgb(120, 80, 200),
+                    color=discord.Color.from_rgb(30, 160, 80),
                 ).set_image(url=dp["sprite"]).set_footer(text=t("dm_ebrios_footer", gid)))
 
         elif es_impostor:

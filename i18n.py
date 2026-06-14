@@ -148,10 +148,6 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "Regions",
         "es": "Regiones",
     },
-    "config_timer_label": {
-        "en": "⏱️ Timer",
-        "es": "⏱️ Timer",
-    },
     "config_saved": {
         "en": "✅ Settings saved. Starting round!",
         "es": "✅ Configuración guardada. ¡Arrancando ronda!",
@@ -171,10 +167,6 @@ STRINGS: dict[str, dict[str, str]] = {
     "sel_regions": {
         "en": "🗺️ Regions",
         "es": "🗺️ Regiones",
-    },
-    "sel_timer": {
-        "en": "⏱️ Debate Duration",
-        "es": "⏱️ Duración del debate",
     },
 
     # Opciones de modo
@@ -239,11 +231,7 @@ STRINGS: dict[str, dict[str, str]] = {
     "region_gen8":  {"en": "Galar  (Gen 8)","es": "Galar  (Gen 8)"},
     "region_gen9":  {"en": "Paldea (Gen 9)","es": "Paldea (Gen 9)"},
 
-    # Opciones de timer
-    "timer_none":  {"en": "No time limit", "es": "Sin límite de tiempo"},
-    "timer_2min":  {"en": "2 minutes",     "es": "2 minutos"},
-    "timer_5min":  {"en": "5 minutes",     "es": "5 minutos"},
-    "timer_10min": {"en": "10 minutes",    "es": "10 minutos"},
+    # Opciones de timer — eliminadas (el debate ya no tiene límite de tiempo)
 
     # ── API / errores ─────────────────────────────────────────────────────────
     "api_error": {
@@ -282,17 +270,13 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "🔪 {count} impostors total",
         "es": "🔪 Hay {count} impostores en total",
     },
+    "dm_impostor_accomplices_title_hidden": {
+        "en": "🔪 You're not alone",
+        "es": "🔪 No estás solo",
+    },
     "dm_impostor_accomplices_value": {
         "en": "Your accomplices: {names}",
         "es": "Tus cómplices: {names}",
-    },
-    "dm_impostor_caos_title": {
-        "en": "⚠️ Chaos Mode",
-        "es": "⚠️ Modo Caos",
-    },
-    "dm_impostor_caos_value": {
-        "en": "There are **{count}** impostor(s) total (including you).",
-        "es": "Hay **{count}** impostor(es) en total (incluyéndote).",
     },
     "dm_impostor_footer": {
         "en": "Don't share this message. Good luck, traitor!",
@@ -350,8 +334,6 @@ STRINGS: dict[str, dict[str, str]] = {
     },
     "round_mode_field":    {"en": "Mode",    "es": "Modo"},
     "round_players_field": {"en": "Players", "es": "Jugadores"},
-    "round_timer_field":   {"en": "⏱️ Debate time", "es": "⏱️ Tiempo de debate"},
-    "round_timer_value":   {"en": "{n} minutes",     "es": "{n} minutos"},
     "round_rematch_title": {
         "en": "🏆 ROUND {n} (REMATCH)",
         "es": "🏆 RONDA {n} (REVANCHA)",
@@ -859,4 +841,92 @@ STRINGS["help_modes_value"] = {
         "**Caos: Objetivo Humano** — Un jugador real es el secreto, no un Pokémon.\n"
         "*(Caos + 🍻 Amigos Ebrios — cada uno recibe un Pokémon diferente)*"
     ),
+}
+
+# ── Variante de CAOS (radio buttons, solo visible al admin en config) ────────
+STRINGS["caos_variant_label"] = {
+    "en": "🎲 Chaos Variant",
+    "es": "🎲 Variante de Caos",
+}
+STRINGS["caos_variant_normal"] = {
+    "en": "Standard (random impostors 0-N)",
+    "es": "Estándar (impostores aleatorios 0-N)",
+}
+STRINGS["caos_variant_human"] = {
+    "en": "🕵️ Human Target",
+    "es": "🕵️ Objetivo Humano",
+}
+STRINGS["caos_variant_dance"] = {
+    "en": "💃 Chaos Dance",
+    "es": "💃 Danza Caos",
+}
+STRINGS["caos_variant_only_caos"] = {
+    "en": "This option only applies when the mode is Chaos.",
+    "es": "Esta opción solo aplica cuando el modo es Caos.",
+}
+
+# Botones (radio buttons) para elegir variante
+STRINGS["caos_variant_normal_btn"] = {
+    "en": "🎲 Standard",
+    "es": "🎲 Estándar",
+}
+STRINGS["caos_variant_human_btn"] = {
+    "en": "🕵️ Human Target",
+    "es": "🕵️ Objetivo Humano",
+}
+STRINGS["caos_variant_dance_btn"] = {
+    "en": "💃 Chaos Dance",
+    "es": "💃 Danza Caos",
+}
+
+# ── Cara a cara final (1 vs 1) ────────────────────────────────────────────────
+STRINGS["results_faceoff_title"] = {
+    "en": "🎭 FACE TO FACE — THE FINAL REVEAL",
+    "es": "🎭 CARA A CARA — LA REVELACIÓN FINAL",
+}
+STRINGS["results_faceoff_desc"] = {
+    "en": (
+        "Only two remain... and the truth can no longer hide.\n\n"
+        "{impostor} was the impostor all along.\n"
+        "{crewmate} never suspected a thing... until now.\n\n"
+        "**The impostor wins!**"
+    ),
+    "es": (
+        "Solo quedan dos... y la verdad ya no puede esconderse más.\n\n"
+        "{impostor} era el impostor desde el principio.\n"
+        "{crewmate} nunca lo sospechó... hasta ahora.\n\n"
+        "**¡El impostor gana!**"
+    ),
+}
+
+# ── Pantalla final: victoria de impostores ────────────────────────────────────
+STRINGS["final_title_impostors_win"] = {
+    "en": "💀 GAME OVER — THE IMPOSTORS WON",
+    "es": "💀 PARTIDA TERMINADA — LOS IMPOSTORES GANARON",
+}
+STRINGS["final_pokemon_hidden_field"] = {
+    "en": "🔒 The Secret",
+    "es": "🔒 El Secreto",
+}
+STRINGS["final_pokemon_hidden_value"] = {
+    "en": "The impostors took the secret with them. It will never be revealed...",
+    "es": "Los impostores se llevaron el secreto con ellos. Nunca será revelado...",
+}
+STRINGS["final_impostor_caught"] = {
+    "en": "🔪 {name} *(caught)*",
+    "es": "🔪 {name} *(descubierto)*",
+}
+STRINGS["final_impostor_escaped"] = {
+    "en": "🏆 {name} *(escaped undetected)*",
+    "es": "🏆 {name} *(escapó sin ser descubierto)*",
+}
+
+# ── Pista pública anti-estancamiento ──────────────────────────────────────────
+STRINGS["public_hint_title"] = {
+    "en": "📢 A clue echoes through the room...",
+    "es": "📢 Una pista resuena por la sala...",
+}
+STRINGS["public_hint_desc"] = {
+    "en": "Nobody has been voted out in a while. Everyone now knows: {hint}",
+    "es": "Hace rato que nadie es expulsado. Ahora todos saben: {hint}",
 }
