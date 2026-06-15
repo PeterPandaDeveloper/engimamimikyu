@@ -1,20 +1,53 @@
 """
 i18n.py — Sistema de internacionalización para PokeImpostor
 Idioma por defecto: inglés. Se puede cambiar por servidor con /implanguage.
+
+El idioma de cada servidor se persiste en disco (data/idiomas.json) para
+que sobreviva a reinicios del bot. Si el archivo no existe o está corrupto,
+simplemente se empieza desde un registro vacío (todo en inglés).
 """
 from __future__ import annotations
 
+import json
+import os
+
 # ═══════════════════════════════════════════════════════════════════════════════
-#  REGISTRO DE IDIOMA POR SERVIDOR  { guild_id: "en" | "es" }
+#  REGISTRO DE IDIOMA POR SERVIDOR  { guild_id: "en" | "es" }  — persistido en disco
 # ═══════════════════════════════════════════════════════════════════════════════
 
-_idiomas: dict[int, str] = {}
+_DATA_DIR  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+_LANG_FILE = os.path.join(_DATA_DIR, "idiomas.json")
+
+
+def _cargar_idiomas() -> dict[int, str]:
+    try:
+        with open(_LANG_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        # Las claves JSON son siempre strings; las convertimos a int.
+        return {int(k): v for k, v in data.items()}
+    except (FileNotFoundError, json.JSONDecodeError, ValueError):
+        return {}
+
+
+def _guardar_idiomas() -> None:
+    try:
+        os.makedirs(_DATA_DIR, exist_ok=True)
+        with open(_LANG_FILE, "w", encoding="utf-8") as f:
+            json.dump({str(k): v for k, v in _idiomas.items()}, f, ensure_ascii=False, indent=2)
+    except OSError as e:
+        print(f"[i18n] No se pudo guardar idiomas.json: {e}")
+
+
+_idiomas: dict[int, str] = _cargar_idiomas()
+
 
 def get_lang(guild_id: int) -> str:
     return _idiomas.get(guild_id, "en")
 
+
 def set_lang(guild_id: int, lang: str) -> None:
     _idiomas[guild_id] = lang
+    _guardar_idiomas()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -211,13 +244,41 @@ STRINGS: dict[str, dict[str, str]] = {
     "hint_random":       {"en": "Random",              "es": "Aleatorio"},
     "hint_random_desc":  {"en": "Changes each round",  "es": "Cambia cada ronda"},
     "hint_letter":       {"en": "First letter",        "es": "Letra inicial"},
-    "hint_stat_high":    {"en": "Highest stat",        "es": "Estadística más alta"},
-    "hint_stat_low":     {"en": "Lowest stat",         "es": "Estadística más baja"},
-    "hint_egg":          {"en": "Egg Group",           "es": "Grupo Huevo"},
     "hint_type":         {"en": "Type",                "es": "Tipo"},
-    "hint_habitat":      {"en": "Habitat",             "es": "Hábitat"},
     "hint_region":       {"en": "Origin Region",       "es": "Región de origen"},
     "hint_ability":      {"en": "Ability",             "es": "Habilidad"},
+    "hint_stats": {
+        "en": "Stat Spread",
+        "es": "Estadísticas",
+    },
+    "hint_stats_desc": {
+        "en": "Highest & lowest stats together",
+        "es": "Estadísticas más altas y más bajas juntas",
+    },
+    "hint_profile": {
+        "en": "Species Profile",
+        "es": "Perfil de Especie",
+    },
+    "hint_profile_desc": {
+        "en": "Species, habitat & egg group combined",
+        "es": "Especie, hábitat y grupo huevo combinados",
+    },
+    "hint_weakness": {
+        "en": "Weaknesses",
+        "es": "Debilidades",
+    },
+    "hint_weakness_desc": {
+        "en": "Its biggest type weakness(es)",
+        "es": "Su(s) mayor(es) debilidad(es) de tipo",
+    },
+    "hint_pokedex": {
+        "en": "Pokédex Entry",
+        "es": "Entrada de Pokédex",
+    },
+    "hint_pokedex_desc": {
+        "en": "First words of its Pokédex description",
+        "es": "Primeras palabras de su descripción de Pokédex",
+    },
 
     # Opciones de regiones
     "region_all":   {"en": "All",          "es": "Todas"},
@@ -306,14 +367,57 @@ STRINGS: dict[str, dict[str, str]] = {
     },
 
     # ── Pistas generadas ──────────────────────────────────────────────────────
-    "hint_text_letter":   {"en": "Its name starts with the letter **{v}**.",         "es": "Su nombre empieza con la letra **{v}**."},
-    "hint_text_stat_high":{"en": "Its highest stat is **{v}**.",                     "es": "Su estadística más alta es **{v}**."},
-    "hint_text_stat_low": {"en": "Its lowest stat is **{v}**.",                      "es": "Su estadística más baja es **{v}**."},
-    "hint_text_egg":      {"en": "It belongs to the **{v}** egg group(s).",          "es": "Pertenece al grupo huevo **{v}**."},
-    "hint_text_type":     {"en": "Its type is **{v}**.",                             "es": "Es de tipo **{v}**."},
-    "hint_text_habitat":  {"en": "Its primary habitat is **{v}**.",                  "es": "Su hábitat principal es **{v}**."},
-    "hint_text_region":   {"en": "It first appeared in the **{v}**.",                "es": "Apareció por primera vez en la **{v}**."},
-    "hint_text_ability":  {"en": "One of its abilities is **{v}**.",                 "es": "Una de sus habilidades es **{v}**."},
+    "hint_text_letter":  {"en": "Its name starts with the letter **{v}**.",  "es": "Su nombre empieza con la letra **{v}**."},
+    "hint_text_type":    {"en": "Its type is **{v}**.",                      "es": "Es de tipo **{v}**."},
+    "hint_text_region":  {"en": "It first appeared in the **{v}**.",         "es": "Apareció por primera vez en la **{v}**."},
+    "hint_text_ability": {"en": "One of its abilities is **{v}**.",          "es": "Una de sus habilidades es **{v}**."},
+
+    # Estadísticas: nombres legibles
+    "stat_name_hp":      {"en": "HP",              "es": "PS"},
+    "stat_name_attack":  {"en": "Attack",          "es": "Ataque"},
+    "stat_name_defense": {"en": "Defense",         "es": "Defensa"},
+    "stat_name_spatk":   {"en": "Sp. Attack",      "es": "Ataque Esp."},
+    "stat_name_spdef":   {"en": "Sp. Defense",     "es": "Defensa Esp."},
+    "stat_name_speed":   {"en": "Speed",           "es": "Velocidad"},
+
+    "hint_text_stats": {
+        "en": "Its highest stats are {high}. Its lowest are {low}.",
+        "es": "Sus estadísticas más altas son {high}. Las más bajas son {low}.",
+    },
+
+    # Perfil: especie + hábitat + grupo huevo
+    "hint_unknown_value": {
+        "en": "unknown",
+        "es": "desconocido",
+    },
+    "hint_text_profile": {
+        "en": "It's known as the **{species}**. Its habitat is **{habitat}**, and it belongs to the **{egg}** egg group.",
+        "es": "Es conocido como el **{species}**. Su hábitat es **{habitat}**, y pertenece al grupo huevo **{egg}**.",
+    },
+
+    # Debilidades
+    "hint_text_weakness_x4": {
+        "en": "It's extremely weak (x4) to **{types}**.",
+        "es": "Es extremadamente débil (x4) contra **{types}**.",
+    },
+    "hint_text_weakness_x2": {
+        "en": "It's weak (x2) to **{types}**.",
+        "es": "Es débil (x2) contra **{types}**.",
+    },
+    "hint_text_weakness_none": {
+        "en": "It has no notable type weaknesses.",
+        "es": "No tiene debilidades de tipo destacables.",
+    },
+
+    # Pokédex entry
+    "hint_text_pokedex": {
+        "en": "Pokédex entry: \"{excerpt}\"",
+        "es": "Entrada de Pokédex: \"{excerpt}\"",
+    },
+    "hint_text_pokedex_unavailable": {
+        "en": "No Pokédex entry is available for it.",
+        "es": "No hay entrada de Pokédex disponible para él.",
+    },
 
     # ── Ronda ─────────────────────────────────────────────────────────────────
     "round_title": {
@@ -619,18 +723,6 @@ STRINGS: dict[str, dict[str, str]] = {
         ),
     },
     "help_modes_name":  {"en": "⚙️  Game Modes",  "es": "⚙️  Modos de Juego"},
-    "help_modes_value": {
-        "en": (
-            "**Classic** — Always 1 impostor.\n"
-            "**Extended** — 1 impostor per 3 players.\n"
-            "**Chaos** — Random amount. Can be 0!"
-        ),
-        "es": (
-            "**Clásico** — Siempre 1 impostor.\n"
-            "**Extendido** — 1 impostor por cada 3 jugadores.\n"
-            "**Caos** — Cantidad aleatoria. ¡Puede haber 0!"
-        ),
-    },
     "help_footer": {
         "en": "Good luck, trainer!",
         "es": "¡Buena suerte, entrenador!",
@@ -671,18 +763,6 @@ STRINGS["mode_caos_jugador_display"] = {
 STRINGS["mode_caos_jugador_desc"] = {
     "en": "One player IS the target. The detective tries to guess who from clues.",
     "es": "Un jugador ES el objetivo. El detective intenta adivinarlo con pistas.",
-}
-STRINGS["mode_amigos_ebrios"] = {
-    "en": "🍻 Drunk Friends",
-    "es": "🍻 Amigos Ebrios",
-}
-STRINGS["mode_amigos_ebrios_display"] = {
-    "en": "🍻 Drunk Friends (no impostors)",
-    "es": "🍻 Amigos Ebrios (sin impostores)",
-}
-STRINGS["mode_amigos_ebrios_desc"] = {
-    "en": "No impostors — everyone has a DIFFERENT Pokémon. Can you tell them apart?",
-    "es": "Sin impostores — todos tienen un Pokémon DIFERENTE. ¿Pueden distinguirlos?",
 }
 
 # ── DMs nuevos modos ──────────────────────────────────────────────────────────
@@ -832,14 +912,14 @@ STRINGS["help_modes_value"] = {
         "**Extended** — 1 impostor per 3 players.\n"
         "**Chaos** — Random amount, can be 0!\n"
         "**Chaos: Human Target** — A real player is the secret, not a Pokémon.\n"
-        "*(Chaos + 🍻 Drunk Friends — everyone gets a different Pokémon)*"
+        "*(Chaos + 💃 Teeter Dance — everyone gets a different Pokémon)*"
     ),
     "es": (
         "**Clásico** — Siempre 1 impostor.\n"
         "**Extendido** — 1 impostor por cada 3 jugadores.\n"
         "**Caos** — Cantidad aleatoria. ¡Puede haber 0!\n"
         "**Caos: Objetivo Humano** — Un jugador real es el secreto, no un Pokémon.\n"
-        "*(Caos + 🍻 Amigos Ebrios — cada uno recibe un Pokémon diferente)*"
+        "*(Caos + 💃 Danza Caos — cada uno recibe un Pokémon diferente)*"
     ),
 }
 
@@ -857,7 +937,7 @@ STRINGS["caos_variant_human"] = {
     "es": "🕵️ Objetivo Humano",
 }
 STRINGS["caos_variant_dance"] = {
-    "en": "💃 Chaos Dance",
+    "en": "💃 Teeter Dance",
     "es": "💃 Danza Caos",
 }
 STRINGS["caos_variant_only_caos"] = {
@@ -875,7 +955,7 @@ STRINGS["caos_variant_human_btn"] = {
     "es": "🕵️ Objetivo Humano",
 }
 STRINGS["caos_variant_dance_btn"] = {
-    "en": "💃 Chaos Dance",
+    "en": "💃 Teeter Dance",
     "es": "💃 Danza Caos",
 }
 
@@ -929,4 +1009,40 @@ STRINGS["public_hint_title"] = {
 STRINGS["public_hint_desc"] = {
     "en": "Nobody has been voted out in a while. Everyone now knows: {hint}",
     "es": "Hace rato que nadie es expulsado. Ahora todos saben: {hint}",
+}
+
+# ── DM para el propio objetivo (Objetivo Humano) — no debe delatarlo ──────────
+STRINGS["dm_caos_jugador_target_desc"] = {
+    "en": (
+        "The others are describing someone in the group, trying to confuse the detective.\n"
+        "Just chat normally and try to figure out who the detective might be!"
+    ),
+    "es": (
+        "Los demás están describiendo a alguien del grupo para confundir al detective.\n"
+        "¡Solo participa normalmente e intenta descubrir quién podría ser el detective!"
+    ),
+}
+
+# ── Concurrencia: votación ya cerrada por otra interacción ────────────────────
+STRINGS["vote_already_closed"] = {
+    "en": "This vote was already closed.",
+    "es": "Esta votación ya fue cerrada.",
+}
+
+# ── Concurrencia: ronda ya iniciada por otro admin ────────────────────────────
+STRINGS["round_already_started"] = {
+    "en": "The round was already started by someone else.",
+    "es": "La ronda ya fue iniciada por otra persona.",
+}
+
+# ── Recuperación tras reinicio del bot ────────────────────────────────────────
+STRINGS["session_lost_after_restart"] = {
+    "en": (
+        "🔌 **I just restarted** and lost track of the game that was running in this channel.\n"
+        "Sorry about that! Please use `/impregister` to start a new lobby."
+    ),
+    "es": (
+        "🔌 **Me acabo de reiniciar** y perdí el rastro de la partida que estaba en este canal.\n"
+        "¡Disculpen las molestias! Usen `/impregister` para abrir un nuevo lobby."
+    ),
 }

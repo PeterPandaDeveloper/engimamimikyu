@@ -102,15 +102,24 @@ class PanelPostRonda(discord.ui.View):
         if not inter.user.guild_permissions.administrator:
             return await inter.response.send_message(t("only_admin", g), ephemeral=True)
 
-        await inter.response.edit_message(view=None)
+        async with self.partida.lock:
+            if self.partida._ronda_arrancando:
+                return await inter.response.send_message(t("round_already_started", g), ephemeral=True)
 
-        # restaurar todos los jugadores iniciales para la revancha
-        self.partida.jugadores = self.partida.jugadores_iniciales.copy()
-        self.partida.ronda    += 1
+            await inter.response.edit_message(view=None)
 
-        exito = await self.partida.arrancar_ronda()
-        if not exito:
-            return
+            # restaurar todos los jugadores iniciales para la revancha
+            self.partida.jugadores = self.partida.jugadores_iniciales.copy()
+            self.partida.ronda    += 1
+
+            self.partida._ronda_arrancando = True
+            try:
+                exito = await self.partida.arrancar_ronda()
+            finally:
+                self.partida._ronda_arrancando = False
+
+            if not exito:
+                return
 
         if self.partida.caos_sin_impostores:
             await inter.channel.send(embed=discord.Embed(

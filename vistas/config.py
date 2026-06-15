@@ -18,6 +18,8 @@ class PanelConfiguracion(discord.ui.View):
         super().__init__(timeout=TIMEOUT_LOBBY)
         self.partida = partida
         g = gid(partida)
+        # Evita doble-click en "Iniciar Ronda" desde este mismo panel
+        self._iniciado = False
 
         self._add_select_modo(g)
         self._add_select_pista(g)
@@ -43,15 +45,15 @@ class PanelConfiguracion(discord.ui.View):
         sel = discord.ui.Select(
             placeholder=t("sel_hint", g),
             options=[
-                discord.SelectOption(label=t("hint_random",    g), value=Ventaja.ALEATORIO,    description=t("hint_random_desc", g)),
-                discord.SelectOption(label=t("hint_letter",    g), value=Ventaja.LETRA),
-                discord.SelectOption(label=t("hint_stat_high", g), value=Ventaja.STAT_ALTA),
-                discord.SelectOption(label=t("hint_stat_low",  g), value=Ventaja.STAT_BAJA),
-                discord.SelectOption(label=t("hint_egg",       g), value=Ventaja.HUEVO),
-                discord.SelectOption(label=t("hint_type",      g), value=Ventaja.TIPO),
-                discord.SelectOption(label=t("hint_habitat",   g), value=Ventaja.HABITAT),
-                discord.SelectOption(label=t("hint_region",    g), value=Ventaja.RANGO_REGION),
-                discord.SelectOption(label=t("hint_ability",   g), value=Ventaja.HABILIDAD),
+                discord.SelectOption(label=t("hint_random",      g), value=Ventaja.ALEATORIO,    description=t("hint_random_desc", g)),
+                discord.SelectOption(label=t("hint_letter",      g), value=Ventaja.LETRA),
+                discord.SelectOption(label=t("hint_type",        g), value=Ventaja.TIPO),
+                discord.SelectOption(label=t("hint_region",      g), value=Ventaja.RANGO_REGION),
+                discord.SelectOption(label=t("hint_ability",     g), value=Ventaja.HABILIDAD),
+                discord.SelectOption(label=t("hint_stats",       g), value=Ventaja.ESTADISTICAS, description=t("hint_stats_desc", g)),
+                discord.SelectOption(label=t("hint_profile",     g), value=Ventaja.PERFIL,        description=t("hint_profile_desc", g)),
+                discord.SelectOption(label=t("hint_weakness",    g), value=Ventaja.DEBILIDADES,   description=t("hint_weakness_desc", g)),
+                discord.SelectOption(label=t("hint_pokedex",     g), value=Ventaja.POKEDEX,       description=t("hint_pokedex_desc", g)),
             ], row=1,
         )
         sel.callback = self._set_pista
@@ -150,20 +152,35 @@ class PanelConfiguracion(discord.ui.View):
         if not inter.user.guild_permissions.administrator:
             return await inter.response.send_message(t("only_admin", g), ephemeral=True)
 
-        # Restaurar lista de jugadores desde jugadores_iniciales si venimos de
-        # una partida terminada (configurar después de una ronda). `jugadores`
-        # puede estar vacío o reducido por expulsiones de la ronda anterior.
-        if not self.partida.jugadores and self.partida.jugadores_iniciales:
-            self.partida.jugadores = self.partida.jugadores_iniciales.copy()
+        # Lock: dos admins podrían tener cada uno su propio panel ephemeral
+        # de configuración abierto y pulsar "Iniciar Ronda" casi a la vez.
+        # Sin esto, ambos podrían pasar la validación y disparar
+        # arrancar_ronda() dos veces (doble set de DMs, doble Pokémon, etc.)
+        async with self.partida.lock:
+            if getattr(self.partida, "_ronda_arrancando", False) or self._iniciado:
+                return await inter.response.send_message(t("round_already_started", g), ephemeral=True)
 
-        if len(self.partida.jugadores) < 3:
-            return await inter.response.send_message(t("min_players", g), ephemeral=True)
+            # Restaurar lista de jugadores desde jugadores_iniciales si venimos
+            # de una partida terminada (configurar después de una ronda).
+            # `jugadores` puede estar vacío o reducido por expulsiones previas.
+            if not self.partida.jugadores and self.partida.jugadores_iniciales:
+                self.partida.jugadores = self.partida.jugadores_iniciales.copy()
 
-        await inter.response.edit_message(content=t("config_saved", g), view=None, embed=None)
+            if len(self.partida.jugadores) < 3:
+                return await inter.response.send_message(t("min_players", g), ephemeral=True)
 
-        exito = await self.partida.arrancar_ronda()
-        if not exito:
-            return
+            self._iniciado = True
+            self.partida._ronda_arrancando = True
+
+            await inter.response.edit_message(content=t("config_saved", g), view=None, embed=None)
+
+            try:
+                exito = await self.partida.arrancar_ronda()
+            finally:
+                self.partida._ronda_arrancando = False
+
+            if not exito:
+                return
 
         if self.partida.caos_sin_impostores:
             await inter.channel.send(embed=discord.Embed(

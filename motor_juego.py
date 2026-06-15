@@ -3,12 +3,14 @@ motor_juego.py — Núcleo lógico de PokeImpostor
 """
 from __future__ import annotations
 
+import asyncio
 import random
 import discord
 from dataclasses import dataclass, field
 from enum import Enum
 
 from api import obtener_datos_completos_pokemon
+from tipos_pokemon import debilidades_x4, debilidades_x2
 from i18n import t
 
 
@@ -33,15 +35,15 @@ class CaosVariante(str, Enum):
 
 
 class Ventaja(str, Enum):
-    ALEATORIO    = "aleatorio"
-    LETRA        = "letra"
-    STAT_ALTA    = "stat_alta"
-    STAT_BAJA    = "stat_baja"
-    HUEVO        = "huevo"
-    TIPO         = "tipo"
-    HABITAT      = "habitat"
+    ALEATORIO   = "aleatorio"
+    LETRA       = "letra"
+    TIPO        = "tipo"
     RANGO_REGION = "rango_region"
-    HABILIDAD    = "habilidad"
+    HABILIDAD   = "habilidad"
+    ESTADISTICAS = "estadisticas"  # listado de stats más altas/bajas juntas
+    PERFIL      = "perfil"          # especie + hábitat + grupo huevo (3 datos)
+    DEBILIDADES = "debilidades"     # x4 si existe, sino x2, sino "sin debilidades"
+    POKEDEX     = "pokedex"         # primeras palabras de la entrada Pokédex
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -115,6 +117,16 @@ class Partida:
         self._pokemon_usados:   set[int] = set()
         self._partidas_activas: dict     = partidas_activas
 
+        # Lock de concurrencia: protege operaciones que mutan el estado de la
+        # partida desde callbacks de UI (votar, forzar cierre, iniciar ronda,
+        # revancha...). Sin esto, dos interacciones casi simultáneas podrían
+        # ejecutar la misma transición dos veces (doble expulsión, doble
+        # avance de ronda, etc.).
+        self.lock: asyncio.Lock = asyncio.Lock()
+        # Flag auxiliar: True mientras arrancar_ronda() está en ejecución,
+        # para detectar intentos concurrentes de iniciar/revancha.
+        self._ronda_arrancando: bool = False
+
     # ── helpers ───────────────────────────────────────────────────────────────
     def _t(self, key: str, **kwargs) -> str:
         return t(key, self.canal.guild.id, **kwargs)
@@ -168,14 +180,14 @@ class Partida:
         """
         gid = self.canal.guild.id
         opciones: dict[Ventaja, str] = {
-            Ventaja.LETRA:        t("hint_text_letter",    gid, v=dp["nombre"][0]),
-            Ventaja.STAT_ALTA:    t("hint_text_stat_high", gid, v=dp["stat_mayor"]),
-            Ventaja.STAT_BAJA:    t("hint_text_stat_low",  gid, v=dp["stat_menor"]),
-            Ventaja.HUEVO:        t("hint_text_egg",       gid, v=", ".join(dp["grupos_huevo"])),
-            Ventaja.TIPO:         t("hint_text_type",      gid, v=", ".join(dp["tipos"])),
-            Ventaja.HABITAT:      t("hint_text_habitat",   gid, v=dp["habitat"]),
-            Ventaja.RANGO_REGION: t("hint_text_region",    gid, v=dp["gen"]),
-            Ventaja.HABILIDAD:    t("hint_text_ability",   gid, v=random.choice(dp["habilidades"])),
+            Ventaja.LETRA:        t("hint_text_letter", gid, v=dp["nombre"][0]),
+            Ventaja.TIPO:         t("hint_text_type",   gid, v=", ".join(dp["tipos"])),
+            Ventaja.RANGO_REGION: t("hint_text_region", gid, v=dp["gen"]),
+            Ventaja.HABILIDAD:    t("hint_text_ability", gid, v=random.choice(dp["habilidades"])),
+            Ventaja.ESTADISTICAS: self._pista_estadisticas(dp, gid),
+            Ventaja.PERFIL:       self._pista_perfil(dp, gid),
+            Ventaja.DEBILIDADES:  self._pista_debilidades(dp, gid),
+            Ventaja.POKEDEX:      self._pista_pokedex(dp, gid),
         }
 
         if self.config.ventaja != Ventaja.ALEATORIO:
@@ -187,6 +199,70 @@ class Partida:
             if disponibles:
                 return random.choice(disponibles)
         return random.choice(list(opciones.values()))
+
+    # ── Pista: estadísticas (las 2 más altas y las 2 más bajas juntas) ───────
+    @staticmethod
+    def _pista_estadisticas(dp: dict, gid: int) -> str:
+        stats: dict[str, int] = dp.get("stats", {})
+        if not stats:
+            # Fallback por si 'stats' no vino (compatibilidad con datos viejos):
+            # usamos la pista de tipo, que siempre está disponible.
+            return t("hint_text_type", gid, v=", ".join(dp.get("tipos", ["?"])))
+
+        nombres_stats = {
+            "hp":              t("stat_name_hp",      gid),
+            "attack":          t("stat_name_attack",  gid),
+            "defense":         t("stat_name_defense", gid),
+            "special-attack":  t("stat_name_spatk",   gid),
+            "special-defense": t("stat_name_spdef",   gid),
+            "speed":           t("stat_name_speed",   gid),
+        }
+        ordenadas = sorted(stats.items(), key=lambda kv: kv[1], reverse=True)
+        altas = ordenadas[:2]
+        bajas = ordenadas[-2:]
+
+        altas_str = ", ".join(f"{nombres_stats.get(k, k)} ({v})" for k, v in altas)
+        bajas_str = ", ".join(f"{nombres_stats.get(k, k)} ({v})" for k, v in bajas)
+
+        return t("hint_text_stats", gid, high=altas_str, low=bajas_str)
+
+    # ── Pista: perfil (especie + hábitat + grupo huevo) ───────────────────────
+    @staticmethod
+    def _pista_perfil(dp: dict, gid: int) -> str:
+        especie = dp.get("especie") or t("hint_unknown_value", gid)
+        habitat = dp.get("habitat") or t("hint_unknown_value", gid)
+        huevo   = ", ".join(dp.get("grupos_huevo", [])) or t("hint_unknown_value", gid)
+        return t("hint_text_profile", gid, species=especie, habitat=habitat, egg=huevo)
+
+    # ── Pista: debilidades (x4 > x2 > ninguna) ────────────────────────────────
+    @staticmethod
+    def _pista_debilidades(dp: dict, gid: int) -> str:
+        tipos = dp.get("tipos", [])
+        x4 = debilidades_x4(tipos)
+        if x4:
+            return t("hint_text_weakness_x4", gid, types=", ".join(x4))
+
+        x2 = debilidades_x2(tipos)
+        if x2:
+            # Mostrar como máximo 2 para no ser demasiado revelador
+            return t("hint_text_weakness_x2", gid, types=", ".join(x2[:2]))
+
+        return t("hint_text_weakness_none", gid)
+
+    # ── Pista: entrada de Pokédex (primeras palabras) ─────────────────────────
+    @staticmethod
+    def _pista_pokedex(dp: dict, gid: int) -> str:
+        entry = dp.get("pokedex_entry", "")
+        if not entry:
+            return t("hint_text_pokedex_unavailable", gid)
+        # Tomamos las primeras ~8 palabras: suficiente para dar ambiente sin
+        # ser tan específico que delate el nombre directamente.
+        palabras = entry.split()
+        fragmento = " ".join(palabras[:8])
+        if len(palabras) > 8:
+            fragmento += "..."
+        return t("hint_text_pokedex", gid, excerpt=fragmento)
+
 
     # ── cantidad de impostores ─────────────────────────────────────────────
     def _calcular_impostores(self, total: int) -> int:

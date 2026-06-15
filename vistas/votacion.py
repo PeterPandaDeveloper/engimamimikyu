@@ -23,6 +23,10 @@ class PanelVotacion(discord.ui.View):
         self.partida         = partida
         self.votos_emitidos: set[int]            = set()
         self.votos_urna:     dict[str, set[int]] = {}
+        # Evita que dos interacciones casi simultáneas (ej. el último voto
+        # y un "forzar cierre" del admin al mismo tiempo) disparen
+        # _mostrar_resultados dos veces.
+        self._resultados_en_proceso: bool = False
         g     = gid(partida)
         modo  = partida.config.modo_juego
         total = len(partida.jugadores)
@@ -97,11 +101,15 @@ class PanelVotacion(discord.ui.View):
         g = inter.guild_id
         if inter.user not in self.partida.impostores:
             return await inter.response.send_message(t("caos_jugador_only_detective", g), ephemeral=True)
-        if inter.user.id in self.votos_emitidos:
-            return await inter.response.send_message(t("vote_already_voted", g), ephemeral=True)
 
-        self.votos_emitidos.add(inter.user.id)
-        valor = self.sel_votos.values[0]
+        async with self.partida.lock:
+            if inter.user.id in self.votos_emitidos:
+                return await inter.response.send_message(t("vote_already_voted", g), ephemeral=True)
+            if self._resultados_en_proceso:
+                return await inter.response.send_message(t("vote_already_closed", g), ephemeral=True)
+            self.votos_emitidos.add(inter.user.id)
+            self._resultados_en_proceso = True
+            valor = self.sel_votos.values[0]
 
         self.clear_items()
         self.stop()
@@ -146,6 +154,12 @@ class PanelVotacion(discord.ui.View):
         g = inter.guild_id
         if not inter.user.guild_permissions.administrator:
             return await inter.response.send_message(t("vote_only_admin_force", g), ephemeral=True)
+
+        async with self.partida.lock:
+            if self._resultados_en_proceso:
+                return await inter.response.send_message(t("vote_already_closed", g), ephemeral=True)
+            self._resultados_en_proceso = True
+
         await inter.response.send_message(t("caos_jugador_admin_skip", g))
         self.clear_items()
         self.stop()
@@ -160,21 +174,29 @@ class PanelVotacion(discord.ui.View):
     # ─────────────────────────────────────────────────────────────────────────
     async def _registrar_voto(self, inter: discord.Interaction):
         g = inter.guild_id
-        if inter.user not in self.partida.jugadores:
-            return await inter.response.send_message(t("vote_only_players", g), ephemeral=True)
-        if inter.user.id in self.votos_emitidos:
-            return await inter.response.send_message(t("vote_already_voted", g), ephemeral=True)
 
-        self.votos_emitidos.add(inter.user.id)
+        # Sección crítica: chequear y registrar el voto bajo lock para
+        # evitar que dos votos casi simultáneos (ej. el penúltimo y el
+        # último) decidan ambos que "ya votaron todos".
+        async with self.partida.lock:
+            if inter.user not in self.partida.jugadores:
+                return await inter.response.send_message(t("vote_only_players", g), ephemeral=True)
+            if inter.user.id in self.votos_emitidos:
+                return await inter.response.send_message(t("vote_already_voted", g), ephemeral=True)
 
-        valores = self.sel_votos.values
-        # voto nulo: registrar pero no añadir a ningún acusado
-        if VOTO_NULO_ID not in valores:
-            for acusado_id in valores:
-                self.votos_urna.setdefault(acusado_id, set()).add(inter.user.id)
+            self.votos_emitidos.add(inter.user.id)
 
-        total  = len(self.partida.jugadores)
-        actual = len(self.votos_emitidos)
+            valores = self.sel_votos.values
+            # voto nulo: registrar pero no añadir a ningún acusado
+            if VOTO_NULO_ID not in valores:
+                for acusado_id in valores:
+                    self.votos_urna.setdefault(acusado_id, set()).add(inter.user.id)
+
+            total  = len(self.partida.jugadores)
+            actual = len(self.votos_emitidos)
+            cerrar_ahora = (actual == total and not self._resultados_en_proceso)
+            if cerrar_ahora:
+                self._resultados_en_proceso = True
 
         await inter.response.send_message(t("vote_registered", g), ephemeral=True)
         await inter.message.edit(embed=discord.Embed(
@@ -183,15 +205,23 @@ class PanelVotacion(discord.ui.View):
             color=discord.Color.red(),
         ))
 
-        if actual == total:
+        if cerrar_ahora:
             await self._mostrar_resultados(inter.channel, inter.message)
 
     async def _forzar_cierre(self, inter: discord.Interaction):
         g = inter.guild_id
         if not inter.user.guild_permissions.administrator:
             return await inter.response.send_message(t("vote_only_admin_force", g), ephemeral=True)
-        actual = len(self.votos_emitidos)
-        total  = len(self.partida.jugadores)
+
+        async with self.partida.lock:
+            if self._resultados_en_proceso:
+                # Ya se están mostrando los resultados (ej. justo se completó
+                # la votación en paralelo) — no hacer nada más.
+                return await inter.response.send_message(t("vote_already_closed", g), ephemeral=True)
+            self._resultados_en_proceso = True
+            actual = len(self.votos_emitidos)
+            total  = len(self.partida.jugadores)
+
         await inter.response.send_message(t("vote_force_closed", g, current=actual, total=total))
         await self._mostrar_resultados(inter.channel, inter.message)
 

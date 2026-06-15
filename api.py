@@ -52,10 +52,38 @@ async def obtener_datos_completos_pokemon(id_pokemon: int, intentos: int = 3) ->
             es_legendario = species_data['is_legendary'] or species_data['is_mythical']
             gen          = species_data['generation']['name'].upper()
 
+            # ── Especie (ej. "Mouse Pokémon") — preferimos inglés, con
+            # fallback a español si el inglés no está disponible ──────────────
+            especie = ""
+            for entry in species_data.get('genera', []):
+                if entry.get('language', {}).get('name') == 'en':
+                    especie = entry.get('genus', '')
+                    break
+            if not especie:
+                for entry in species_data.get('genera', []):
+                    if entry.get('language', {}).get('name') == 'es':
+                        especie = entry.get('genus', '')
+                        break
+
+            # ── Entrada de Pokédex (flavor text) — preferimos inglés ────────────
+            pokedex_entry = ""
+            for entry in species_data.get('flavor_text_entries', []):
+                if entry.get('language', {}).get('name') == 'en':
+                    pokedex_entry = entry.get('flavor_text', '')
+                    break
+            if not pokedex_entry:
+                for entry in species_data.get('flavor_text_entries', []):
+                    if entry.get('language', {}).get('name') == 'es':
+                        pokedex_entry = entry.get('flavor_text', '')
+                        break
+            # Limpiar saltos de línea / form feeds que la PokéAPI incluye
+            pokedex_entry = pokedex_entry.replace('\n', ' ').replace('\x0c', ' ').strip()
+
             return {
                 "nombre": nombre, "sprite": sprite, "tipos": tipos, "habilidades": habilidades,
-                "stat_mayor": stat_mayor, "stat_menor": stat_menor, "habitat": habitat,
-                "grupos_huevo": grupos_huevo, "es_legendario": es_legendario, "gen": gen
+                "stat_mayor": stat_mayor, "stat_menor": stat_menor, "stats": stats,
+                "habitat": habitat, "grupos_huevo": grupos_huevo, "es_legendario": es_legendario,
+                "gen": gen, "especie": especie, "pokedex_entry": pokedex_entry,
             }
 
         except Exception as e:

@@ -5,6 +5,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import os
+import json
 from dotenv import load_dotenv
 
 from motor_juego import Partida
@@ -21,8 +22,61 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="pkmi!", intents=intents)
 
+# ── Persistencia ligera de sesiones activas ──────────────────────────────────
+# No persistimos el ESTADO completo de cada Partida (contiene objetos
+# discord.Member que no son serializables y que habría que re-resolver vía
+# API tras un reinicio). En su lugar, guardamos solo QUÉ canales tenían una
+# partida activa. Si el bot se reinicia a mitad de una partida, al arrancar
+# avisamos en esos canales que la sesión se perdió y hay que abrir un lobby
+# nuevo — mejor que dejar botones "muertos" sin explicación.
+_DATA_DIR      = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+_SESSIONS_FILE = os.path.join(_DATA_DIR, "sesiones_activas.json")
+
+
+def _guardar_sesiones_activas() -> None:
+    try:
+        os.makedirs(_DATA_DIR, exist_ok=True)
+        with open(_SESSIONS_FILE, "w", encoding="utf-8") as f:
+            json.dump(list(partidas_activas.keys()), f)
+    except OSError as e:
+        print(f"[main] No se pudo guardar sesiones_activas.json: {e}")
+
+
+def _cargar_sesiones_previas() -> list[int]:
+    try:
+        with open(_SESSIONS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, ValueError):
+        return []
+
+
+class _PartidasActivasDict(dict):
+    """
+    dict { channel_id: Partida } que persiste automáticamente en disco
+    (solo las claves, ver _guardar_sesiones_activas) cada vez que se
+    añade o elimina una partida — sin que el resto del código tenga que
+    acordarse de llamar a una función extra.
+    """
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+        _guardar_sesiones_activas()
+
+    def __delitem__(self, key):
+        super().__delitem__(key)
+        _guardar_sesiones_activas()
+
+    def pop(self, *args, **kwargs):
+        result = super().pop(*args, **kwargs)
+        _guardar_sesiones_activas()
+        return result
+
+    def clear(self):
+        super().clear()
+        _guardar_sesiones_activas()
+
+
 # Registro central: { channel_id: Partida }
-partidas_activas: dict[int, Partida] = {}
+partidas_activas: dict[int, Partida] = _PartidasActivasDict()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -38,6 +92,28 @@ async def on_ready():
     except Exception as e:
         print(f"Sync error: {e}")
 
+    # ── Recuperación tras reinicio ───────────────────────────────────────────
+    # Si el bot se cayó/reinició a mitad de una partida, los botones de esos
+    # mensajes quedan "muertos" (la View vivía solo en memoria del proceso
+    # anterior). Avisamos en cada canal afectado para que el grupo sepa que
+    # debe abrir un lobby nuevo, en lugar de quedarse pulsando botones sin
+    # respuesta sin entender por qué.
+    canales_previos = _cargar_sesiones_previas()
+    for channel_id in canales_previos:
+        try:
+            canal = bot.get_channel(channel_id) or await bot.fetch_channel(channel_id)
+            gid = canal.guild.id if getattr(canal, "guild", None) else None
+            await canal.send(
+                t("session_lost_after_restart", gid)
+            )
+        except Exception as e:
+            print(f"[on_ready] No se pudo avisar en canal {channel_id}: {e}")
+
+    # Limpiar el registro: estas sesiones ya no son válidas y no deben
+    # volver a generar avisos en el siguiente reinicio.
+    partidas_activas.clear()
+    _guardar_sesiones_activas()
+
 @bot.event
 async def on_close():
     await cerrar_session()
@@ -50,6 +126,15 @@ async def on_close():
 
 @bot.tree.command(name="impregister", description="Open a new PokeImpostor lobby")
 async def impregister(interaction: discord.Interaction):
+    # Este juego depende de roles de servidor (administrator), DMs a
+    # miembros del servidor, e idioma por servidor. No tiene sentido fuera
+    # de un guild (ej. DMs directos al bot).
+    if interaction.guild_id is None:
+        return await interaction.response.send_message(
+            "❌ This command only works inside a server. / Este comando solo funciona dentro de un servidor.",
+            ephemeral=True,
+        )
+
     gid = interaction.guild_id
     if interaction.channel.id in partidas_activas:
         return await interaction.response.send_message(
@@ -84,15 +169,24 @@ async def impver(interaction: discord.Interaction):
         es_cj        = partida.objetivo_humano is not None
 
         if es_cj:
-            # Modo Caos Jugador
+            # Variante Objetivo Humano
             if es_impostor:
+                # El detective
                 pista = partida.pistas_impostores.get(interaction.user.id, "—")
                 await interaction.user.send(embed=discord.Embed(
                     title=t("impver_impostor_title", gid),
                     description=t("dm_caos_jugador_detective_desc", gid, hint=pista),
                     color=discord.Color.from_rgb(180, 30, 30),
                 ))
+            elif interaction.user == partida.objetivo_humano:
+                # El propio objetivo — NUNCA debe ver "describe a [su nombre]"
+                await interaction.user.send(embed=discord.Embed(
+                    title=t("impver_crew_title", gid),
+                    description=t("dm_caos_jugador_target_desc", gid),
+                    color=discord.Color.from_rgb(30, 160, 80),
+                ))
             else:
+                # Tripulante normal describiendo al objetivo
                 await interaction.user.send(embed=discord.Embed(
                     title=t("impver_crew_title", gid),
                     description=t("dm_caos_jugador_crew_desc", gid, target=f"**{partida.objetivo_humano.display_name}**"),
@@ -144,6 +238,12 @@ async def impver(interaction: discord.Interaction):
     app_commands.Choice(name="🇪🇸 Español", value="es"),
 ])
 async def implanguage(interaction: discord.Interaction, language: str):
+    if interaction.guild_id is None:
+        return await interaction.response.send_message(
+            "❌ This command only works inside a server. / Este comando solo funciona dentro de un servidor.",
+            ephemeral=True,
+        )
+
     gid = interaction.guild_id
     if not interaction.user.guild_permissions.administrator:
         # Mensaje de error bilingüe (no sabemos el idioma actual del usuario)
