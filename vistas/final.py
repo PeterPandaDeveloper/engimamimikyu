@@ -14,7 +14,10 @@ from .common import TIMEOUT_LOBBY, gid
 async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, victoria_impostores: bool):
     g        = gid(partida)
     modo     = partida.config.modo_juego
-    variante = partida.config.caos_variante
+    # Usar la variante efectiva de la ronda que acaba de terminar
+    # (_variante_ronda), NO config.caos_variante (que puede haber cambiado
+    # si el admin re-configuró entre rondas)
+    variante = partida._variante_ronda
     es_danza_caos      = (modo == ModoJuego.CAOS and variante == CaosVariante.DANZA_CAOS)
     es_objetivo_humano = (modo == ModoJuego.CAOS and variante == CaosVariante.OBJETIVO_HUMANO)
 
@@ -37,12 +40,16 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
             embed.set_image(url=objetivo.display_avatar.url)
 
     elif victoria_impostores:
-        # El secreto se va con ellos: NO revelamos el Pokémon
-        embed.add_field(
-            name=t("final_pokemon_hidden_field", g),
-            value=t("final_pokemon_hidden_value", g),
-            inline=False,
-        )
+        # Los impostores ganaron, pero igual revelamos el Pokémon —
+        # es más satisfactorio para todos saber qué era.
+        dp = partida.datos_pokemon
+        if dp:
+            embed.set_image(url=dp["sprite"])
+            embed.add_field(
+                name=t("final_pokemon_field", g),
+                value=f"**{dp['nombre']}**\n{' / '.join(dp['tipos'])} · {dp['gen']}",
+                inline=False,
+            )
 
     else:
         dp = partida.datos_pokemon
@@ -139,6 +146,11 @@ class PanelPostRonda(discord.ui.View):
         g = inter.guild_id
         if not inter.user.guild_permissions.administrator:
             return await inter.response.send_message(t("only_admin", g), ephemeral=True)
+
+        # Restaurar jugadores desde jugadores_iniciales antes de abrir config
+        # para que el botón "Iniciar Ronda" encuentre a los jugadores disponibles
+        if self.partida.jugadores_iniciales:
+            self.partida.jugadores = self.partida.jugadores_iniciales.copy()
 
         from .config import PanelConfiguracion
         from .common import build_embed_config

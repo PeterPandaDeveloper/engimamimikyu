@@ -799,12 +799,20 @@ STRINGS["dm_ebrios_title"] = {
     "es": "🍻 TU POKÉMON (Modo Amigos Ebrios)",
 }
 STRINGS["dm_ebrios_desc"] = {
-    "en": "Your Pokémon is: **{name}**\nType: {types}\n\nDescribe it without saying the name. Everyone has a DIFFERENT one!",
-    "es": "Tu Pokémon es: **{name}**\nTipo: {types}\n\n¡Descríbelo sin decir el nombre. Todos tienen uno DIFERENTE!",
+    "en": (
+        "Type: **{types}**\n\n"
+        "Describe your Pokémon without saying its name.\n"
+        "Everyone has a DIFFERENT one — try to blend in!"
+    ),
+    "es": (
+        "Tipo: **{types}**\n\n"
+        "Describe tu Pokémon sin decir su nombre.\n"
+        "¡Todos tienen uno DIFERENTE — intenta pasar desapercibido!"
+    ),
 }
 STRINGS["dm_ebrios_footer"] = {
-    "en": "Try to confuse the others — they don't know yours!",
-    "es": "¡Intenta confundir a los demás — ellos no saben cuál es el tuyo!",
+    "en": "The sprite is your only visual clue. Good luck!",
+    "es": "El sprite es tu única pista visual. ¡Buena suerte!",
 }
 
 # ── Pantalla final nuevos modos ───────────────────────────────────────────────
@@ -925,20 +933,20 @@ STRINGS["help_modes_value"] = {
 
 # ── Variante de CAOS (radio buttons, solo visible al admin en config) ────────
 STRINGS["caos_variant_label"] = {
-    "en": "🎲 Chaos Variant",
-    "es": "🎲 Variante de Caos",
+    "en": "🎲 Chaos Variant (random chance each round)",
+    "es": "🎲 Variante de Caos (aleatoria cada ronda)",
 }
 STRINGS["caos_variant_normal"] = {
-    "en": "Standard (random impostors 0-N)",
-    "es": "Estándar (impostores aleatorios 0-N)",
+    "en": "Standard only (no special variants)",
+    "es": "Solo estándar (sin variantes especiales)",
 }
 STRINGS["caos_variant_human"] = {
-    "en": "🕵️ Human Target",
-    "es": "🕵️ Objetivo Humano",
+    "en": "🕵️ + Human Target (~40% chance)",
+    "es": "🕵️ + Objetivo Humano (~40% chance)",
 }
 STRINGS["caos_variant_dance"] = {
-    "en": "💃 Teeter Dance",
-    "es": "💃 Danza Caos",
+    "en": "💃 + Teeter Dance (~40% chance)",
+    "es": "💃 + Danza Caos (~40% chance)",
 }
 STRINGS["caos_variant_only_caos"] = {
     "en": "This option only applies when the mode is Chaos.",
@@ -947,16 +955,16 @@ STRINGS["caos_variant_only_caos"] = {
 
 # Botones (radio buttons) para elegir variante
 STRINGS["caos_variant_normal_btn"] = {
-    "en": "🎲 Standard",
-    "es": "🎲 Estándar",
+    "en": "🎲 Standard only",
+    "es": "🎲 Solo estándar",
 }
 STRINGS["caos_variant_human_btn"] = {
-    "en": "🕵️ Human Target",
-    "es": "🕵️ Objetivo Humano",
+    "en": "🕵️ + Human Target",
+    "es": "🕵️ + Objetivo Humano",
 }
 STRINGS["caos_variant_dance_btn"] = {
-    "en": "💃 Teeter Dance",
-    "es": "💃 Danza Caos",
+    "en": "💃 + Teeter Dance",
+    "es": "💃 + Danza Caos",
 }
 
 # ── Cara a cara final (1 vs 1) ────────────────────────────────────────────────
@@ -1009,6 +1017,21 @@ STRINGS["public_hint_title"] = {
 STRINGS["public_hint_desc"] = {
     "en": "Nobody has been voted out in a while. Everyone now knows: {hint}",
     "es": "Hace rato que nadie es expulsado. Ahora todos saben: {hint}",
+}
+
+# ── DM neutro para tripulantes de Objetivo Humano ────────────────────────────
+# Tanto el objetivo como los tripulantes normales ven este mensaje.
+# NO revela que hay un "detective" ni que alguien es el "objetivo".
+# Solo ven la foto del jugador misterioso y una instrucción genérica.
+STRINGS["dm_caos_jugador_crew_neutral"] = {
+    "en": (
+        "A special round has begun. Describe the person shown in the image "
+        "without saying their name.\nSomeone is trying to figure out who everyone is talking about!"
+    ),
+    "es": (
+        "Ha comenzado una ronda especial. Describe a la persona de la imagen "
+        "sin decir su nombre.\n¡Alguien está intentando adivinar de quién hablan todos!"
+    ),
 }
 
 # ── DM para el propio objetivo (Objetivo Humano) — no debe delatarlo ──────────

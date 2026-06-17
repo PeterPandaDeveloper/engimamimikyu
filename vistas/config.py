@@ -160,10 +160,11 @@ class PanelConfiguracion(discord.ui.View):
             if getattr(self.partida, "_ronda_arrancando", False) or self._iniciado:
                 return await inter.response.send_message(t("round_already_started", g), ephemeral=True)
 
-            # Restaurar lista de jugadores desde jugadores_iniciales si venimos
-            # de una partida terminada (configurar después de una ronda).
-            # `jugadores` puede estar vacío o reducido por expulsiones previas.
-            if not self.partida.jugadores and self.partida.jugadores_iniciales:
+            # SIEMPRE restaurar desde jugadores_iniciales si existen —
+            # después de una ronda, jugadores puede estar vacío (todos
+            # expulsados) o reducido (algunos expulsados), pero queremos
+            # empezar la nueva ronda con todos los que participaron antes.
+            if self.partida.jugadores_iniciales:
                 self.partida.jugadores = self.partida.jugadores_iniciales.copy()
 
             if len(self.partida.jugadores) < 3:

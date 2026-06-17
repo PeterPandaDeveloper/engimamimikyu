@@ -11,7 +11,7 @@ from enum import Enum
 
 from api import obtener_datos_completos_pokemon
 from tipos_pokemon import debilidades_x4, debilidades_x2
-from i18n import t
+from i18n import t, get_lang
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -113,6 +113,10 @@ class Partida:
         # variante Danza Caos: cada tripulante tiene su propio Pokémon
         # { jugador.id: dict_pokemon }
         self.pokemons_ebrios: dict[int, dict] = {}
+
+        # Variante efectiva de esta ronda (puede diferir de config.caos_variante
+        # porque se sortea aleatoriamente en cada arrancar_ronda)
+        self._variante_ronda: CaosVariante = CaosVariante.NORMAL
 
         self._pokemon_usados:   set[int] = set()
         self._partidas_activas: dict     = partidas_activas
@@ -264,13 +268,39 @@ class Partida:
         return t("hint_text_pokedex", gid, excerpt=fragmento)
 
 
+    # ── sorteo de variante Caos por ronda ─────────────────────────────────
+    def _sortear_variante_caos(self) -> CaosVariante:
+        """
+        Elige aleatoriamente qué variante de Caos se jugará en esta ronda.
+
+        La config.caos_variante actúa como PERMISO, no como fijación:
+        - NORMAL   → solo Caos estándar (sin variantes especiales)
+        - DANZA_CAOS  → puede salir Normal O Danza Caos (50/50)
+        - OBJETIVO_HUMANO → puede salir Normal O Objetivo Humano (50/50)
+
+        Diseño: Normal siempre tiene peso para que las variantes especiales
+        sean sorpresas ocasionales, no algo que pasa cada ronda.
+        """
+        cfg = self.config.caos_variante
+
+        if cfg == CaosVariante.NORMAL:
+            return CaosVariante.NORMAL
+
+        # Si el admin eligió Danza Caos u Objetivo Humano, hay 40% de que
+        # salga la variante especial y 60% de que salga el Caos normal.
+        # Así mantiene la sorpresa sin que domine la variante.
+        if random.random() < 0.4:
+            return cfg         # variante especial elegida por el admin
+        return CaosVariante.NORMAL
+
     # ── cantidad de impostores ─────────────────────────────────────────────
     def _calcular_impostores(self, total: int) -> int:
         modo = self.config.modo_juego
         if modo == ModoJuego.CLASICO:   return 1
         if modo == ModoJuego.EXTENDIDO: return min(max(1, total // 3), total - 1)
         if modo == ModoJuego.CAOS:
-            if self.config.caos_variante == CaosVariante.OBJETIVO_HUMANO:
+            # Usar la variante efectiva de esta ronda (sorteada, no la config)
+            if self._variante_ronda == CaosVariante.OBJETIVO_HUMANO:
                 return 1
             return self._roll_caos_impostores(total)
         return 1
@@ -348,44 +378,57 @@ class Partida:
     # ── DM variante Objetivo Humano ──────────────────────────────────────────
     def _build_dm_caos_jugador_detective(self, objetivo: discord.Member, pista: str) -> discord.Embed:
         gid = self.canal.guild.id
+        # El detective recibe el MISMO título que un impostor normal para no
+        # revelar que está en un sub-modo especial. Solo cambia la descripción:
+        # su "pista" son datos sobre el jugador objetivo, pero el texto lo
+        # presenta como si fuera una pista sobre un Pokémon.
         return discord.Embed(
-            title=t("dm_caos_jugador_detective_title", gid),
-            description=t("dm_caos_jugador_detective_desc", gid, hint=pista),
+            title=t("dm_impostor_title", gid),
+            description=t("dm_impostor_desc", gid, hint=pista),
             color=discord.Color.from_rgb(180, 30, 30),
         ).set_footer(text=t("dm_impostor_footer", gid))
 
     def _build_dm_caos_jugador_tripulante(self, objetivo: discord.Member) -> discord.Embed:
         gid = self.canal.guild.id
+        # Tripulante normal de Objetivo Humano: ve el mismo DM que un tripulante
+        # de Caos estándar. NO sabe que es un sub-modo especial ni que hay un
+        # "objetivo" — solo sabe que describe a "ese jugador" como si fuera un
+        # Pokémon. Si le dijéramos "describe a X sin decir su nombre" quedaría
+        # obvio que hay un detective buscando a alguien.
+        # Usamos un mensaje neutro que da la imagen del objetivo como referencia
+        # sin revelar la mecánica.
         return discord.Embed(
-            title=t("dm_caos_jugador_crew_title", gid),
-            description=t("dm_caos_jugador_crew_desc", gid, target=f"**{objetivo.display_name}**"),
+            title=t("dm_crew_title", gid),
+            description=t("dm_caos_jugador_crew_neutral", gid),
             color=discord.Color.from_rgb(30, 160, 80),
         ).set_image(url=objetivo.display_avatar.url)
 
     def _build_dm_caos_jugador_objetivo(self) -> discord.Embed:
         """
-        DM para el propio objetivo. NUNCA debe decir "describe a [tu nombre]"
-        — eso lo delataría al instante. En su lugar recibe un mensaje neutro
-        que no revela su rol especial.
+        DM para el propio objetivo.
+        Recibe el mismo DM neutro que los demás tripulantes — no sabe que
+        ES el objetivo. Así no puede delatar accidentalmente su rol.
         """
         gid = self.canal.guild.id
         return discord.Embed(
-            title=t("dm_caos_jugador_crew_title", gid),
-            description=t("dm_caos_jugador_target_desc", gid),
+            title=t("dm_crew_title", gid),
+            description=t("dm_caos_jugador_crew_neutral", gid),
             color=discord.Color.from_rgb(30, 160, 80),
         )
 
-    # ── DM variante Danza Caos — NO debe revelar el sub-modo ─────────────────
+    # ── DM variante Danza Caos — NO revela sub-modo NI nombre del Pokémon ──
     def _build_dm_amigos_ebrios(self, jugador: discord.Member) -> discord.Embed:
         gid = self.canal.guild.id
         dp  = self.pokemons_ebrios.get(jugador.id)
         if not dp:
             return discord.Embed(title="Error", description="No se asignó Pokémon.")
-        # Usamos el mismo título/footer que un tripulante normal de Caos,
-        # para no delatar que este sub-modo está activo.
+        # Título y color IGUALES al tripulante normal → no delata el sub-modo.
+        # NO se revela el nombre — solo el tipo y el sprite para que el jugador
+        # sepa qué describir sin que sea trivialmente obvio para los demás.
+        tipos_str = " / ".join(dp["tipos"])
         return discord.Embed(
             title=t("dm_crew_title", gid),
-            description=t("dm_ebrios_desc", gid, name=dp["nombre"], types=" / ".join(dp["tipos"])),
+            description=t("dm_ebrios_desc", gid, types=tipos_str),
             color=discord.Color.from_rgb(30, 160, 80),
         ).set_image(url=dp["sprite"]).set_footer(text=t("dm_ebrios_footer", gid))
 
@@ -401,21 +444,28 @@ class Partida:
         self.caos_sin_impostores = False
         self.objetivo_humano  = None
         self.pokemons_ebrios.clear()
+        self._variante_ronda = CaosVariante.NORMAL
         self.rondas_sin_expulsion   = 0
         self.pista_publica_revelada = False
 
         modo = self.config.modo_juego
 
-        # ── Sub-modificadores exclusivos de CAOS ──────────────────────────────
-        if modo == ModoJuego.CAOS and self.config.caos_variante == CaosVariante.DANZA_CAOS:
-            return await self._arrancar_amigos_ebrios()
-
-        if modo == ModoJuego.CAOS and self.config.caos_variante == CaosVariante.OBJETIVO_HUMANO:
-            return await self._arrancar_caos_jugador()
+        # Caos: elegir variante aleatoriamente entre las permitidas ─────────
+        # Los radio buttons de configuración indican qué variantes PUEDEN salir
+        # (NORMAL siempre disponible). En cada ronda se sortea cuál aparece.
+        if modo == ModoJuego.CAOS:
+            variante_elegida = self._sortear_variante_caos()
+            self._variante_ronda = variante_elegida   # usada por _calcular_impostores
+            if variante_elegida == CaosVariante.DANZA_CAOS:
+                return await self._arrancar_amigos_ebrios()
+            if variante_elegida == CaosVariante.OBJETIVO_HUMANO:
+                return await self._arrancar_caos_jugador()
+            # Si NORMAL, continúa con el flujo estándar de Caos
 
         # ── Modos normales (Clásico / Extendido / Caos) ───────────────────────
         id_elegido         = self._elegir_id_pokemon()
-        self.datos_pokemon = await obtener_datos_completos_pokemon(id_elegido)
+        lang               = get_lang(self.canal.guild.id)
+        self.datos_pokemon = await obtener_datos_completos_pokemon(id_elegido, lang=lang)
         if self.datos_pokemon is None:
             await self.canal.send(self._t("api_error"))
             return False
@@ -470,7 +520,7 @@ class Partida:
         dm_fallidos: list[discord.Member] = []
         for jugador in self.jugadores:
             id_pk  = self._elegir_id_pokemon()
-            dp     = await obtener_datos_completos_pokemon(id_pk)
+            dp     = await obtener_datos_completos_pokemon(id_pk, lang=get_lang(self.canal.guild.id))
             if dp is None:
                 await self.canal.send(self._t("api_error"))
                 return False
