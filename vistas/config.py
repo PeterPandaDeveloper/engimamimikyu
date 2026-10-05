@@ -36,55 +36,75 @@ class PanelConfiguracion(discord.ui.View):
 
     # ── Select: modo de juego ────────────────────────────────────────────────
     def _add_select_modo(self, g: int):
-        sel = discord.ui.Select(
+        self._sel_modo = discord.ui.Select(
             placeholder=t("sel_gamemode", g),
             options=[
-                discord.SelectOption(label=t("mode_classic",  g), value=ModoJuego.CLASICO,   description=t("mode_classic_desc",  g)),
-                discord.SelectOption(label=t("mode_extended", g), value=ModoJuego.EXTENDIDO, description=t("mode_extended_desc", g)),
-                discord.SelectOption(label=t("mode_caos",     g), value=ModoJuego.CAOS,      description=t("mode_caos_desc",     g)),
+                discord.SelectOption(label=t("mode_classic",  g), value=ModoJuego.CLASICO,   description=t("mode_classic_desc",  g), default=(self.partida.config.modo_juego == ModoJuego.CLASICO)),
+                discord.SelectOption(label=t("mode_extended", g), value=ModoJuego.EXTENDIDO, description=t("mode_extended_desc", g), default=(self.partida.config.modo_juego == ModoJuego.EXTENDIDO)),
+                discord.SelectOption(label=t("mode_caos",     g), value=ModoJuego.CAOS,      description=t("mode_caos_desc",     g), default=(self.partida.config.modo_juego == ModoJuego.CAOS)),
             ], row=0,
         )
-        sel.callback = self._set_modo
-        self.add_item(sel)
+        self._sel_modo.callback = self._set_modo
+        self.add_item(self._sel_modo)
 
     # ── Select: tipo de pista para el impostor ──────────────────────────────
     def _add_select_pista(self, g: int):
-        sel = discord.ui.Select(
+        pista_specs = [
+            (Ventaja.ALEATORIO,    "hint_random",      "hint_random_desc"),
+            (Ventaja.LETRA,        "hint_letter",      None),
+            (Ventaja.TIPO,         "hint_type",        None),
+            (Ventaja.RANGO_REGION, "hint_region",      None),
+            (Ventaja.HABILIDAD,    "hint_ability",     None),
+            (Ventaja.ESTADISTICAS, "hint_stats",       "hint_stats_desc"),
+            (Ventaja.PERFIL,       "hint_profile",     "hint_profile_desc"),
+            (Ventaja.DEBILIDADES,  "hint_weakness",    "hint_weakness_desc"),
+            (Ventaja.POKEDEX,      "hint_pokedex",     "hint_pokedex_desc"),
+        ]
+        options = [
+            discord.SelectOption(
+                label=t(label_key, g),
+                value=v,
+                description=t(desc_key, g) if desc_key else None,
+                default=(self.partida.config.ventaja == v),
+            )
+            for v, label_key, desc_key in pista_specs
+        ]
+        self._sel_pista = discord.ui.Select(
             placeholder=t("sel_hint", g),
-            options=[
-                discord.SelectOption(label=t("hint_random",      g), value=Ventaja.ALEATORIO,    description=t("hint_random_desc", g)),
-                discord.SelectOption(label=t("hint_letter",      g), value=Ventaja.LETRA),
-                discord.SelectOption(label=t("hint_type",        g), value=Ventaja.TIPO),
-                discord.SelectOption(label=t("hint_region",      g), value=Ventaja.RANGO_REGION),
-                discord.SelectOption(label=t("hint_ability",     g), value=Ventaja.HABILIDAD),
-                discord.SelectOption(label=t("hint_stats",       g), value=Ventaja.ESTADISTICAS, description=t("hint_stats_desc", g)),
-                discord.SelectOption(label=t("hint_profile",     g), value=Ventaja.PERFIL,        description=t("hint_profile_desc", g)),
-                discord.SelectOption(label=t("hint_weakness",    g), value=Ventaja.DEBILIDADES,   description=t("hint_weakness_desc", g)),
-                discord.SelectOption(label=t("hint_pokedex",     g), value=Ventaja.POKEDEX,       description=t("hint_pokedex_desc", g)),
-            ], row=1,
+            options=options,
+            row=1,
         )
-        sel.callback = self._set_pista
-        self.add_item(sel)
+        self._sel_pista.callback = self._set_pista
+        self.add_item(self._sel_pista)
 
     # ── Select: regiones de Pokémon ──────────────────────────────────────────
     def _add_select_region(self, g: int):
-        sel = discord.ui.Select(
+        region_specs = [
+            ("todas", "region_all"),
+            ("gen1",  "region_gen1"),
+            ("gen2",  "region_gen2"),
+            ("gen3",  "region_gen3"),
+            ("gen4",  "region_gen4"),
+            ("gen5",  "region_gen5"),
+            ("gen6",  "region_gen6"),
+            ("gen7",  "region_gen7"),
+            ("gen8",  "region_gen8"),
+            ("gen9",  "region_gen9"),
+        ]
+        options = [
+            discord.SelectOption(
+                label=t(label_key, g),
+                value=val,
+                default=(val in self.partida.config.regiones),
+            )
+            for val, label_key in region_specs
+        ]
+        self._sel_region = discord.ui.Select(
             placeholder=t("sel_regions", g), min_values=1, max_values=10,
-            options=[
-                discord.SelectOption(label=t("region_all",  g), value="todas"),
-                discord.SelectOption(label=t("region_gen1", g), value="gen1"),
-                discord.SelectOption(label=t("region_gen2", g), value="gen2"),
-                discord.SelectOption(label=t("region_gen3", g), value="gen3"),
-                discord.SelectOption(label=t("region_gen4", g), value="gen4"),
-                discord.SelectOption(label=t("region_gen5", g), value="gen5"),
-                discord.SelectOption(label=t("region_gen6", g), value="gen6"),
-                discord.SelectOption(label=t("region_gen7", g), value="gen7"),
-                discord.SelectOption(label=t("region_gen8", g), value="gen8"),
-                discord.SelectOption(label=t("region_gen9", g), value="gen9"),
-            ], row=2,
+            options=options, row=2,
         )
-        sel.callback = self._set_region
-        self.add_item(sel)
+        self._sel_region.callback = self._set_region
+        self.add_item(self._sel_region)
 
     # ── Select: límite de rondas (Combo Box 1 a 9) ───────────────────────────
     def _add_select_rondas(self, g: int):
@@ -97,13 +117,13 @@ class PanelConfiguracion(discord.ui.View):
             )
             for i in range(1, 10)
         ]
-        sel = discord.ui.Select(
+        self._sel_rondas = discord.ui.Select(
             placeholder=t("sel_rounds", g),
             options=options,
             row=3,
         )
-        sel.callback = self._set_rondas
-        self.add_item(sel)
+        self._sel_rondas.callback = self._set_rondas
+        self.add_item(self._sel_rondas)
 
     def _add_btn_iniciar(self, g: int):
         btn = discord.ui.Button(label=t("btn_start_round", g), style=discord.ButtonStyle.primary, row=4)
@@ -112,21 +132,30 @@ class PanelConfiguracion(discord.ui.View):
 
     async def _set_rondas(self, inter: discord.Interaction):
         self.partida.config.max_rondas = int(inter.data["values"][0])
+        for opt in self._sel_rondas.options:
+            opt.default = (opt.value == str(self.partida.config.max_rondas))
         await inter.response.edit_message(embed=build_embed_config(self.partida), view=self)
 
     # ── Callbacks de los selects ─────────────────────────────────────────────
     async def _set_modo(self, inter: discord.Interaction):
         nuevo_modo = ModoJuego(inter.data["values"][0])
         self.partida.config.modo_juego = nuevo_modo
+        for opt in self._sel_modo.options:
+            opt.default = (opt.value == nuevo_modo.value)
         await inter.response.edit_message(embed=build_embed_config(self.partida), view=self)
 
     async def _set_pista(self, inter: discord.Interaction):
-        self.partida.config.ventaja = Ventaja(inter.data["values"][0])
-        await inter.response.edit_message(embed=build_embed_config(self.partida))
+        nueva_ventaja = Ventaja(inter.data["values"][0])
+        self.partida.config.ventaja = nueva_ventaja
+        for opt in self._sel_pista.options:
+            opt.default = (opt.value == nueva_ventaja.value)
+        await inter.response.edit_message(embed=build_embed_config(self.partida), view=self)
 
     async def _set_region(self, inter: discord.Interaction):
         self.partida.config.regiones = inter.data["values"]
-        await inter.response.edit_message(embed=build_embed_config(self.partida))
+        for opt in self._sel_region.options:
+            opt.default = (opt.value in self.partida.config.regiones)
+        await inter.response.edit_message(embed=build_embed_config(self.partida), view=self)
 
     # ── Iniciar ronda ─────────────────────────────────────────────────────────
     async def _iniciar(self, inter: discord.Interaction):

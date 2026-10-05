@@ -1,19 +1,62 @@
 """
-api.py — Wrapper de PokéAPI con sesión compartida, reintentos y soporte
-de idioma (EN/ES) para especie, entrada de Pokédex y habitat.
+api.py — Wrapper de PokéAPI con sesión compartida, reintentos, caché en memoria/disco
+y soporte de idioma (EN/ES) para especie, entrada de Pokédex y habitat.
 """
+from __future__ import annotations
+
 import asyncio
-import aiohttp
+import json
+import os
 import random
+import aiohttp
 
 # Sesión compartida — se inicializa una vez y se reutiliza
 _session: aiohttp.ClientSession | None = None
+
+# Caché en memoria: { (id_pokemon, lang): datos_dict }
+_CACHE_POKEMON: dict[tuple[int, str], dict] = {}
+_CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "pokemon_cache.json")
+
+
+def _cargar_cache_disco():
+    global _CACHE_POKEMON
+    if os.path.exists(_CACHE_FILE):
+        try:
+            with open(_CACHE_FILE, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+            for k, v in raw.items():
+                # Formato de clave: "id:lang" -> (int(id), lang)
+                partes = k.split(":")
+                if len(partes) == 2:
+                    _CACHE_POKEMON[(int(partes[0]), partes[1])] = v
+        except Exception as e:
+            print(f"[Caché] Error al cargar caché de disco: {e}")
+
+
+def _guardar_en_cache_disco(id_pokemon: int, lang: str, datos: dict):
+    try:
+        os.makedirs(os.path.dirname(_CACHE_FILE), exist_ok=True)
+        raw = {}
+        if os.path.exists(_CACHE_FILE):
+            with open(_CACHE_FILE, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+        raw[f"{id_pokemon}:{lang}"] = datos
+        with open(_CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(raw, f, ensure_ascii=False)
+    except Exception as e:
+        print(f"[Caché] Error al guardar en caché: {e}")
+
+
+# Inicializar caché en arranque
+_cargar_cache_disco()
+
 
 async def get_session() -> aiohttp.ClientSession:
     global _session
     if _session is None or _session.closed:
         _session = aiohttp.ClientSession()
     return _session
+
 
 async def cerrar_session():
     global _session
@@ -47,11 +90,15 @@ async def obtener_datos_completos_pokemon(
     lang: str = "en",
 ) -> dict | None:
     """
-    Obtiene datos de un Pokémon desde PokéAPI.
-    - lang: idioma preferido para especie, Pokédex entry y habitat ("en" | "es")
-    - Reintenta hasta `intentos` veces con IDs aleatorios si falla.
-    - Devuelve None si agota todos los intentos.
+    Obtiene datos de un Pokémon desde la caché local o PokéAPI.
+    - Si ya está en caché: respuesta instantánea (0 ms).
+    - Si se descarga: realiza llamadas paralelas a base y species con timeout ajustado.
+    - Guarda en caché en memoria y disco automáticamente.
     """
+    cache_key = (id_pokemon, lang)
+    if cache_key in _CACHE_POKEMON:
+        return _CACHE_POKEMON[cache_key]
+
     session = await get_session()
 
     for intento in range(intentos):
@@ -59,15 +106,14 @@ async def obtener_datos_completos_pokemon(
             url_base    = f"https://pokeapi.co/api/v2/pokemon/{id_pokemon}"
             url_species = f"https://pokeapi.co/api/v2/pokemon-species/{id_pokemon}"
 
-            async with session.get(url_base, timeout=aiohttp.ClientTimeout(total=10)) as resp1:
-                if resp1.status != 200:
-                    raise ValueError(f"pokemon/{id_pokemon} devolvió HTTP {resp1.status}")
-                data = await resp1.json()
+            # Peticiones paralelas ultrarrápidas
+            async def _fetch(url: str) -> dict:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=3.5)) as resp:
+                    if resp.status != 200:
+                        raise ValueError(f"{url} HTTP {resp.status}")
+                    return await resp.json()
 
-            async with session.get(url_species, timeout=aiohttp.ClientTimeout(total=10)) as resp2:
-                if resp2.status != 200:
-                    raise ValueError(f"pokemon-species/{id_pokemon} devolvió HTTP {resp2.status}")
-                species_data = await resp2.json()
+            data, species_data = await asyncio.gather(_fetch(url_base), _fetch(url_species))
 
             # ── Datos básicos (siempre en inglés desde la API) ────────────────
             nombre = data["name"].capitalize()
@@ -92,8 +138,6 @@ async def obtener_datos_completos_pokemon(
             habitat_raw = species_data.get("habitat")
             if habitat_raw:
                 habitat_name = habitat_raw.get("name", "")
-                # La PokéAPI no ofrece nombres de habitat en español directamente,
-                # así que usamos una tabla de traducción propia.
                 _HABITAT_ES = {
                     "cave": "Cueva", "forest": "Bosque", "grassland": "Praderas",
                     "mountain": "Montaña", "rare": "Raro", "rough-terrain": "Terreno Escarpado",
@@ -106,7 +150,7 @@ async def obtener_datos_completos_pokemon(
             else:
                 habitat = "Unknown" if lang == "en" else "Desconocido"
 
-            # ── Grupos huevo (sin localización oficial en la API) ─────────────
+            # ── Grupos huevo ──────────────────────────────────────────────────
             grupos_huevo = [g["name"].replace("-", " ").capitalize()
                             for g in species_data.get("egg_groups", [])]
 
@@ -121,7 +165,7 @@ async def obtener_datos_completos_pokemon(
                 "flavor_text", lang=lang, fallback_lang="en"
             )
 
-            return {
+            res = {
                 "id": id_pokemon,
                 "nombre": nombre, "sprite": sprite, "tipos": tipos,
                 "habilidades": habilidades, "stat_mayor": stat_mayor,
@@ -131,9 +175,15 @@ async def obtener_datos_completos_pokemon(
                 "especie": especie, "pokedex_entry": pokedex_entry,
             }
 
+            # Guardar en memoria y disco
+            _CACHE_POKEMON[cache_key] = res
+            asyncio.create_task(asyncio.to_thread(_guardar_en_cache_disco, id_pokemon, lang, res))
+
+            return res
+
         except Exception as e:
             print(f"[API] Intento {intento + 1}/{intentos} fallido para ID {id_pokemon}: {e}")
-            id_pokemon = random.randint(1, 1025)
+            id_pokemon = random.randint(1, 151)  # Fallback a Kanto más confiable y rápido
 
     print("[API] Se agotaron los intentos. No se pudo obtener un Pokemon.")
     return None

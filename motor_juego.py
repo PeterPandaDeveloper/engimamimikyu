@@ -538,17 +538,20 @@ class Partida:
         if self.pistas_impostores:
             self.pista_generada = next(iter(self.pistas_impostores.values()))
 
-        # enviar DMs
+        # enviar DMs en paralelo con asyncio.gather
         dm_fallidos: list[discord.Member] = []
-        for jugador in self.jugadores:
+
+        async def _enviar_dm(j: discord.Member):
             try:
-                if jugador in self.impostores:
-                    await jugador.send(embed=self._build_dm_impostor(jugador))
+                if j in self.impostores:
+                    await j.send(embed=self._build_dm_impostor(j))
                 else:
-                    await jugador.send(embed=self._build_dm_tripulante(self.datos_pokemon))
+                    await j.send(embed=self._build_dm_tripulante(self.datos_pokemon))
             except Exception as e:
-                print(f"[DM] Falló con {jugador.display_name}: {e}")
-                dm_fallidos.append(jugador)
+                print(f"[DM] Falló con {j.display_name}: {e}")
+                dm_fallidos.append(j)
+
+        await asyncio.gather(*(_enviar_dm(j) for j in self.jugadores))
 
         if dm_fallidos:
             menciones = ", ".join(j.mention for j in dm_fallidos)
@@ -563,23 +566,29 @@ class Partida:
         self.impostores          = []
         self.caos_sin_impostores = True
 
-        # asignar un Pokémon distinto a cada jugador
+        # asignar Pokémon y enviar DMs en paralelo
         dm_fallidos: list[discord.Member] = []
-        for jugador in self.jugadores:
-            id_pk  = self._elegir_id_pokemon()
-            dp     = await obtener_datos_completos_pokemon(id_pk, lang=get_lang(self.canal.guild.id))
+        lang = get_lang(self.canal.guild.id)
+
+        async def _preparar_ebrio(jugador: discord.Member, idx: int):
+            id_pk = self._elegir_id_pokemon()
+            dp = await obtener_datos_completos_pokemon(id_pk, lang=lang)
             if dp is None:
-                await self.canal.send(self._t("api_error"))
                 return False
             self.pokemons_ebrios[jugador.id] = dp
-            if jugador == self.jugadores[0]:
+            if idx == 0:
                 self.datos_pokemon = dp  # para la pantalla final
-
             try:
                 await jugador.send(embed=self._build_dm_amigos_ebrios(jugador))
             except Exception as e:
                 print(f"[DM] Falló con {jugador.display_name}: {e}")
                 dm_fallidos.append(jugador)
+            return True
+
+        resultados = await asyncio.gather(*(_preparar_ebrio(j, i) for i, j in enumerate(self.jugadores)))
+        if not all(resultados):
+            await self.canal.send(self._t("api_error"))
+            return False
 
         if dm_fallidos:
             menciones = ", ".join(j.mention for j in dm_fallidos)
@@ -619,7 +628,8 @@ class Partida:
         self.pista_generada = pista_detective
 
         dm_fallidos: list[discord.Member] = []
-        for jugador in self.jugadores:
+
+        async def _enviar_dm_humano(jugador: discord.Member):
             try:
                 if jugador == detective:
                     await jugador.send(embed=self._build_dm_caos_jugador_detective(self.objetivo_humano, pista_detective))
@@ -631,6 +641,8 @@ class Partida:
             except Exception as e:
                 print(f"[DM] Falló con {jugador.display_name}: {e}")
                 dm_fallidos.append(jugador)
+
+        await asyncio.gather(*(_enviar_dm_humano(j) for j in self.jugadores))
 
         if dm_fallidos:
             menciones = ", ".join(j.mention for j in dm_fallidos)
