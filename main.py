@@ -658,6 +658,15 @@ class ModalGenerarKey(discord.ui.Modal):
 
 @bot.tree.command(name="generarkey", description="Owner only: Generate VIP License Keys / Generar claves VIP con contraseña")
 async def generarkey(interaction: discord.Interaction):
+    # Verificación estricta de propietario del bot / app owner
+    es_dueno = await bot.is_owner(interaction.user) or (
+        os.getenv("OWNER_ID") and str(interaction.user.id) == os.getenv("OWNER_ID").strip()
+    )
+    if not es_dueno:
+        return await interaction.response.send_message(
+            "⛔ Access Denied: This command is restricted to the bot owner.",
+            ephemeral=True
+        )
     gid = interaction.guild_id or 0
     modal = ModalGenerarKey(gid)
     await interaction.response.send_modal(modal)
@@ -731,6 +740,15 @@ async def licencia(interaction: discord.Interaction):
 @bot.tree.command(name="partner_add", description="Owner only: Grant permanent Beta Partner status to a server")
 @app_commands.describe(servidor_id="Guild ID / ID del servidor", motivo="Partner description / Motivo")
 async def partner_add(interaction: discord.Interaction, servidor_id: str, motivo: str = "Beta Tester Fundador"):
+    # Verificación estricta de propietario del bot / app owner
+    es_dueno = await bot.is_owner(interaction.user) or (
+        os.getenv("OWNER_ID") and str(interaction.user.id) == os.getenv("OWNER_ID").strip()
+    )
+    if not es_dueno:
+        return await interaction.response.send_message(
+            "⛔ Access Denied: This command is restricted to the bot owner.",
+            ephemeral=True
+        )
     gid = interaction.guild_id or 0
 
     class ModalPartnerAuth(discord.ui.Modal):
