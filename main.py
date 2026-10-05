@@ -337,6 +337,23 @@ async def impver(interaction: discord.Interaction):
 #  /implanguage — cambiar idioma del servidor
 # ═══════════════════════════════════════════════════════════════════════════════
 
+async def _ejecutar_cambio_idioma(interaction: discord.Interaction, language: str):
+    if interaction.guild_id is None or interaction.guild is None:
+        return await interaction.response.send_message(
+            "❌ This command only works inside a server. / Este comando solo funciona dentro de un servidor.",
+            ephemeral=True,
+        )
+
+    gid = interaction.guild_id
+    if not es_anfitrion_o_admin(interaction.user, interaction.guild):
+        return await interaction.response.send_message(
+            t("lang_only_admin", gid), ephemeral=True
+        )
+    set_lang(gid, language)
+    key = "lang_changed_en" if language == "en" else "lang_changed_es"
+    await interaction.response.send_message(t(key, gid))
+
+
 @bot.tree.command(name="implanguage", description="Change the bot language for this server / Cambiar idioma del bot")
 @app_commands.describe(language="Choose language / Elige idioma")
 @app_commands.choices(language=[
@@ -344,22 +361,17 @@ async def impver(interaction: discord.Interaction):
     app_commands.Choice(name="🇪🇸 Español", value="es"),
 ])
 async def implanguage(interaction: discord.Interaction, language: str):
-    if interaction.guild_id is None:
-        return await interaction.response.send_message(
-            "❌ This command only works inside a server. / Este comando solo funciona dentro de un servidor.",
-            ephemeral=True,
-        )
+    await _ejecutar_cambio_idioma(interaction, language)
 
-    gid = interaction.guild_id
-    if not interaction.user.guild_permissions.administrator:
-        # Mensaje de error bilingüe (no sabemos el idioma actual del usuario)
-        return await interaction.response.send_message(
-            t("lang_only_admin", gid), ephemeral=True
-        )
-    set_lang(gid, language)
-    # Confirmación en el idioma recién elegido (ya está guardado)
-    key = "lang_changed_en" if language == "en" else "lang_changed_es"
-    await interaction.response.send_message(t(key, gid))
+
+@bot.tree.command(name="lang", description="Change the bot language for this server / Cambiar idioma del bot")
+@app_commands.describe(language="Choose language / Elige idioma")
+@app_commands.choices(language=[
+    app_commands.Choice(name="🇬🇧 English", value="en"),
+    app_commands.Choice(name="🇪🇸 Español", value="es"),
+])
+async def lang(interaction: discord.Interaction, language: str):
+    await _ejecutar_cambio_idioma(interaction, language)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
