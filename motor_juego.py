@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import random
+import re
 import discord
 from dataclasses import dataclass, field
 from enum import Enum
@@ -120,6 +121,7 @@ class Partida:
 
         self._pokemon_usados:   set[int] = set()
         self._partidas_activas: dict     = partidas_activas
+        self.terminada:         bool     = False
 
         # Lock de concurrencia: protege operaciones que mutan el estado de la
         # partida desde callbacks de UI (votar, forzar cierre, iniciar ronda,
@@ -130,6 +132,10 @@ class Partida:
         # Flag auxiliar: True mientras arrancar_ronda() está en ejecución,
         # para detectar intentos concurrentes de iniciar/revancha.
         self._ronda_arrancando: bool = False
+
+    @property
+    def partidas_activas(self) -> dict:
+        return self._partidas_activas
 
     # ── helpers ───────────────────────────────────────────────────────────────
     def _t(self, key: str, **kwargs) -> str:
@@ -183,11 +189,15 @@ class Partida:
         Si excluir está definido, no repite pistas ya asignadas a otros impostores.
         """
         gid = self.canal.guild.id
+        nombre = dp.get("nombre") or "?"
+        habilidades = dp.get("habilidades") or []
+        hab_valor = random.choice(habilidades) if habilidades else t("hint_unknown_value", gid)
+
         opciones: dict[Ventaja, str] = {
-            Ventaja.LETRA:        t("hint_text_letter", gid, v=dp["nombre"][0]),
-            Ventaja.TIPO:         t("hint_text_type",   gid, v=", ".join(dp["tipos"])),
-            Ventaja.RANGO_REGION: t("hint_text_region", gid, v=dp["gen"]),
-            Ventaja.HABILIDAD:    t("hint_text_ability", gid, v=random.choice(dp["habilidades"])),
+            Ventaja.LETRA:        t("hint_text_letter", gid, v=nombre[0]),
+            Ventaja.TIPO:         t("hint_text_type",   gid, v=", ".join(dp.get("tipos", ["?"]))),
+            Ventaja.RANGO_REGION: t("hint_text_region", gid, v=dp.get("gen", "?")),
+            Ventaja.HABILIDAD:    t("hint_text_ability", gid, v=hab_valor),
             Ventaja.ESTADISTICAS: self._pista_estadisticas(dp, gid),
             Ventaja.PERFIL:       self._pista_perfil(dp, gid),
             Ventaja.DEBILIDADES:  self._pista_debilidades(dp, gid),
@@ -204,31 +214,52 @@ class Partida:
                 return random.choice(disponibles)
         return random.choice(list(opciones.values()))
 
-    # ── Pista: estadísticas (las 2 más altas y las 2 más bajas juntas) ───────
+    # ── Pista: estadísticas (Arquetipo de Rol RPG) ───────────────────────────
     @staticmethod
     def _pista_estadisticas(dp: dict, gid: int) -> str:
         stats: dict[str, int] = dp.get("stats", {})
         if not stats:
-            # Fallback por si 'stats' no vino (compatibilidad con datos viejos):
-            # usamos la pista de tipo, que siempre está disponible.
             return t("hint_text_type", gid, v=", ".join(dp.get("tipos", ["?"])))
 
-        nombres_stats = {
-            "hp":              t("stat_name_hp",      gid),
-            "attack":          t("stat_name_attack",  gid),
-            "defense":         t("stat_name_defense", gid),
-            "special-attack":  t("stat_name_spatk",   gid),
-            "special-defense": t("stat_name_spdef",   gid),
-            "speed":           t("stat_name_speed",   gid),
-        }
+        hp = stats.get("hp", 70)
+        atk = stats.get("attack", 70)
+        def_stat = stats.get("defense", 70)
+        spa = stats.get("special-attack", 70)
+        spd = stats.get("special-defense", 70)
+        spe = stats.get("speed", 70)
+
+        max_atk = max(atk, spa)
+        bulk = (hp + def_stat + spd) / 3
+
         ordenadas = sorted(stats.items(), key=lambda kv: kv[1], reverse=True)
-        altas = ordenadas[:2]
-        bajas = ordenadas[-2:]
+        top_stat = ordenadas[0][0] if ordenadas else "speed"
 
-        altas_str = ", ".join(f"{nombres_stats.get(k, k)} ({v})" for k, v in altas)
-        bajas_str = ", ".join(f"{nombres_stats.get(k, k)} ({v})" for k, v in bajas)
+        # Clasificación de arquetipo intuitivo
+        if max_atk >= 95 and spe >= 90 and (def_stat < 75 or hp < 75):
+            arch_key = "arch_glass_cannon"
+        elif spe >= 105 and max_atk < 95:
+            arch_key = "arch_agile_scout"
+        elif max_atk >= 95 and spe <= 65 and bulk >= 70:
+            arch_key = "arch_heavy_hitter"
+        elif bulk >= 85 and max_atk < 95:
+            arch_key = "arch_defensive_tank"
+        elif max_atk >= 100 and bulk >= 80:
+            arch_key = "arch_bulky_powerhouse"
+        elif max(stats.values()) - min(stats.values()) <= 30:
+            arch_key = "arch_well_rounded"
+        else:
+            if spe >= 85 and max_atk >= 80:
+                arch_key = "arch_glass_cannon"
+            elif bulk >= 75:
+                arch_key = "arch_defensive_tank"
+            else:
+                arch_key = "arch_well_rounded"
 
-        return t("hint_text_stats", gid, high=altas_str, low=bajas_str)
+        archetype = t(f"{arch_key}_name", gid)
+        desc = t(f"{arch_key}_desc", gid)
+        highlight = t(f"highlight_{top_stat}", gid)
+
+        return t("hint_text_stats", gid, archetype=archetype, desc=desc, highlight=highlight)
 
     # ── Pista: perfil (especie + hábitat + grupo huevo) ───────────────────────
     @staticmethod
@@ -253,19 +284,40 @@ class Partida:
 
         return t("hint_text_weakness_none", gid)
 
-    # ── Pista: entrada de Pokédex (primeras palabras) ─────────────────────────
+    # ── Pista: entrada de Pokédex censurada (Cloze Test) ──────────────────────
     @staticmethod
     def _pista_pokedex(dp: dict, gid: int) -> str:
         entry = dp.get("pokedex_entry", "")
         if not entry:
             return t("hint_text_pokedex_unavailable", gid)
-        # Tomamos las primeras ~8 palabras: suficiente para dar ambiente sin
-        # ser tan específico que delate el nombre directamente.
+
+        nombre = dp.get("nombre", "")
         palabras = entry.split()
-        fragmento = " ".join(palabras[:8])
-        if len(palabras) > 8:
-            fragmento += "..."
-        return t("hint_text_pokedex", gid, excerpt=fragmento)
+        limite = " ".join(palabras[:18])
+        if len(palabras) > 18:
+            limite += "..."
+
+        # Términos que regalarían la identidad o tipo elemental
+        terminos = {
+            "fuego", "fire", "agua", "water", "planta", "grass", "electrico", "eléctrico", "electric",
+            "hielo", "ice", "lucha", "fighting", "veneno", "poison", "tierra", "ground",
+            "volador", "flying", "psiquico", "psíquico", "psychic", "bicho", "bug", "roca", "rock",
+            "fantasma", "ghost", "dragon", "dragón", "steel", "acero", "siniestro", "dark", "hada", "fairy",
+            "normal", "cola", "tail", "alas", "wings", "cuerno", "cuernos", "horn", "horns",
+            "caparazon", "caparazón", "shell", "pico", "beak", "garras", "claws",
+            "tentaculos", "tentáculos", "tentacles", "antenas", "colmillos", "fangs",
+        }
+        if nombre:
+            nom_lower = nombre.lower()
+            terminos.add(nom_lower)
+            if len(nom_lower) >= 4:
+                terminos.add(nom_lower[:4])
+
+        for termino in sorted(terminos, key=len, reverse=True):
+            patron = re.compile(rf"\b{re.escape(termino)}\w*\b", re.IGNORECASE)
+            limite = patron.sub("[???]", limite)
+
+        return t("hint_text_pokedex", gid, excerpt=limite)
 
 
     # ── sorteo de variante Caos por ronda ─────────────────────────────────
@@ -368,10 +420,11 @@ class Partida:
         gid = self.canal.guild.id
         embed = discord.Embed(
             title=t("dm_crew_title", gid),
-            description=t("dm_crew_desc", gid, name=dp["nombre"], types=" / ".join(dp["tipos"])),
+            description=t("dm_crew_desc", gid, name=dp.get("nombre", "?"), types=" / ".join(dp.get("tipos", ["?"]))),
             color=discord.Color.from_rgb(30, 160, 80),
         )
-        embed.set_image(url=dp["sprite"])
+        if dp.get("sprite"):
+            embed.set_image(url=dp["sprite"])
         embed.set_footer(text=t("dm_crew_footer", gid))
         return embed
 
@@ -390,18 +443,14 @@ class Partida:
 
     def _build_dm_caos_jugador_tripulante(self, objetivo: discord.Member) -> discord.Embed:
         gid = self.canal.guild.id
-        # Tripulante normal de Objetivo Humano: ve el mismo DM que un tripulante
-        # de Caos estándar. NO sabe que es un sub-modo especial ni que hay un
-        # "objetivo" — solo sabe que describe a "ese jugador" como si fuera un
-        # Pokémon. Si le dijéramos "describe a X sin decir su nombre" quedaría
-        # obvio que hay un detective buscando a alguien.
-        # Usamos un mensaje neutro que da la imagen del objetivo como referencia
-        # sin revelar la mecánica.
-        return discord.Embed(
+        embed = discord.Embed(
             title=t("dm_crew_title", gid),
             description=t("dm_caos_jugador_crew_neutral", gid),
             color=discord.Color.from_rgb(30, 160, 80),
-        ).set_image(url=objetivo.display_avatar.url)
+        )
+        if getattr(objetivo, "display_avatar", None):
+            embed.set_image(url=objetivo.display_avatar.url)
+        return embed
 
     def _build_dm_caos_jugador_objetivo(self) -> discord.Embed:
         """
@@ -425,17 +474,23 @@ class Partida:
         # Título y color IGUALES al tripulante normal → no delata el sub-modo.
         # NO se revela el nombre — solo el tipo y el sprite para que el jugador
         # sepa qué describir sin que sea trivialmente obvio para los demás.
-        tipos_str = " / ".join(dp["tipos"])
-        return discord.Embed(
+        tipos_str = " / ".join(dp.get("tipos", ["?"]))
+        embed = discord.Embed(
             title=t("dm_crew_title", gid),
             description=t("dm_ebrios_desc", gid, types=tipos_str),
             color=discord.Color.from_rgb(30, 160, 80),
-        ).set_image(url=dp["sprite"]).set_footer(text=t("dm_ebrios_footer", gid))
+        )
+        if dp.get("sprite"):
+            embed.set_image(url=dp["sprite"])
+        embed.set_footer(text=t("dm_ebrios_footer", gid))
+        return embed
 
     # ─────────────────────────────────────────────────────────────────────────
     #  ARRANCAR RONDA — punto de entrada principal
     # ─────────────────────────────────────────────────────────────────────────
     async def arrancar_ronda(self) -> bool:
+        self.ronda = 1
+        self.terminada = False
         self.impostores.clear()
         self.jugadores_iniciales.clear()
         self.impostores_iniciales.clear()
@@ -515,6 +570,8 @@ class Partida:
     async def _arrancar_amigos_ebrios(self) -> bool:
         self.jugadores_iniciales  = self.jugadores.copy()
         self.impostores_iniciales = []
+        self.impostores          = []
+        self.caos_sin_impostores = True
 
         # asignar un Pokémon distinto a cada jugador
         dm_fallidos: list[discord.Member] = []

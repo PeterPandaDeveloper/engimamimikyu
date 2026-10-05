@@ -10,7 +10,14 @@ import discord
 from motor_juego import Partida, ModoJuego, CaosVariante, Ventaja
 from i18n import t
 
-from .common import TIMEOUT_LOBBY, gid, build_embed_config, build_embed_ronda
+from .common import (
+    TIMEOUT_LOBBY,
+    gid,
+    build_embed_config,
+    build_embed_ronda,
+    NOMBRE_ROL_HOST,
+    es_anfitrion_o_admin,
+)
 
 
 class PanelConfiguracion(discord.ui.View):
@@ -149,8 +156,10 @@ class PanelConfiguracion(discord.ui.View):
     # ── Iniciar ronda ─────────────────────────────────────────────────────────
     async def _iniciar(self, inter: discord.Interaction):
         g = inter.guild_id
-        if not inter.user.guild_permissions.administrator:
-            return await inter.response.send_message(t("only_admin", g), ephemeral=True)
+        if not es_anfitrion_o_admin(inter.user, inter.guild):
+            return await inter.response.send_message(
+                t("only_host_or_admin", g, role=NOMBRE_ROL_HOST), ephemeral=True
+            )
 
         # Lock: dos admins podrían tener cada uno su propio panel ephemeral
         # de configuración abierto y pulsar "Iniciar Ronda" casi a la vez.
@@ -181,6 +190,7 @@ class PanelConfiguracion(discord.ui.View):
                 self.partida._ronda_arrancando = False
 
             if not exito:
+                await inter.channel.send(t("api_error", g))
                 return
 
         if self.partida.caos_sin_impostores:
@@ -192,4 +202,6 @@ class PanelConfiguracion(discord.ui.View):
 
         # Import diferido para evitar ciclo de imports
         from .debate import PanelDebate
-        await inter.channel.send(embed=build_embed_ronda(self.partida), view=PanelDebate(self.partida))
+        view_deb = PanelDebate(self.partida)
+        msg = await inter.channel.send(embed=build_embed_ronda(self.partida), view=view_deb)
+        view_deb.message = msg

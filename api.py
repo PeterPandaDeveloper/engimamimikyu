@@ -2,6 +2,7 @@
 api.py — Wrapper de PokéAPI con sesión compartida, reintentos y soporte
 de idioma (EN/ES) para especie, entrada de Pokédex y habitat.
 """
+import asyncio
 import aiohttp
 import random
 
@@ -18,6 +19,8 @@ async def cerrar_session():
     global _session
     if _session and not _session.closed:
         await _session.close()
+        await asyncio.sleep(0.25)
+        _session = None
 
 
 def _get_localizado(lista: list[dict], campo: str, lang: str, fallback_lang: str = "en") -> str:
@@ -67,17 +70,23 @@ async def obtener_datos_completos_pokemon(
                 species_data = await resp2.json()
 
             # ── Datos básicos (siempre en inglés desde la API) ────────────────
-            nombre      = data["name"].capitalize()
-            sprite      = data["sprites"]["front_default"]
-            tipos       = [t["type"]["name"].capitalize() for t in data["types"]]
-            habilidades = [h["ability"]["name"].replace("-", " ").capitalize() for h in data["abilities"]]
+            nombre = data["name"].capitalize()
+            sprites_data = data.get("sprites", {})
+            sprite = (
+                sprites_data.get("front_default")
+                or sprites_data.get("other", {}).get("official-artwork", {}).get("front_default")
+                or sprites_data.get("other", {}).get("home", {}).get("front_default")
+                or None
+            )
+            tipos = [t["type"]["name"].capitalize() for t in data.get("types", [])]
+            habilidades = [h["ability"]["name"].replace("-", " ").capitalize() for h in data.get("abilities", [])]
 
-            stats      = {s["stat"]["name"]: s["base_stat"] for s in data["stats"]}
-            stat_mayor = max(stats, key=stats.get)
-            stat_menor = min(stats, key=stats.get)
+            stats      = {s["stat"]["name"]: s["base_stat"] for s in data.get("stats", [])}
+            stat_mayor = max(stats, key=stats.get) if stats else "None"
+            stat_menor = min(stats, key=stats.get) if stats else "None"
 
             gen = species_data["generation"]["name"].upper()
-            es_legendario = species_data["is_legendary"] or species_data["is_mythical"]
+            es_legendario = species_data.get("is_legendary", False) or species_data.get("is_mythical", False)
 
             # ── Habitat localizado ────────────────────────────────────────────
             habitat_raw = species_data.get("habitat")
@@ -113,6 +122,7 @@ async def obtener_datos_completos_pokemon(
             )
 
             return {
+                "id": id_pokemon,
                 "nombre": nombre, "sprite": sprite, "tipos": tipos,
                 "habilidades": habilidades, "stat_mayor": stat_mayor,
                 "stat_menor": stat_menor, "stats": stats,
@@ -122,8 +132,8 @@ async def obtener_datos_completos_pokemon(
             }
 
         except Exception as e:
-            print(f"⚠️ [API] Intento {intento + 1}/{intentos} fallido para ID {id_pokemon}: {e}")
+            print(f"[API] Intento {intento + 1}/{intentos} fallido para ID {id_pokemon}: {e}")
             id_pokemon = random.randint(1, 1025)
 
-    print("❌ [API] Se agotaron los intentos. No se pudo obtener un Pokémon.")
+    print("[API] Se agotaron los intentos. No se pudo obtener un Pokemon.")
     return None

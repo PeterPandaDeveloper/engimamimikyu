@@ -4,7 +4,11 @@ vistas/__init__.py — Punto de entrada del paquete de UI.
 Re-exporta los símbolos que `main.py` necesita, para no romper
 las importaciones existentes (`from vistas import PanelInscripcion, ...`).
 """
-from .common import build_embed_lobby as _build_embed_lobby
+from .common import (
+    build_embed_lobby as _build_embed_lobby,
+    NOMBRE_ROL_HOST,
+    es_anfitrion_o_admin,
+)
 from .lobby import PanelInscripcion
 from .config import PanelConfiguracion
 from .debate import PanelDebate
@@ -19,4 +23,6 @@ __all__ = [
     "PanelPostRonda",
     "mostrar_pantalla_final",
     "_build_embed_lobby",
+    "NOMBRE_ROL_HOST",
+    "es_anfitrion_o_admin",
 ]

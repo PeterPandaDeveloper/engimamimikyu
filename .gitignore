@@ -1,3 +1,5 @@
 .env
 __pycache__/
 *.pyc
+data/*.duckdb*
+data/sesiones_activas.json

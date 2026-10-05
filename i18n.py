@@ -12,42 +12,23 @@ import json
 import os
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  REGISTRO DE IDIOMA POR SERVIDOR  { guild_id: "en" | "es" }  — persistido en disco
+#  REGISTRO DE IDIOMA POR SERVIDOR  { guild_id: "en" | "es" }  — persistido con DuckDB
 # ═══════════════════════════════════════════════════════════════════════════════
 
-_DATA_DIR  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
-_LANG_FILE = os.path.join(_DATA_DIR, "idiomas.json")
+from db import cargar_todos_los_idiomas, get_guild_lang, set_guild_lang
 
-
-def _cargar_idiomas() -> dict[int, str]:
-    try:
-        with open(_LANG_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        # Las claves JSON son siempre strings; las convertimos a int.
-        return {int(k): v for k, v in data.items()}
-    except (FileNotFoundError, json.JSONDecodeError, ValueError):
-        return {}
-
-
-def _guardar_idiomas() -> None:
-    try:
-        os.makedirs(_DATA_DIR, exist_ok=True)
-        with open(_LANG_FILE, "w", encoding="utf-8") as f:
-            json.dump({str(k): v for k, v in _idiomas.items()}, f, ensure_ascii=False, indent=2)
-    except OSError as e:
-        print(f"[i18n] No se pudo guardar idiomas.json: {e}")
-
-
-_idiomas: dict[int, str] = _cargar_idiomas()
+_idiomas: dict[int, str] = cargar_todos_los_idiomas()
 
 
 def get_lang(guild_id: int) -> str:
+    if guild_id not in _idiomas:
+        _idiomas[guild_id] = get_guild_lang(guild_id)
     return _idiomas.get(guild_id, "en")
 
 
 def set_lang(guild_id: int, lang: str) -> None:
     _idiomas[guild_id] = lang
-    _guardar_idiomas()
+    set_guild_lang(guild_id, lang)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -91,6 +72,10 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "You're already in the lobby.",
         "es": "Ya estás en el lobby.",
     },
+    "lobby_already_in_other_game": {
+        "en": "⚠️ You are already participating in a game in another channel.",
+        "es": "⚠️ Ya estás participando en una partida en otro canal.",
+    },
     "lobby_not_in": {
         "en": "You're not in the lobby.",
         "es": "No estás en el lobby.",
@@ -98,6 +83,10 @@ STRINGS: dict[str, dict[str, str]] = {
     "lobby_cancelled": {
         "en": "🛑 **Lobby cancelled by an administrator.**",
         "es": "🛑 **Lobby cancelado por el administrador.**",
+    },
+    "lobby_full": {
+        "en": "⚠️ The lobby is full (maximum 24 players).",
+        "es": "⚠️ El lobby está lleno (máximo 24 jugadores).",
     },
 
     # ── Botones generales ─────────────────────────────────────────────────────
@@ -158,6 +147,10 @@ STRINGS: dict[str, dict[str, str]] = {
     "only_admin": {
         "en": "Only administrators can do that.",
         "es": "Solo administradores pueden hacer eso.",
+    },
+    "only_host_or_admin": {
+        "en": "⚠️ Only members with the **{role}** role or Administrators can do that.",
+        "es": "⚠️ Solo los miembros con el rol **{role}** o Administradores pueden hacer eso.",
     },
     "min_players": {
         "en": "At least **3 players** are needed to start.",
@@ -381,9 +374,35 @@ STRINGS: dict[str, dict[str, str]] = {
     "stat_name_speed":   {"en": "Speed",           "es": "Velocidad"},
 
     "hint_text_stats": {
-        "en": "Its highest stats are {high}. Its lowest are {low}.",
-        "es": "Sus estadísticas más altas son {high}. Las más bajas son {low}.",
+        "en": "⚔️ Combat Archetype: **{archetype}** ({desc})\n⭐ Standout attribute: **{highlight}**",
+        "es": "⚔️ Arquetipo de Combate: **{archetype}** ({desc})\n⭐ Atributo más destacado: **{highlight}**",
     },
+
+    # Arquetipos RPG de estadísticas
+    "arch_glass_cannon_name": {"en": "Glass Cannon", "es": "Cañón de Cristal"},
+    "arch_glass_cannon_desc": {"en": "High offensive power and speed, but fragile defenses", "es": "Gran potencia ofensiva y velocidad, pero defensas frágiles"},
+
+    "arch_agile_scout_name": {"en": "Agile Scout", "es": "Explorador Veloz"},
+    "arch_agile_scout_desc": {"en": "Blazing speed and reaction, outpaces almost any foe", "es": "Velocidad vertiginosa, supera en rapidez a casi cualquier rival"},
+
+    "arch_heavy_hitter_name": {"en": "Heavy Hitter", "es": "Golpeador Pesado"},
+    "arch_heavy_hitter_desc": {"en": "Devastating attack power, but slow movement", "es": "Fuerza de ataque demoledora, pero movimientos lentos"},
+
+    "arch_defensive_tank_name": {"en": "Defensive Tank", "es": "Tanque Defensivo"},
+    "arch_defensive_tank_desc": {"en": "High durability and resistance, withstands massive punishment", "es": "Gran aguante y resistencia, soporta muchos golpes"},
+
+    "arch_bulky_powerhouse_name": {"en": "Bulky Powerhouse", "es": "Titán Todoterreno"},
+    "arch_bulky_powerhouse_desc": {"en": "Deadly offensive power combined with sturdy defense", "es": "Poderoso en ataque y con gran aguante defensivo"},
+
+    "arch_well_rounded_name": {"en": "Balanced Fighter", "es": "Combatiente Equilibrado"},
+    "arch_well_rounded_desc": {"en": "Well-balanced attributes, versatile and adaptable", "es": "Atributos muy parejos en todas las áreas, versátil y adaptable"},
+
+    "highlight_hp": {"en": "Colossal Stamina (HP)", "es": "Salud y Vitalidad Colosal"},
+    "highlight_attack": {"en": "Brute Physical Strength", "es": "Fuerza Física Brutal"},
+    "highlight_defense": {"en": "Ironclad Physical Defense", "es": "Defensa Física Impenetrable"},
+    "highlight_special-attack": {"en": "Devastating Special Power", "es": "Poder Especial Devastador"},
+    "highlight_special-defense": {"en": "Immense Special Resistance", "es": "Gran Resistencia Especial"},
+    "highlight_speed": {"en": "Lightning Speed", "es": "Velocidad Relámpago"},
 
     # Perfil: especie + hábitat + grupo huevo
     "hint_unknown_value": {
@@ -411,8 +430,8 @@ STRINGS: dict[str, dict[str, str]] = {
 
     # Pokédex entry
     "hint_text_pokedex": {
-        "en": "Pokédex entry: \"{excerpt}\"",
-        "es": "Entrada de Pokédex: \"{excerpt}\"",
+        "en": "Pokédex log (classified): \"{excerpt}\"",
+        "es": "Registro de Pokédex (clasificado): \"{excerpt}\"",
     },
     "hint_text_pokedex_unavailable": {
         "en": "No Pokédex entry is available for it.",
@@ -723,12 +742,50 @@ STRINGS: dict[str, dict[str, str]] = {
         ),
     },
     "help_modes_name":  {"en": "⚙️  Game Modes",  "es": "⚙️  Modos de Juego"},
+    "help_modes_value": {
+        "en": (
+            "• **Classic:** 1 secret Impostor, 1 secret Pokémon.\n"
+            "• **Extended:** Multiple Impostors who know each other.\n"
+            "• **Chaos:** Unpredictable rules (0 to N Impostors, Human Target, or Chaos Dance)."
+        ),
+        "es": (
+            "• **Clásico:** 1 Impostor secreto, 1 Pokémon secreto.\n"
+            "• **Extendido:** Múltiples Impostores cómplices que se conocen.\n"
+            "• **Caos:** Reglas impredecibles (0 a N Impostores, Objetivo Humano o Danza Caos)."
+        ),
+    },
+    "help_commands_name": {
+        "en": "📜  Available Commands",
+        "es": "📜  Comandos Disponibles",
+    },
+    "help_commands_value": {
+        "en": (
+            "• `/impregister` — Open a new lobby\n"
+            "• `/impver` — Re-send your secret role by DM\n"
+            "• `/perfil [@user]` — View trainer statistics and winrate\n"
+            "• `/ranking` — Server leaderboards (General / Impostors / Crew)\n"
+            "• `/stats_partidas` — Server-wide match analytics\n"
+            "• `/implanguage` — Change bot language (Admin only)"
+        ),
+        "es": (
+            "• `/impregister` — Abrir nueva sala de espera\n"
+            "• `/impver` — Reenviar tu rol secreto por mensaje privado\n"
+            "• `/perfil [@usuario]` — Ver estadísticas y porcentaje de victoria\n"
+            "• `/ranking` — Tablas de clasificación (General / Impostores / Tripulantes)\n"
+            "• `/stats_partidas` — Analítica global del servidor\n"
+            "• `/implanguage` — Cambiar idioma del bot (Solo Admin)"
+        ),
+    },
     "help_footer": {
         "en": "Good luck, trainer!",
         "es": "¡Buena suerte, entrenador!",
     },
 
     # ── /impregister ──────────────────────────────────────────────────────────
+    "register_only_host": {
+        "en": "⚠️ Only members with the **{role}** role or Administrators can open game lobbies.",
+        "es": "⚠️ Solo los miembros con el rol **{role}** o Administradores pueden abrir salas de juego.",
+    },
     "register_already_active": {
         "en": "⚠️ There is already an active game in this channel. Finish it before opening another.",
         "es": "⚠️ Ya hay una partida activa en este canal. Termínenla antes de abrir otra.",
@@ -1068,4 +1125,164 @@ STRINGS["session_lost_after_restart"] = {
         "🔌 **Me acabo de reiniciar** y perdí el rastro de la partida que estaba en este canal.\n"
         "¡Disculpen las molestias! Usen `/impregister` para abrir un nuevo lobby."
     ),
+}
+
+# ── Estadísticas y Perfil (/perfil) ──────────────────────────────────────────
+STRINGS["profile_title"] = {
+    "en": "👤 Trainer Profile — {name}",
+    "es": "👤 Perfil de Entrenador — {name}",
+}
+STRINGS["profile_no_games"] = {
+    "en": "This trainer hasn't played any PokeImpostor games yet!",
+    "es": "¡Este entrenador todavía no ha jugado ninguna partida de PokeImpostor!",
+}
+STRINGS["profile_general_field"] = {
+    "en": "📊 General Performance",
+    "es": "📊 Rendimiento General",
+}
+STRINGS["profile_general_value"] = {
+    "en": "• Games: **{total}**\n• Wins: **{wins}** ({winrate}%)\n• Losses: **{losses}**",
+    "es": "• Partidas: **{total}**\n• Victorias: **{wins}** ({winrate}%)\n• Derrotas: **{losses}**",
+}
+STRINGS["profile_roles_field"] = {
+    "en": "🎭 Performance by Role",
+    "es": "🎭 Rendimiento por Rol",
+}
+STRINGS["profile_roles_value"] = {
+    "en": "• 🔪 Impostor: **{imp_wins}/{imp_games}** ({imp_wr}% winrate)\n• 🔍 Crewmate: **{crew_wins}/{crew_games}** ({crew_wr}% winrate)",
+    "es": "• 🔪 Impostor: **{imp_wins}/{imp_games}** ({imp_wr}% victorias)\n• 🔍 Tripulante: **{crew_wins}/{crew_games}** ({crew_wr}% victorias)",
+}
+STRINGS["profile_innocent_field"] = {
+    "en": "😱 Wrongfully Expelled",
+    "es": "😱 Inocente Expulsado",
+}
+STRINGS["profile_innocent_value"] = {
+    "en": "{count} times voted out while innocent",
+    "es": "{count} veces votado siendo inocente",
+}
+STRINGS["profile_pokemon_field"] = {
+    "en": "🌟 Signature Pokémon",
+    "es": "🌟 Pokémon Más Frecuente",
+}
+STRINGS["profile_pokemon_value"] = {
+    "en": "**{name}**",
+    "es": "**{name}**",
+}
+
+# ── Tabla de Clasificación (/ranking) ────────────────────────────────────────
+STRINGS["ranking_title_general"] = {
+    "en": "🏆 Server Leaderboard — Most Wins",
+    "es": "🏆 Tabla de Clasificación — Más Victorias",
+}
+STRINGS["ranking_title_impostores"] = {
+    "en": "🔪 Server Leaderboard — Deadliest Impostors",
+    "es": "🔪 Tabla de Clasificación — Impostores Más Letales",
+}
+STRINGS["ranking_title_detectives"] = {
+    "en": "🔍 Server Leaderboard — Best Crewmates",
+    "es": "🔍 Tabla de Clasificación — Mejores Tripulantes",
+}
+STRINGS["ranking_empty"] = {
+    "en": "No games recorded on this server yet! Start one with `/impregister`.",
+    "es": "¡Aún no hay partidas registradas en este servidor! Inicien una con `/impregister`.",
+}
+STRINGS["ranking_entry"] = {
+    "en": "{medal} **{name}** — **{wins}** wins ({winrate}% in {total} games)",
+    "es": "{medal} **{name}** — **{wins}** victorias ({winrate}% en {total} partidas)",
+}
+
+# ── Estadísticas Globales del Servidor (/stats_partidas) ─────────────────────
+STRINGS["server_stats_title"] = {
+    "en": "📈 PokeImpostor — Server Analytics",
+    "es": "📈 PokeImpostor — Analítica del Servidor",
+}
+STRINGS["server_stats_empty"] = {
+    "en": "No game history available yet on this server. Play a game first!",
+    "es": "Aún no hay historial de partidas en este servidor. ¡Jueguen una primera partida!",
+}
+STRINGS["server_stats_balance_field"] = {
+    "en": "⚖️ Win Balance",
+    "es": "⚖️ Balance de Victorias",
+}
+STRINGS["server_stats_balance_value"] = {
+    "en": "• Total Games: **{total}**\n• 🔪 Impostor Wins: **{imp_wins}** ({imp_pct}%)\n• 🔍 Crewmate Wins: **{crew_wins}** ({crew_pct}%)\n• 🌀 No Impostor (Chaos): **{no_imp}**",
+    "es": "• Total Partidas: **{total}**\n• 🔪 Victorias Impostor: **{imp_wins}** ({imp_pct}%)\n• 🔍 Victorias Tripulante: **{crew_wins}** ({crew_pct}%)\n• 🌀 Sin Impostores (Caos): **{no_imp}**",
+}
+STRINGS["server_stats_fav_mode"] = {
+    "en": "🎲 Favorite Game Mode",
+    "es": "🎲 Modo Favorito",
+}
+STRINGS["server_stats_deadliest_pk"] = {
+    "en": "💀 Deadliest Pokémon",
+    "es": "💀 Pokémon Más Letal",
+}
+STRINGS["server_stats_common_pk"] = {
+    "en": "✨ Most Common Pokémon",
+    "es": "✨ Pokémon Más Frecuente",
+}
+
+# ── Sistema de Licencias, Códigos y Monetización ─────────────────────────────
+STRINGS["license_key_gen_title"] = {
+    "en": "🔑 PokeImpostor — VIP License Generator",
+    "es": "🔑 PokeImpostor — Generador de Licencias VIP",
+}
+STRINGS["license_key_modal_title"] = {
+    "en": "🔐 Master Authorization",
+    "es": "🔐 Autorización Maestra",
+}
+STRINGS["license_key_modal_pwd"] = {
+    "en": "Master Password",
+    "es": "Contraseña Maestra",
+}
+STRINGS["license_key_modal_type"] = {
+    "en": "Type: dias / permanente / cargas",
+    "es": "Tipo: dias / permanente / cargas",
+}
+STRINGS["license_key_modal_val"] = {
+    "en": "Duration / Charges (e.g. 30 or 10)",
+    "es": "Duración / Cargas (ej: 30 o 10)",
+}
+STRINGS["license_auth_failed"] = {
+    "en": "❌ Authorization failed: Incorrect master password.",
+    "es": "❌ Autorización denegada: Contraseña maestra incorrecta.",
+}
+STRINGS["license_key_generated"] = {
+    "en": "✨ **VIP License Key Generated:**\n`{key}`\n\n📌 **Type:** {tipo}\n⌛ **Details:** {details}\n\n*Deliver this key to the supporter to redeem via `/canjear {key}`.*",
+    "es": "✨ **Clave de Licencia VIP Generada:**\n`{key}`\n\n📌 **Tipo:** {tipo}\n⌛ **Detalles:** {details}\n\n*Entrega esta clave al comprador/donador para canjear con `/canjear {key}`.*",
+}
+STRINGS["redeem_only_host"] = {
+    "en": "❌ Only an Administrator or a member with the **{role}** role can redeem licenses for this server.",
+    "es": "❌ Solo un Administrador o miembro con rol **{role}** puede canjear licencias para este servidor.",
+}
+STRINGS["redeem_not_found"] = {
+    "en": "❌ The provided license key does not exist or is invalid.",
+    "es": "❌ El código de licencia ingresado no existe o no es válido.",
+}
+STRINGS["redeem_already_used"] = {
+    "en": "⚠️ This license key has already been redeemed previously.",
+    "es": "⚠️ Este código de licencia ya ha sido canjeado anteriormente.",
+}
+STRINGS["redeem_success_title"] = {
+    "en": "🎉 PokeImpostor Premium Activated!",
+    "es": "🎉 ¡PokeImpostor Premium Activado!",
+}
+STRINGS["redeem_success_desc"] = {
+    "en": "This server now has **PokeImpostor Premium** enabled!\n\n👑 **Tier:** {tipo}\n📅 **Status:** {details}",
+    "es": "¡Este servidor ahora cuenta con **PokeImpostor Premium** activado!\n\n👑 **Membresía:** {tipo}\n📅 **Estado:** {details}",
+}
+STRINGS["license_status_title"] = {
+    "en": "🛡️ Server License Status",
+    "es": "🛡️ Estado de Licencia del Servidor",
+}
+STRINGS["license_status_premium"] = {
+    "en": "🌟 **Status:** PREMIUM ACTIVE\n💎 **Tier:** {tipo}\n📝 **Details:** {details}",
+    "es": "🌟 **Estado:** PREMIUM ACTIVO\n💎 **Membresía:** {tipo}\n📝 **Detalles:** {details}",
+}
+STRINGS["license_status_free"] = {
+    "en": "🌱 **Status:** Free Base Edition\n\nTo unlock all game modes (Extended, Chaos, all generations, future Items/Trivia modes):\n1. 🗳️ Vote on Top.gg (1 vote = 5 unlocked matches!).\n2. ☕ Support on Ko-fi to get a permanent or monthly VIP key.\n3. 🤝 Official Beta Partner Server.",
+    "es": "🌱 **Estado:** Edición Gratuita Base\n\nPara desbloquear todos los modos (Extendido, Caos, todas las generaciones, futuros modos Ítems/Trivia):\n1. 🗳️ Votar en Top.gg (¡1 voto = 5 partidas con todo desbloqueado!).\n2. ☕ Donar en Ko-fi para recibir una clave VIP mensual o permanente.\n3. 🤝 Servidor Beta Partner Oficial.",
+}
+STRINGS["partner_register_success"] = {
+    "en": "👑 Server **{guild_id}** successfully registered as a permanent **Beta Partner**!",
+    "es": "👑 ¡El servidor **{guild_id}** ha sido registrado con éxito como **Beta Partner** permanente!",
 }
