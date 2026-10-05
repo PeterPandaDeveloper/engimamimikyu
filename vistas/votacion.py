@@ -441,14 +441,27 @@ class PanelVotacion(discord.ui.View):
             quedan_impostores = len(self.partida.impostores) > 0
             return await self._pantalla_final(canal, victoria_impostores=quedan_impostores)
 
+        # Condición de derrota por tiempo: si se alcanzó el límite de rondas configurado (1 a 9)
+        if self.partida.ronda >= self.partida.config.max_rondas:
+            quedan_impostores = len(self.partida.impostores) > 0
+            await canal.send(embed=discord.Embed(
+                title=t("game_over_timeout_title", g),
+                description=t("game_over_timeout_desc", g),
+                color=discord.Color.from_rgb(180, 20, 20),
+            ))
+            return await self._pantalla_final(canal, victoria_impostores=quedan_impostores)
+
         self.partida.ronda += 1
+        restantes = self.partida.rondas_restantes
         view_deb = PanelDebate(self.partida)
+        embed_sig = discord.Embed(
+            title=t("round_next_title", g, n=self.partida.ronda),
+            description=t("round_next_desc", g),
+            color=discord.Color.gold(),
+        )
+        embed_sig.add_field(name=t("round_remaining_field", g), value=f"⏳ **{restantes}**", inline=True)
         msg = await canal.send(
-            embed=discord.Embed(
-                title=t("round_next_title", g, n=self.partida.ronda),
-                description=t("round_next_desc", g),
-                color=discord.Color.gold(),
-            ),
+            embed=embed_sig,
             view=view_deb,
         )
         view_deb.message = msg

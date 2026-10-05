@@ -31,7 +31,7 @@ class PanelConfiguracion(discord.ui.View):
         self._add_select_modo(g)
         self._add_select_pista(g)
         self._add_select_region(g)
-        self._add_radios_variante_caos(g)
+        self._add_select_rondas(g)
         self._add_btn_iniciar(g)
 
     # ── Select: modo de juego ────────────────────────────────────────────────
@@ -86,63 +86,38 @@ class PanelConfiguracion(discord.ui.View):
         sel.callback = self._set_region
         self.add_item(sel)
 
-    # ── Radio buttons: variante exclusiva de CAOS ────────────────────────────
-    def _add_radios_variante_caos(self, g: int):
-        # Discord no permite ocultar/mostrar items dinámicamente sin reconstruir
-        # la vista, así que estos 3 botones siempre existen pero solo se resaltan
-        # y son interactivos cuando el modo CAOS está seleccionado.
-        self._btns_variante: dict[CaosVariante, discord.ui.Button] = {}
-        variante_specs = [
-            (CaosVariante.NORMAL,          "caos_variant_normal_btn"),
-            (CaosVariante.OBJETIVO_HUMANO, "caos_variant_human_btn"),
-            (CaosVariante.DANZA_CAOS,      "caos_variant_dance_btn"),
-        ]
-        for variante, label_key in variante_specs:
-            btn = discord.ui.Button(
-                label=t(label_key, g),
-                style=self._estilo_variante(variante),
-                row=3,
+    # ── Select: límite de rondas (Combo Box 1 a 9) ───────────────────────────
+    def _add_select_rondas(self, g: int):
+        options = [
+            discord.SelectOption(
+                label=t("config_rounds_option", g, n=i),
+                value=str(i),
+                default=(i == self.partida.config.max_rondas),
+                description=t("config_rounds_desc", g, n=i),
             )
-            btn.callback = self._make_variante_callback(variante)
-            self._btns_variante[variante] = btn
-            self.add_item(btn)
+            for i in range(1, 10)
+        ]
+        sel = discord.ui.Select(
+            placeholder=t("sel_rounds", g),
+            options=options,
+            row=3,
+        )
+        sel.callback = self._set_rondas
+        self.add_item(sel)
 
     def _add_btn_iniciar(self, g: int):
         btn = discord.ui.Button(label=t("btn_start_round", g), style=discord.ButtonStyle.primary, row=4)
         btn.callback = self._iniciar
         self.add_item(btn)
 
-    # ── Helpers de radio buttons ─────────────────────────────────────────────
-    def _estilo_variante(self, variante: CaosVariante) -> discord.ButtonStyle:
-        """Verde si es la variante activa Y estamos en CAOS, gris si no."""
-        if self.partida.config.modo_juego != ModoJuego.CAOS:
-            return discord.ButtonStyle.secondary
-        if self.partida.config.caos_variante == variante:
-            return discord.ButtonStyle.success
-        return discord.ButtonStyle.secondary
-
-    def _refrescar_estilos_variante(self):
-        for variante, btn in self._btns_variante.items():
-            btn.style = self._estilo_variante(variante)
-
-    def _make_variante_callback(self, variante: CaosVariante):
-        async def _cb(inter: discord.Interaction):
-            g = inter.guild_id
-            if self.partida.config.modo_juego != ModoJuego.CAOS:
-                return await inter.response.send_message(t("caos_variant_only_caos", g), ephemeral=True)
-            self.partida.config.caos_variante = variante
-            self._refrescar_estilos_variante()
-            await inter.response.edit_message(embed=build_embed_config(self.partida), view=self)
-        return _cb
+    async def _set_rondas(self, inter: discord.Interaction):
+        self.partida.config.max_rondas = int(inter.data["values"][0])
+        await inter.response.edit_message(embed=build_embed_config(self.partida), view=self)
 
     # ── Callbacks de los selects ─────────────────────────────────────────────
     async def _set_modo(self, inter: discord.Interaction):
         nuevo_modo = ModoJuego(inter.data["values"][0])
-        # Si se sale del modo CAOS, resetear la variante a NORMAL (estado limpio)
-        if nuevo_modo != ModoJuego.CAOS:
-            self.partida.config.caos_variante = CaosVariante.NORMAL
         self.partida.config.modo_juego = nuevo_modo
-        self._refrescar_estilos_variante()
         await inter.response.edit_message(embed=build_embed_config(self.partida), view=self)
 
     async def _set_pista(self, inter: discord.Interaction):

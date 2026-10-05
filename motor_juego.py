@@ -56,7 +56,7 @@ class ConfigPartida:
     regiones:      list[str]    = field(default_factory=lambda: ["todas"])
     modo_juego:    ModoJuego    = ModoJuego.CLASICO
     ventaja:       Ventaja      = Ventaja.ALEATORIO
-    # Sub-modificador exclusivo de CAOS (radio button). Se ignora en otros modos.
+    max_rondas:    int          = 3  # Límite de rondas del juego (1 a 9)
     caos_variante: CaosVariante = CaosVariante.NORMAL
 
 
@@ -136,6 +136,11 @@ class Partida:
     @property
     def partidas_activas(self) -> dict:
         return self._partidas_activas
+
+    @property
+    def rondas_restantes(self) -> int:
+        """Contador decremental: rondas que le quedan al grupo antes de que ganen los impostores."""
+        return max(0, self.config.max_rondas - self.ronda + 1)
 
     # ── helpers ───────────────────────────────────────────────────────────────
     def _t(self, key: str, **kwargs) -> str:
@@ -323,27 +328,12 @@ class Partida:
     # ── sorteo de variante Caos por ronda ─────────────────────────────────
     def _sortear_variante_caos(self) -> CaosVariante:
         """
-        Elige aleatoriamente qué variante de Caos se jugará en esta ronda.
-
-        La config.caos_variante actúa como PERMISO, no como fijación:
-        - NORMAL   → solo Caos estándar (sin variantes especiales)
-        - DANZA_CAOS  → puede salir Normal O Danza Caos (50/50)
-        - OBJETIVO_HUMANO → puede salir Normal O Objetivo Humano (50/50)
-
-        Diseño: Normal siempre tiene peso para que las variantes especiales
-        sean sorpresas ocasionales, no algo que pasa cada ronda.
+        Caos Total: Al elegir Modo Caos, el juego es una ruleta rusa impredecible.
+        Sortea aleatoriamente entre Caos Normal (con 0 o N impostores), Objetivo Humano o Danza Caos.
         """
-        cfg = self.config.caos_variante
-
-        if cfg == CaosVariante.NORMAL:
-            return CaosVariante.NORMAL
-
-        # Si el admin eligió Danza Caos u Objetivo Humano, hay 40% de que
-        # salga la variante especial y 60% de que salga el Caos normal.
-        # Así mantiene la sorpresa sin que domine la variante.
-        if random.random() < 0.4:
-            return cfg         # variante especial elegida por el admin
-        return CaosVariante.NORMAL
+        opciones = [CaosVariante.NORMAL, CaosVariante.OBJETIVO_HUMANO, CaosVariante.DANZA_CAOS]
+        pesos    = [0.45,                0.30,                         0.25]
+        return random.choices(opciones, weights=pesos, k=1)[0]
 
     # ── cantidad de impostores ─────────────────────────────────────────────
     def _calcular_impostores(self, total: int) -> int:

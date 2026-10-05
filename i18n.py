@@ -194,6 +194,22 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "🗺️ Regions",
         "es": "🗺️ Regiones",
     },
+    "sel_rounds": {
+        "en": "⏳ Round limit (1 to 9)...",
+        "es": "⏳ Límite de rondas (1 a 9)...",
+    },
+    "config_rounds_label": {
+        "en": "⏳ Round Limit",
+        "es": "⏳ Límite de Rondas",
+    },
+    "config_rounds_option": {
+        "en": "{n} Rounds",
+        "es": "{n} Rondas",
+    },
+    "config_rounds_desc": {
+        "en": "Up to {n} debate rounds before timeout",
+        "es": "Hasta {n} rondas de debate antes de derrota por tiempo",
+    },
 
     # Opciones de modo
     "mode_classic": {
@@ -457,6 +473,7 @@ STRINGS: dict[str, dict[str, str]] = {
     },
     "round_mode_field":    {"en": "Mode",    "es": "Modo"},
     "round_players_field": {"en": "Players", "es": "Jugadores"},
+    "round_remaining_field": {"en": "⏳ Rounds Left", "es": "⏳ Rondas Restantes"},
     "round_rematch_title": {
         "en": "🏆 ROUND {n} (REMATCH)",
         "es": "🏆 RONDA {n} (REVANCHA)",
@@ -470,8 +487,16 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "🔄 Ronda {n}",
     },
     "round_next_desc": {
-        "en": "The debate continues. Open voting when ready.",
-        "es": "El debate continúa. Cuando estén listos, inicien la votación.",
+        "en": "The debate continues! Discuss and open voting when ready.",
+        "es": "¡El debate continúa! Debatan y abran la votación cuando estén listos.",
+    },
+    "game_over_timeout_title": {
+        "en": "⌛ TIME'S UP — IMPOSTORS ESCAPED!",
+        "es": "⌛ ¡TIEMPO AGOTADO — LOS IMPOSTORES ESCAPARON!",
+    },
+    "game_over_timeout_desc": {
+        "en": "The crew ran out of debate rounds! The impostors survived the clock and win the match.",
+        "es": "¡Los tripulantes se quedaron sin rondas de debate! Los impostores sobrevivieron al límite de tiempo y ganan la partida.",
     },
 
     # ── Modo Caos 0 impostores ────────────────────────────────────────────────
