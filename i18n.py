@@ -785,27 +785,29 @@ STRINGS: dict[str, dict[str, str]] = {
     },
     "help_commands_value": {
         "en": (
-            "• `/impregister` (or `register -imp`) — Open a new lobby\n"
-            "• `/impver` (or `ver -imp`) — Re-send your secret role by DM\n"
-            "• `/impperfil [@user]` (or `perfil -imp`) — View trainer profile\n"
-            "• `/impranking` (or `ranking -imp`) — Server leaderboard\n"
+            "• `/impregister` (or `register -imp`) — Open waiting room / lobby\n"
+            "• `/improle` (or `role -imp`) — Re-send your secret role via DM\n"
+            "• `/impprofile [@user]` (or `profile -imp`) — View trainer profile\n"
+            "• `/impleaderboard` (or `leaderboard -imp`) — Server leaderboard\n"
             "• `/impstats` (or `stats -imp`) — Server match analytics\n"
-            "• `/implicencia` (or `licencia -imp`) — Check VIP status\n"
-            "• `/impcanjear <key>` (or `canjear <key> -imp`) — Redeem VIP Key\n"
-            "• `/impcreditos` (or `creditos -imp`) — Artist & illustration credits\n"
+            "• `/impsetrole [@role] [@user]` (or `setrole -imp`) — Set or create host role (Admin)\n"
+            "• `/implicense` (or `license -imp`) — Check VIP status\n"
+            "• `/impredeem <key>` (or `redeem <key> -imp`) — Redeem VIP Key\n"
+            "• `/impcredits` (or `credits -imp`) — Artist & illustration credits\n"
             "• `/implang` (or `lang -imp`) — Change language (Admin only)\n"
             "• `/imphelp` (or `help -imp`) — Show this guide\n"
             "*(💡 You can use slash commands `/imp...` or write any command with `-imp` suffix!)*"
         ),
         "es": (
             "• `/impregister` (o `register -imp`) — Abrir nueva sala de espera\n"
-            "• `/impver` (o `ver -imp`) — Reenviar tu rol secreto por DM\n"
-            "• `/impperfil [@usuario]` (o `perfil -imp`) — Ver perfil de entrenador\n"
-            "• `/impranking` (o `ranking -imp`) — Tablas de clasificación\n"
+            "• `/improle` (o `role -imp` / `ver -imp`) — Reenviar tu rol secreto por DM\n"
+            "• `/impprofile [@usuario]` (o `profile -imp`) — Ver perfil de entrenador\n"
+            "• `/impleaderboard` (o `leaderboard -imp`) — Tablas de clasificación\n"
             "• `/impstats` (o `stats -imp`) — Analítica de partidas del servidor\n"
-            "• `/implicencia` (o `licencia -imp`) — Consultar estado VIP\n"
-            "• `/impcanjear <clave>` (o `canjear <clave> -imp`) — Canjear clave VIP\n"
-            "• `/impcreditos` (o `creditos -imp`) — Créditos del artista del bot\n"
+            "• `/impsetrole [@rol] [@usuario]` (o `setrole -imp`) — Configurar o crear rol de anfitrión (Admin)\n"
+            "• `/implicense` (o `license -imp`) — Consultar estado VIP\n"
+            "• `/impredeem <clave>` (o `redeem <clave> -imp`) — Canjear clave VIP\n"
+            "• `/impcredits` (o `credits -imp`) — Créditos del artista del bot\n"
             "• `/implang` (o `lang -imp`) — Cambiar idioma (Solo Admin)\n"
             "• `/imphelp` (o `help -imp`) — Mostrar esta guía\n"
             "*(💡 ¡Puedes usar slash commands `/imp...` o escribir en el chat con sufijo `-imp`!)*"
@@ -1383,4 +1385,34 @@ STRINGS["license_status_free"] = {
 STRINGS["partner_register_success"] = {
     "en": "👑 Server **{guild_id}** successfully registered as a permanent **Beta Partner**!",
     "es": "👑 ¡El servidor **{guild_id}** ha sido registrado con éxito como **Beta Partner** permanente!",
+}
+
+# ── Configuración de Rol Host (/impsetrole) ──────────────────────────────────
+STRINGS["setrole_embed_title"] = {
+    "en": "👑 PokeImpostor Host Role Setup",
+    "es": "👑 Configuración del Rol Host de PokeImpostor",
+}
+STRINGS["setrole_admin_only"] = {
+    "en": "⛔ Only server administrators can configure the PokeImpostor host role.",
+    "es": "⛔ Solo los administradores del servidor pueden configurar el rol de PokeImpostor.",
+}
+STRINGS["setrole_success_existing"] = {
+    "en": "✅ {role} is now configured as the official PokeImpostor host role for this server!",
+    "es": "✅ ¡{role} ahora está configurado como el rol oficial de anfitrión de PokeImpostor en este servidor!",
+}
+STRINGS["setrole_success_created"] = {
+    "en": "✨ Created and configured {role} as the official PokeImpostor host role!",
+    "es": "✨ ¡Se creó y configuró {role} como el rol oficial de anfitrión de PokeImpostor!",
+}
+STRINGS["setrole_assigned_user"] = {
+    "en": "👤 Successfully assigned {role} to {user}!",
+    "es": "👤 ¡Se asignó exitosamente {role} a {user}!",
+}
+STRINGS["setrole_missing_perms"] = {
+    "en": "❌ I don't have permission to manage roles. Please grant me the 'Manage Roles' permission and place my bot role above the target role.",
+    "es": "❌ No tengo permisos para gestionar roles. Otórgame el permiso 'Gestionar Roles' y coloca el rol del bot por encima del rol objetivo.",
+}
+STRINGS["setrole_hierarchy_error"] = {
+    "en": "⚠️ Cannot assign {role} to {user} because it is higher than my highest role in the server hierarchy.",
+    "es": "⚠️ No puedo asignar {role} a {user} porque está más arriba que mi rol más alto en la jerarquía del servidor.",
 }

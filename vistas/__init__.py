@@ -8,6 +8,7 @@ from .common import (
     build_embed_lobby as _build_embed_lobby,
     NOMBRE_ROL_HOST,
     es_anfitrion_o_admin,
+    obtener_nombre_rol_host,
 )
 from .lobby import PanelInscripcion
 from .config import PanelConfiguracion
@@ -25,4 +26,5 @@ __all__ = [
     "_build_embed_lobby",
     "NOMBRE_ROL_HOST",
     "es_anfitrion_o_admin",
+    "obtener_nombre_rol_host",
 ]

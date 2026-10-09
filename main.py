@@ -14,6 +14,7 @@ from vistas import (
     _build_embed_lobby,
     NOMBRE_ROL_HOST,
     es_anfitrion_o_admin,
+    obtener_nombre_rol_host,
 )
 from api import cerrar_session
 from i18n import t, set_lang, get_lang
@@ -28,6 +29,8 @@ from db import (
     verificar_estado_premium_async,
     registrar_servidor_partner_async,
     sumar_partidas_voto_async,
+    get_guild_rol_host,
+    set_guild_rol_host_async,
 )
 from security import verificar_master_password, generar_codigo_licencia
 
@@ -102,11 +105,18 @@ partidas_activas: dict[int, Partida] = _PartidasActivasDict()
 
 async def asegurar_rol_pokehost(guild: discord.Guild) -> discord.Role | None:
     """
-    Busca el rol PokeHost en el servidor, o lo crea automáticamente
+    Busca el rol configurado o PokeHost en el servidor, o lo crea automáticamente
     con color distintivo si no existe.
     """
     if guild is None:
         return None
+
+    cfg_id = get_guild_rol_host(guild.id)
+    if cfg_id:
+        r_cfg = guild.get_role(cfg_id)
+        if r_cfg is not None:
+            return r_cfg
+
     rol = discord.utils.get(guild.roles, name=NOMBRE_ROL_HOST)
     if rol is None:
         try:
@@ -225,7 +235,7 @@ async def impregister(interaction: discord.Interaction):
     # Validar permisos: debe tener el rol PokeHost o ser Administrador
     if not es_anfitrion_o_admin(interaction.user, interaction.guild):
         return await interaction.response.send_message(
-            t("register_only_host", gid, role=NOMBRE_ROL_HOST),
+            t("register_only_host", gid, role=obtener_nombre_rol_host(interaction.guild)),
             ephemeral=True,
         )
 
@@ -320,7 +330,17 @@ async def impver(interaction: discord.Interaction):
         await interaction.response.send_message(t("impver_dm_blocked", gid), ephemeral=True)
 
 
-@bot.tree.command(name="ver", description="Re-send your role by DM (only during an active game)")
+@bot.tree.command(name="improle", description="Re-send your secret role by DM (active game) / Reenviar tu rol secreto")
+async def improle(interaction: discord.Interaction):
+    await impver(interaction)
+
+
+@bot.tree.command(name="role", description="Re-send your secret role by DM (active game) / Reenviar tu rol secreto")
+async def role_cmd(interaction: discord.Interaction):
+    await impver(interaction)
+
+
+@bot.tree.command(name="ver", description="Re-send your secret role by DM (active game) / Reenviar tu rol secreto")
 async def ver(interaction: discord.Interaction):
     await impver(interaction)
 
@@ -508,6 +528,18 @@ async def _ejecutar_perfil(interaction: discord.Interaction, usuario: discord.Me
     await interaction.response.send_message(embed=embed)
 
 
+@bot.tree.command(name="impprofile", description="View your or another trainer's profile / Ver perfil de entrenador")
+@app_commands.describe(usuario="Trainer to inspect (optional) / Entrenador a consultar (opcional)")
+async def impprofile(interaction: discord.Interaction, usuario: discord.Member | None = None):
+    await _ejecutar_perfil(interaction, usuario)
+
+
+@bot.tree.command(name="profile", description="View your or another trainer's profile / Ver perfil de entrenador")
+@app_commands.describe(usuario="Trainer to inspect (optional) / Entrenador a consultar (opcional)")
+async def profile(interaction: discord.Interaction, usuario: discord.Member | None = None):
+    await _ejecutar_perfil(interaction, usuario)
+
+
 @bot.tree.command(name="impperfil", description="View your or another trainer's profile / Ver perfil de entrenador")
 @app_commands.describe(usuario="Trainer to inspect (optional) / Entrenador a consultar (opcional)")
 async def impperfil(interaction: discord.Interaction, usuario: discord.Member | None = None):
@@ -567,23 +599,45 @@ async def _ejecutar_ranking(interaction: discord.Interaction, categoria: str = "
     await interaction.response.send_message(embed=embed)
 
 
-@bot.tree.command(name="impranking", description="View the server leaderboard / Ver tabla de clasificación del servidor")
+@bot.tree.command(name="impleaderboard", description="View the server leaderboard / Ver tabla de clasificación")
 @app_commands.describe(categoria="Leaderboard category / Categoría de la clasificación")
 @app_commands.choices(categoria=[
-    app_commands.Choice(name="🏆 General (Victorias / Most Wins)", value="general"),
-    app_commands.Choice(name="🔪 Impostores (Deadliest Impostors)", value="impostores"),
-    app_commands.Choice(name="🔍 Tripulantes (Best Crewmates)", value="detectives"),
+    app_commands.Choice(name="🏆 General (Most Wins / Victorias)", value="general"),
+    app_commands.Choice(name="🔪 Impostors (Deadliest Impostors)", value="impostores"),
+    app_commands.Choice(name="🔍 Crewmates (Best Detectives)", value="detectives"),
+])
+async def impleaderboard(interaction: discord.Interaction, categoria: str = "general"):
+    await _ejecutar_ranking(interaction, categoria)
+
+
+@bot.tree.command(name="leaderboard", description="View the server leaderboard / Ver tabla de clasificación")
+@app_commands.describe(categoria="Leaderboard category / Categoría de la clasificación")
+@app_commands.choices(categoria=[
+    app_commands.Choice(name="🏆 General (Most Wins / Victorias)", value="general"),
+    app_commands.Choice(name="🔪 Impostors (Deadliest Impostors)", value="impostores"),
+    app_commands.Choice(name="🔍 Crewmates (Best Detectives)", value="detectives"),
+])
+async def leaderboard(interaction: discord.Interaction, categoria: str = "general"):
+    await _ejecutar_ranking(interaction, categoria)
+
+
+@bot.tree.command(name="impranking", description="View the server leaderboard / Ver tabla de clasificación")
+@app_commands.describe(categoria="Leaderboard category / Categoría de la clasificación")
+@app_commands.choices(categoria=[
+    app_commands.Choice(name="🏆 General (Most Wins / Victorias)", value="general"),
+    app_commands.Choice(name="🔪 Impostors (Deadliest Impostors)", value="impostores"),
+    app_commands.Choice(name="🔍 Crewmates (Best Detectives)", value="detectives"),
 ])
 async def impranking(interaction: discord.Interaction, categoria: str = "general"):
     await _ejecutar_ranking(interaction, categoria)
 
 
-@bot.tree.command(name="ranking", description="View the server leaderboard / Ver tabla de clasificación del servidor")
+@bot.tree.command(name="ranking", description="View the server leaderboard / Ver tabla de clasificación")
 @app_commands.describe(categoria="Leaderboard category / Categoría de la clasificación")
 @app_commands.choices(categoria=[
-    app_commands.Choice(name="🏆 General (Victorias / Most Wins)", value="general"),
-    app_commands.Choice(name="🔪 Impostores (Deadliest Impostors)", value="impostores"),
-    app_commands.Choice(name="🔍 Tripulantes (Best Crewmates)", value="detectives"),
+    app_commands.Choice(name="🏆 General (Most Wins / Victorias)", value="general"),
+    app_commands.Choice(name="🔪 Impostors (Deadliest Impostors)", value="impostores"),
+    app_commands.Choice(name="🔍 Crewmates (Best Detectives)", value="detectives"),
 ])
 async def ranking(interaction: discord.Interaction, categoria: str = "general"):
     await _ejecutar_ranking(interaction, categoria)
@@ -762,12 +816,22 @@ async def _ejecutar_generarkey(interaction: discord.Interaction):
     await interaction.response.send_modal(modal)
 
 
-@bot.tree.command(name="impgenerarkey", description="Owner only: Generate VIP License Keys / Generar claves VIP con contraseña")
+@bot.tree.command(name="impgenkey", description="Owner only: Generate VIP License Keys / Generar claves VIP")
+async def impgenkey(interaction: discord.Interaction):
+    await _ejecutar_generarkey(interaction)
+
+
+@bot.tree.command(name="genkey", description="Owner only: Generate VIP License Keys / Generar claves VIP")
+async def genkey(interaction: discord.Interaction):
+    await _ejecutar_generarkey(interaction)
+
+
+@bot.tree.command(name="impgenerarkey", description="Owner only: Generate VIP License Keys / Generar claves VIP")
 async def impgenerarkey(interaction: discord.Interaction):
     await _ejecutar_generarkey(interaction)
 
 
-@bot.tree.command(name="generarkey", description="Owner only: Generate VIP License Keys / Generar claves VIP con contraseña")
+@bot.tree.command(name="generarkey", description="Owner only: Generate VIP License Keys / Generar claves VIP")
 async def generarkey(interaction: discord.Interaction):
     await _ejecutar_generarkey(interaction)
 
@@ -782,7 +846,7 @@ async def _ejecutar_canjear(interaction: discord.Interaction, clave: str):
 
     if not es_anfitrion_o_admin(interaction.user, interaction.guild):
         return await interaction.response.send_message(
-            t("redeem_only_host", gid, role=NOMBRE_ROL_HOST),
+            t("redeem_only_host", gid, role=obtener_nombre_rol_host(interaction.guild)),
             ephemeral=True
         )
 
@@ -809,6 +873,18 @@ async def _ejecutar_canjear(interaction: discord.Interaction, clave: str):
     )
     embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
     await interaction.response.send_message(embed=embed)
+
+
+@bot.tree.command(name="impredeem", description="Redeem a VIP License Key for this server / Canjear clave de licencia VIP")
+@app_commands.describe(clave="VIP Key code (e.g. POKE-VIP-XXXX-YYYY)")
+async def impredeem(interaction: discord.Interaction, clave: str):
+    await _ejecutar_canjear(interaction, clave)
+
+
+@bot.tree.command(name="redeem", description="Redeem a VIP License Key for this server / Canjear clave de licencia VIP")
+@app_commands.describe(clave="VIP Key code (e.g. POKE-VIP-XXXX-YYYY)")
+async def redeem(interaction: discord.Interaction, clave: str):
+    await _ejecutar_canjear(interaction, clave)
 
 
 @bot.tree.command(name="impcanjear", description="Redeem a VIP License Key for this server / Canjear clave de licencia VIP")
@@ -848,6 +924,16 @@ async def _ejecutar_licencia(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 
 
+@bot.tree.command(name="implicense", description="Check this server's license and VIP tier / Consultar estado de licencia")
+async def implicense(interaction: discord.Interaction):
+    await _ejecutar_licencia(interaction)
+
+
+@bot.tree.command(name="license", description="Check this server's license and VIP tier / Consultar estado de licencia")
+async def license(interaction: discord.Interaction):
+    await _ejecutar_licencia(interaction)
+
+
 @bot.tree.command(name="implicencia", description="Check this server's license and VIP tier / Consultar estado de licencia")
 async def implicencia(interaction: discord.Interaction):
     await _ejecutar_licencia(interaction)
@@ -856,6 +942,147 @@ async def implicencia(interaction: discord.Interaction):
 @bot.tree.command(name="licencia", description="Check this server's license and VIP tier / Consultar estado de licencia")
 async def licencia(interaction: discord.Interaction):
     await _ejecutar_licencia(interaction)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  /impsetrole — Configurar o crear rol de anfitrión PokeImpostor
+# ═══════════════════════════════════════════════════════════════════════════════
+
+async def _ejecutar_setrole(
+    interaction: discord.Interaction,
+    role: discord.Role | None = None,
+    assign_to: discord.Member | None = None,
+):
+    if interaction.guild_id is None or interaction.guild is None:
+        return await interaction.response.send_message(
+            "❌ This command only works inside a server. / Este comando solo funciona dentro de un servidor.",
+            ephemeral=True,
+        )
+
+    gid = interaction.guild_id
+
+    # Solo administradores o el dueño del servidor pueden configurar el rol
+    es_admin = (
+        getattr(interaction.user, "guild_permissions", None)
+        and interaction.user.guild_permissions.administrator
+    ) or (interaction.user == interaction.guild.owner)
+
+    if not es_admin:
+        return await interaction.response.send_message(
+            t("setrole_admin_only", gid),
+            ephemeral=True,
+        )
+
+    target_role: discord.Role | None = role
+    creado = False
+
+    if target_role is None:
+        # Buscar si ya existe el rol PokeHost
+        target_role = discord.utils.get(interaction.guild.roles, name=NOMBRE_ROL_HOST)
+        if target_role is None:
+            # Crear el rol con color insignia de Pokémon
+            try:
+                target_role = await interaction.guild.create_role(
+                    name=NOMBRE_ROL_HOST,
+                    color=discord.Color.from_rgb(255, 203, 5),
+                    mentionable=True,
+                    reason="PokeImpostor official host role",
+                )
+                creado = True
+            except discord.Forbidden:
+                return await interaction.response.send_message(
+                    t("setrole_missing_perms", gid),
+                    ephemeral=True,
+                )
+            except Exception as e:
+                return await interaction.response.send_message(
+                    f"❌ Error creating role: {e}",
+                    ephemeral=True,
+                )
+
+    # Persistir rol host en DuckDB
+    await set_guild_rol_host_async(gid, target_role.id)
+
+    # Mensaje base
+    if creado:
+        msg = t("setrole_success_created", gid, role=target_role.mention)
+    else:
+        msg = t("setrole_success_existing", gid, role=target_role.mention)
+
+    # Asignar a usuario si se especificó, o por defecto al autor si no lo tiene
+    usuario_asignar = assign_to
+    if usuario_asignar is None:
+        if isinstance(interaction.user, discord.Member) and target_role not in interaction.user.roles:
+            usuario_asignar = interaction.user
+
+    if usuario_asignar is not None:
+        try:
+            await usuario_asignar.add_roles(target_role, reason="PokeImpostor host role assignment")
+            msg += "\n" + t("setrole_assigned_user", gid, role=target_role.name, user=usuario_asignar.mention)
+        except discord.Forbidden:
+            msg += "\n" + t("setrole_hierarchy_error", gid, role=target_role.name, user=usuario_asignar.mention)
+        except Exception as e:
+            msg += f"\n⚠️ Warning: could not assign role to {usuario_asignar.mention}: {e}"
+
+    embed = discord.Embed(
+        title=t("setrole_embed_title", gid),
+        description=msg,
+        color=discord.Color.from_rgb(255, 203, 5),
+    )
+    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+    await interaction.response.send_message(embed=embed)
+
+
+@bot.tree.command(name="impsetrole", description="Set or create the PokeImpostor host role / Configurar o crear rol de anfitrión")
+@app_commands.describe(
+    role="Role to designate as PokeHost (leave empty to auto-create @PokeHost)",
+    assign_to="Trainer to grant the host role to (optional)",
+)
+async def impsetrole(
+    interaction: discord.Interaction,
+    role: discord.Role | None = None,
+    assign_to: discord.Member | None = None,
+):
+    await _ejecutar_setrole(interaction, role, assign_to)
+
+
+@bot.tree.command(name="setrole", description="Set or create the PokeImpostor host role / Configurar o crear rol de anfitrión")
+@app_commands.describe(
+    role="Role to designate as PokeHost (leave empty to auto-create @PokeHost)",
+    assign_to="Trainer to grant the host role to (optional)",
+)
+async def setrole(
+    interaction: discord.Interaction,
+    role: discord.Role | None = None,
+    assign_to: discord.Member | None = None,
+):
+    await _ejecutar_setrole(interaction, role, assign_to)
+
+
+@bot.tree.command(name="imphostrole", description="Set or create the PokeImpostor host role / Configurar o crear rol de anfitrión")
+@app_commands.describe(
+    role="Role to designate as PokeHost (leave empty to auto-create @PokeHost)",
+    assign_to="Trainer to grant the host role to (optional)",
+)
+async def imphostrole(
+    interaction: discord.Interaction,
+    role: discord.Role | None = None,
+    assign_to: discord.Member | None = None,
+):
+    await _ejecutar_setrole(interaction, role, assign_to)
+
+
+@bot.tree.command(name="hostrole", description="Set or create the PokeImpostor host role / Configurar o crear rol de anfitrión")
+@app_commands.describe(
+    role="Role to designate as PokeHost (leave empty to auto-create @PokeHost)",
+    assign_to="Trainer to grant the host role to (optional)",
+)
+async def hostrole(
+    interaction: discord.Interaction,
+    role: discord.Role | None = None,
+    assign_to: discord.Member | None = None,
+):
+    await _ejecutar_setrole(interaction, role, assign_to)
 
 
 async def _ejecutar_partner_add(interaction: discord.Interaction, servidor_id: str, motivo: str = "Beta Tester Fundador"):
@@ -982,7 +1209,7 @@ async def on_message(message: discord.Message):
     if cmd in ("register", "registrar", "sala", "lobby"):
         await asegurar_rol_pokehost(message.guild)
         if not es_anfitrion_o_admin(message.author, message.guild):
-            await message.reply(t("register_only_host", gid, role=NOMBRE_ROL_HOST), mention_author=False)
+            await message.reply(t("register_only_host", gid, role=obtener_nombre_rol_host(message.guild)), mention_author=False)
             return
 
         if message.channel.id in partidas_activas:
@@ -1217,11 +1444,11 @@ async def on_message(message: discord.Message):
     # 7. canjear / impcanjear
     elif cmd in ("canjear", "redeem"):
         if not es_anfitrion_o_admin(message.author, message.guild):
-            await message.reply(t("redeem_only_host", gid, role=NOMBRE_ROL_HOST), mention_author=False)
+            await message.reply(t("redeem_only_host", gid, role=obtener_nombre_rol_host(message.guild)), mention_author=False)
             return
 
         if not args:
-            await message.reply("⚠️ Uso: `canjear <CLAVE> -imp`", mention_author=False)
+            await message.reply("⚠️ Usage: `redeem <KEY> -imp` / Uso: `canjear <CLAVE> -imp`", mention_author=False)
             return
 
         clave = args[0].strip()
@@ -1273,10 +1500,10 @@ async def on_message(message: discord.Message):
             await message.reply("⚠️ Opciones válidas: `en` o `es`", mention_author=False)
         return
 
-    # 9. generarkey / impgenerarkey
-    elif cmd in ("generarkey", "genkey"):
+    # 9. generarkey / impgenerarkey / genkey
+    elif cmd in ("generarkey", "genkey", "impgenkey"):
         await message.reply(
-            "🔐 Por seguridad de Discord y entrada de contraseñas, usa el comando de barra: `/impgenerarkey`",
+            "🔐 For Discord security and password entry, please use the slash command: `/impgenkey`",
             mention_author=False
         )
         return
@@ -1307,6 +1534,81 @@ async def on_message(message: discord.Message):
             color=discord.Color.from_rgb(255, 105, 180),
         )
         embed.set_footer(text=t("credits_footer", gid))
+        await message.reply(embed=embed, mention_author=False)
+        return
+
+    # 12. setrole / hostrole / rolesetup
+    elif cmd in ("setrole", "hostrole", "impsetrole", "imphostrole", "rolesetup"):
+        es_admin = (
+            getattr(message.author, "guild_permissions", None)
+            and message.author.guild_permissions.administrator
+        ) or (message.author == message.guild.owner)
+
+        if not es_admin:
+            await message.reply(t("setrole_admin_only", gid), mention_author=False)
+            return
+
+        target_role = message.role_mentions[0] if message.role_mentions else None
+        target_user = message.mentions[0] if message.mentions else None
+        creado = False
+
+        if target_role is None and args:
+            for a in args:
+                if a.isdigit():
+                    r = message.guild.get_role(int(a))
+                    if r:
+                        target_role = r
+                        break
+                r = discord.utils.get(message.guild.roles, name=a)
+                if r:
+                    target_role = r
+                    break
+
+        if target_role is None:
+            target_role = discord.utils.get(message.guild.roles, name=NOMBRE_ROL_HOST)
+            if target_role is None:
+                try:
+                    target_role = await message.guild.create_role(
+                        name=NOMBRE_ROL_HOST,
+                        color=discord.Color.from_rgb(255, 203, 5),
+                        mentionable=True,
+                        reason="PokeImpostor official host role",
+                    )
+                    creado = True
+                except discord.Forbidden:
+                    await message.reply(t("setrole_missing_perms", gid), mention_author=False)
+                    return
+                except Exception as e:
+                    await message.reply(f"❌ Error creating role: {e}", mention_author=False)
+                    return
+
+        await set_guild_rol_host_async(gid, target_role.id)
+
+        if creado:
+            msg = t("setrole_success_created", gid, role=target_role.mention)
+        else:
+            msg = t("setrole_success_existing", gid, role=target_role.mention)
+
+        usuario_asignar = target_user
+        if usuario_asignar is None:
+            if isinstance(message.author, discord.Member) and target_role not in message.author.roles:
+                usuario_asignar = message.author
+
+        if usuario_asignar is not None:
+            try:
+                await usuario_asignar.add_roles(target_role, reason="PokeImpostor host role assignment")
+                msg += "\n" + t("setrole_assigned_user", gid, role=target_role.name, user=usuario_asignar.mention)
+            except discord.Forbidden:
+                msg += "\n" + t("setrole_hierarchy_error", gid, role=target_role.name, user=usuario_asignar.mention)
+            except Exception as e:
+                msg += f"\n⚠️ Warning: could not assign role to {usuario_asignar.mention}: {e}"
+
+        embed = discord.Embed(
+            title=t("setrole_embed_title", gid),
+            description=msg,
+            color=discord.Color.from_rgb(255, 203, 5),
+        )
+        embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
         await message.reply(embed=embed, mention_author=False)
         return
 

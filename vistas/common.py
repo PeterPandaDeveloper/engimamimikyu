@@ -21,14 +21,43 @@ NOMBRE_ROL_HOST = "PokeHost"
 
 def es_anfitrion_o_admin(user: Any, guild: discord.Guild | None = None) -> bool:
     """
-    Retorna True si el usuario tiene permisos de Administrador
-    o posee el rol PokeHost.
+    Retorna True si el usuario tiene permisos de Administrador,
+    posee el rol configurado en el servidor para el bot,
+    o posee el rol PokeHost por defecto.
     """
+    from db import get_guild_rol_host
+
     perms = getattr(user, "guild_permissions", None)
     if perms and getattr(perms, "administrator", False):
         return True
+
+    gid = getattr(guild, "id", None)
+    if gid is None and hasattr(user, "guild") and user.guild:
+        gid = user.guild.id
+
+    cfg_role_id = get_guild_rol_host(gid) if gid else None
+
     roles = getattr(user, "roles", [])
-    return any(getattr(r, "name", "") == NOMBRE_ROL_HOST for r in roles)
+    for r in roles:
+        rid = getattr(r, "id", None)
+        rname = getattr(r, "name", "")
+        if cfg_role_id is not None and rid == cfg_role_id:
+            return True
+        if rname == NOMBRE_ROL_HOST:
+            return True
+    return False
+
+
+def obtener_nombre_rol_host(guild: discord.Guild | None) -> str:
+    """Retorna el nombre del rol host configurado o por defecto."""
+    if guild:
+        from db import get_guild_rol_host
+        cfg_role_id = get_guild_rol_host(guild.id)
+        if cfg_role_id:
+            r = guild.get_role(cfg_role_id)
+            if r:
+                return r.name
+    return NOMBRE_ROL_HOST
 
 
 def gid(partida: Partida) -> int:

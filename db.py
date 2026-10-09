@@ -32,14 +32,19 @@ _con: duckdb.DuckDBPyConnection | None = None
 
 
 def _init_schema_sync(con: duckdb.DuckDBPyConnection) -> None:
-    # 1. Configuración de servidor (idiomas)
+    # 1. Configuración de servidor (idiomas y rol host)
     con.execute("""
         CREATE TABLE IF NOT EXISTS servidores_config (
             guild_id BIGINT PRIMARY KEY,
             idioma VARCHAR NOT NULL DEFAULT 'en',
+            rol_host_id BIGINT,
             actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
+    try:
+        con.execute("ALTER TABLE servidores_config ADD COLUMN IF NOT EXISTS rol_host_id BIGINT;")
+    except Exception:
+        pass
 
     # 2. Historial de partidas
     con.execute("""
@@ -193,6 +198,60 @@ def cargar_todos_los_idiomas() -> dict[int, str]:
     except Exception as e:
         print(f"[DuckDB cargar_idiomas] {e}")
         return {}
+
+
+# ── Configuración de Rol Host por Servidor ───────────────────────────────────
+
+def _get_rol_host_sync(guild_id: int) -> int | None:
+    with _DB_LOCK:
+        con = _get_connection()
+        res = con.execute(
+            "SELECT rol_host_id FROM servidores_config WHERE guild_id = ?", [guild_id]
+        ).fetchone()
+        return res[0] if (res and res[0] is not None) else None
+
+
+def _set_rol_host_sync(guild_id: int, rol_id: int | None) -> None:
+    with _DB_LOCK:
+        con = _get_connection()
+        con.execute("""
+            INSERT INTO servidores_config (guild_id, rol_host_id, actualizado_en)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT (guild_id) DO UPDATE SET
+                rol_host_id = excluded.rol_host_id,
+                actualizado_en = excluded.actualizado_en;
+        """, [guild_id, rol_id])
+
+
+_ROLES_HOST_CACHE: dict[int, int | None] = {}
+
+
+def get_guild_rol_host(guild_id: int) -> int | None:
+    """Lectura de rol host con caché en memoria."""
+    if guild_id not in _ROLES_HOST_CACHE:
+        try:
+            _ROLES_HOST_CACHE[guild_id] = _get_rol_host_sync(guild_id)
+        except Exception as e:
+            print(f"[DuckDB get_rol_host] {e}")
+            return None
+    return _ROLES_HOST_CACHE.get(guild_id)
+
+
+def set_guild_rol_host(guild_id: int, rol_id: int | None) -> None:
+    """Actualiza el rol host configurado para el servidor."""
+    _ROLES_HOST_CACHE[guild_id] = rol_id
+    try:
+        _set_rol_host_sync(guild_id, rol_id)
+    except Exception as e:
+        print(f"[DuckDB set_rol_host] {e}")
+
+
+async def set_guild_rol_host_async(guild_id: int, rol_id: int | None) -> None:
+    await asyncio.to_thread(set_guild_rol_host, guild_id, rol_id)
+
+
+async def get_guild_rol_host_async(guild_id: int) -> int | None:
+    return await asyncio.to_thread(get_guild_rol_host, guild_id)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
