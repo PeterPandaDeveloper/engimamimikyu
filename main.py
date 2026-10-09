@@ -256,6 +256,26 @@ async def impregister(interaction: discord.Interaction):
         pass
 
 
+@bot.tree.command(name="play-kyu", description="Start a new PokeImpostor lobby / Iniciar sala de PokeImpostor")
+async def play_kyu(interaction: discord.Interaction):
+    await impregister(interaction)
+
+
+@bot.tree.command(name="jugar-kyu", description="Start a new PokeImpostor lobby / Iniciar sala de PokeImpostor")
+async def jugar_kyu(interaction: discord.Interaction):
+    await impregister(interaction)
+
+
+@bot.tree.command(name="play", description="Start a new PokeImpostor lobby / Iniciar sala de PokeImpostor")
+async def play_cmd(interaction: discord.Interaction):
+    await impregister(interaction)
+
+
+@bot.tree.command(name="jugar", description="Start a new PokeImpostor lobby / Iniciar sala de PokeImpostor")
+async def jugar_cmd(interaction: discord.Interaction):
+    await impregister(interaction)
+
+
 @bot.tree.command(name="register", description="Open a new PokeImpostor lobby / Abrir sala de PokeImpostor")
 async def register(interaction: discord.Interaction):
     await impregister(interaction)
@@ -269,6 +289,7 @@ async def imp_slash(interaction: discord.Interaction):
 @bot.tree.command(name="mimi", description="Open a new PokeImpostor lobby / Abrir sala de PokeImpostor")
 async def mimi_slash(interaction: discord.Interaction):
     await impregister(interaction)
+
 
 
 
@@ -358,6 +379,17 @@ async def ver(interaction: discord.Interaction):
     await impver(interaction)
 
 
+@bot.tree.command(name="role-kyu", description="Re-send your secret role by DM / Reenviar rol secreto por DM")
+async def role_kyu(interaction: discord.Interaction):
+    await impver(interaction)
+
+
+@bot.tree.command(name="ver-kyu", description="Re-send your secret role by DM / Reenviar rol secreto por DM")
+async def ver_kyu(interaction: discord.Interaction):
+    await impver(interaction)
+
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  /implanguage — cambiar idioma del servidor
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -429,6 +461,27 @@ async def idioma(interaction: discord.Interaction, language: str):
     await _ejecutar_cambio_idioma(interaction, language)
 
 
+@bot.tree.command(name="lang-kyu", description="Change the bot language for this server / Cambiar idioma del bot")
+@app_commands.describe(language="Choose language / Elige idioma")
+@app_commands.choices(language=[
+    app_commands.Choice(name="🇬🇧 English", value="en"),
+    app_commands.Choice(name="🇪🇸 Español", value="es"),
+])
+async def lang_kyu(interaction: discord.Interaction, language: str):
+    await _ejecutar_cambio_idioma(interaction, language)
+
+
+@bot.tree.command(name="idioma-kyu", description="Change the bot language for this server / Cambiar idioma del bot")
+@app_commands.describe(language="Choose language / Elige idioma")
+@app_commands.choices(language=[
+    app_commands.Choice(name="🇬🇧 English", value="en"),
+    app_commands.Choice(name="🇪🇸 Español", value="es"),
+])
+async def idioma_kyu(interaction: discord.Interaction, language: str):
+    await _ejecutar_cambio_idioma(interaction, language)
+
+
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  /imphelp
@@ -455,6 +508,16 @@ async def imphelp(interaction: discord.Interaction):
 
 @bot.tree.command(name="help", description="How to play PokeImpostor / Cómo jugar")
 async def help_cmd(interaction: discord.Interaction):
+    await imphelp(interaction)
+
+
+@bot.tree.command(name="help-kyu", description="How to play PokeImpostor / Cómo jugar")
+async def help_kyu(interaction: discord.Interaction):
+    await imphelp(interaction)
+
+
+@bot.tree.command(name="ayuda-kyu", description="How to play PokeImpostor / Cómo jugar")
+async def ayuda_kyu(interaction: discord.Interaction):
     await imphelp(interaction)
 
 
@@ -490,6 +553,16 @@ async def creditos(interaction: discord.Interaction):
 
 @bot.tree.command(name="credits", description="Artist and illustration credits / Créditos del artista de PokeImpostor")
 async def credits_cmd(interaction: discord.Interaction):
+    await _ejecutar_creditos(interaction)
+
+
+@bot.tree.command(name="credits-kyu", description="Artist and illustration credits / Créditos del artista de PokeImpostor")
+async def credits_kyu(interaction: discord.Interaction):
+    await _ejecutar_creditos(interaction)
+
+
+@bot.tree.command(name="creditos-kyu", description="Artist and illustration credits / Créditos del artista de PokeImpostor")
+async def creditos_kyu(interaction: discord.Interaction):
     await _ejecutar_creditos(interaction)
 
 
@@ -586,6 +659,19 @@ async def perfil(interaction: discord.Interaction, usuario: discord.Member | Non
     await _ejecutar_perfil(interaction, usuario)
 
 
+@bot.tree.command(name="profile-kyu", description="View trainer profile / Ver perfil de entrenador")
+@app_commands.describe(usuario="Trainer to inspect (optional) / Entrenador a consultar (opcional)")
+async def profile_kyu(interaction: discord.Interaction, usuario: discord.Member | None = None):
+    await _ejecutar_perfil(interaction, usuario)
+
+
+@bot.tree.command(name="perfil-kyu", description="View trainer profile / Ver perfil de entrenador")
+@app_commands.describe(usuario="Trainer to inspect (optional) / Entrenador a consultar (opcional)")
+async def perfil_kyu(interaction: discord.Interaction, usuario: discord.Member | None = None):
+    await _ejecutar_perfil(interaction, usuario)
+
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  /impranking — Tabla de clasificación del servidor
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -677,6 +763,28 @@ async def ranking(interaction: discord.Interaction, categoria: str = "general"):
     await _ejecutar_ranking(interaction, categoria)
 
 
+@bot.tree.command(name="leaderboard-kyu", description="View the server leaderboard / Ver tabla de clasificación")
+@app_commands.describe(categoria="Leaderboard category / Categoría de la clasificación")
+@app_commands.choices(categoria=[
+    app_commands.Choice(name="🏆 General (Most Wins / Victorias)", value="general"),
+    app_commands.Choice(name="🔪 Impostors (Deadliest Impostors)", value="impostores"),
+    app_commands.Choice(name="🔍 Crewmates (Best Detectives)", value="detectives"),
+])
+async def leaderboard_kyu(interaction: discord.Interaction, categoria: str = "general"):
+    await _ejecutar_ranking(interaction, categoria)
+
+
+@bot.tree.command(name="ranking-kyu", description="View the server leaderboard / Ver tabla de clasificación")
+@app_commands.describe(categoria="Leaderboard category / Categoría de la clasificación")
+@app_commands.choices(categoria=[
+    app_commands.Choice(name="🏆 General (Most Wins / Victorias)", value="general"),
+    app_commands.Choice(name="🔪 Impostors (Deadliest Impostors)", value="impostores"),
+    app_commands.Choice(name="🔍 Crewmates (Best Detectives)", value="detectives"),
+])
+async def ranking_kyu(interaction: discord.Interaction, categoria: str = "general"):
+    await _ejecutar_ranking(interaction, categoria)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  /impstats — Analítica global del servidor
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -746,6 +854,12 @@ async def stats_partidas(interaction: discord.Interaction):
 @bot.tree.command(name="stats", description="Global game statistics on this server / Estadísticas de partidas en este servidor")
 async def stats(interaction: discord.Interaction):
     await _ejecutar_stats(interaction)
+
+
+@bot.tree.command(name="stats-kyu", description="Global game statistics on this server / Estadísticas de partidas en este servidor")
+async def stats_kyu(interaction: discord.Interaction):
+    await _ejecutar_stats(interaction)
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -885,6 +999,11 @@ async def generarkey(interaction: discord.Interaction):
     await _ejecutar_generarkey(interaction)
 
 
+@bot.tree.command(name="genkey-kyu", description="Owner only: Generate VIP License Keys / Generar claves VIP")
+async def genkey_kyu(interaction: discord.Interaction):
+    await _ejecutar_generarkey(interaction)
+
+
 async def _ejecutar_canjear(interaction: discord.Interaction, clave: str):
     if interaction.guild_id is None or interaction.guild is None:
         return await interaction.response.send_message(
@@ -954,6 +1073,18 @@ async def canjear(interaction: discord.Interaction, clave: str):
     await _ejecutar_canjear(interaction, clave)
 
 
+@bot.tree.command(name="redeem-kyu", description="Redeem a VIP License Key / Canjear clave de licencia VIP")
+@app_commands.describe(clave="VIP Key code (e.g. POKE-VIP-XXXX-YYYY)")
+async def redeem_kyu(interaction: discord.Interaction, clave: str):
+    await _ejecutar_canjear(interaction, clave)
+
+
+@bot.tree.command(name="canjear-kyu", description="Canjear clave de licencia VIP")
+@app_commands.describe(clave="Código de clave VIP (ej. POKE-VIP-XXXX-YYYY)")
+async def canjear_kyu(interaction: discord.Interaction, clave: str):
+    await _ejecutar_canjear(interaction, clave)
+
+
 async def _ejecutar_licencia(interaction: discord.Interaction):
     if interaction.guild_id is None:
         return await interaction.response.send_message(
@@ -997,6 +1128,17 @@ async def implicencia(interaction: discord.Interaction):
 @bot.tree.command(name="licencia", description="Check this server's license and VIP tier / Consultar estado de licencia")
 async def licencia(interaction: discord.Interaction):
     await _ejecutar_licencia(interaction)
+
+
+@bot.tree.command(name="license-kyu", description="Check this server's license / Consultar estado de licencia")
+async def license_kyu(interaction: discord.Interaction):
+    await _ejecutar_licencia(interaction)
+
+
+@bot.tree.command(name="licencia-kyu", description="Consultar estado de licencia del servidor")
+async def licencia_kyu(interaction: discord.Interaction):
+    await _ejecutar_licencia(interaction)
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1140,6 +1282,20 @@ async def hostrole(
     await _ejecutar_setrole(interaction, role, assign_to)
 
 
+@bot.tree.command(name="setrole-kyu", description="Set or create the PokeImpostor host role / Configurar rol de anfitrión")
+@app_commands.describe(
+    role="Role to designate as PokeHost (leave empty to auto-create @PokeHost)",
+    assign_to="Trainer to grant the host role to (optional)",
+)
+async def setrole_kyu(
+    interaction: discord.Interaction,
+    role: discord.Role | None = None,
+    assign_to: discord.Member | None = None,
+):
+    await _ejecutar_setrole(interaction, role, assign_to)
+
+
+
 async def _ejecutar_partner_add(interaction: discord.Interaction, servidor_id: str, motivo: str = "Beta Tester Fundador"):
     # Verificación exclusiva de servidor central autorizado
     if interaction.guild_id != SERVER_ADMIN_CENTRAL_ID:
@@ -1204,6 +1360,13 @@ async def partner_add(interaction: discord.Interaction, servidor_id: str, motivo
     await _ejecutar_partner_add(interaction, servidor_id, motivo)
 
 
+@bot.tree.command(name="partner-kyu", description="Owner only: Grant permanent Beta Partner status to a server")
+@app_commands.describe(servidor_id="Guild ID / ID del servidor", motivo="Partner description / Motivo")
+async def partner_kyu(interaction: discord.Interaction, servidor_id: str, motivo: str = "Beta Tester Fundador"):
+    await _ejecutar_partner_add(interaction, servidor_id, motivo)
+
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  INTERCEPTOR DE MENSAJES DE TEXTO (-imp sufijo y prefijo)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1254,8 +1417,8 @@ def _extraer_comando_imp(texto: str) -> tuple[bool, str, list[str]]:
     # Invocaciones directas
     elif low in ("mimi", "-mimi", "!mimi", "-imp", "!imp"):
         cmd_str = "help"
-    elif low in ("/imp", "/mimi"):
-        cmd_str = "register"
+    elif low in ("/play-kyu", "/jugar-kyu", "/play", "/jugar", "/imp", "/mimi"):
+        cmd_str = "play"
 
     if cmd_str is None:
         return False, "", []
@@ -1264,7 +1427,8 @@ def _extraer_comando_imp(texto: str) -> tuple[bool, str, list[str]]:
     if not partes:
         return True, "help", []
 
-    nombre = partes[0].lower().removeprefix("/").removeprefix("mimi").removeprefix("imp")
+    raw_nombre = partes[0].lower().removeprefix("/").removeprefix("mimi").removeprefix("imp")
+    nombre = raw_nombre.removesuffix("-kyu").removesuffix("kyu")
     if nombre == "":
         nombre = "help"
     args = partes[1:]
@@ -1283,8 +1447,8 @@ async def on_message(message: discord.Message):
 
     gid = message.guild.id
 
-    # 1. register / impregister
-    if cmd in ("register", "registrar", "sala", "lobby"):
+    # 1. play / jugar / register / impregister / sala
+    if cmd in ("play", "jugar", "register", "registrar", "sala", "lobby", "start", "iniciar"):
         await asegurar_rol_pokehost(message.guild)
         if not es_anfitrion_o_admin(message.author, message.guild):
             await message.reply(t("register_only_host", gid, role=obtener_nombre_rol_host(message.guild)), mention_author=False)
