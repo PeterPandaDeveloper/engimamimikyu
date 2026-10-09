@@ -266,6 +266,12 @@ async def imp_slash(interaction: discord.Interaction):
     await impregister(interaction)
 
 
+@bot.tree.command(name="mimi", description="Open a new PokeImpostor lobby / Abrir sala de PokeImpostor")
+async def mimi_slash(interaction: discord.Interaction):
+    await impregister(interaction)
+
+
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  /impver — reenviar rol por DM
@@ -1217,19 +1223,38 @@ def _extraer_comando_imp(texto: str) -> tuple[bool, str, list[str]]:
     cmd_str = None
     low = s.lower()
 
-    if low.endswith(" -imp"):
+    # Sufijos (-mimi, mimi, -imp)
+    if low.endswith(" -mimi"):
+        cmd_str = s[:-6].strip()
+    elif low.endswith("-mimi"):
+        cmd_str = s[:-5].strip()
+    elif low.endswith(" mimi"):
+        cmd_str = s[:-5].strip()
+    elif low.endswith(" -imp"):
         cmd_str = s[:-5].strip()
     elif low.endswith("-imp"):
         cmd_str = s[:-4].strip()
+
+    # Prefijos (mimi, -mimi, !mimi, /mimi, -imp, !imp, /imp)
+    elif low.startswith("-mimi "):
+        cmd_str = s[6:].strip()
+    elif low.startswith("!mimi "):
+        cmd_str = s[6:].strip()
+    elif low.startswith("/mimi "):
+        cmd_str = s[6:].strip()
+    elif low.startswith("mimi "):
+        cmd_str = s[5:].strip()
     elif low.startswith("-imp "):
         cmd_str = s[5:].strip()
     elif low.startswith("!imp "):
         cmd_str = s[5:].strip()
     elif low.startswith("/imp "):
         cmd_str = s[5:].strip()
-    elif low in ("-imp", "!imp"):
+
+    # Invocaciones directas
+    elif low in ("mimi", "-mimi", "!mimi", "-imp", "!imp"):
         cmd_str = "help"
-    elif low == "/imp":
+    elif low in ("/imp", "/mimi"):
         cmd_str = "register"
 
     if cmd_str is None:
@@ -1239,7 +1264,7 @@ def _extraer_comando_imp(texto: str) -> tuple[bool, str, list[str]]:
     if not partes:
         return True, "help", []
 
-    nombre = partes[0].lower().removeprefix("/").removeprefix("imp")
+    nombre = partes[0].lower().removeprefix("/").removeprefix("mimi").removeprefix("imp")
     if nombre == "":
         nombre = "help"
     args = partes[1:]
@@ -1502,7 +1527,7 @@ async def on_message(message: discord.Message):
             return
 
         if not args:
-            await message.reply("⚠️ Usage: `redeem <KEY> -imp` / Uso: `canjear <CLAVE> -imp`", mention_author=False)
+            await message.reply("⚠️ Usage: `mimi redeem <KEY>` (or `redeem <KEY> -mimi`) / Uso: `mimi canjear <CLAVE>` (o `canjear <CLAVE> -mimi`)", mention_author=False)
             return
 
         clave = args[0].strip()
@@ -1546,7 +1571,7 @@ async def on_message(message: discord.Message):
             return
 
         if not args:
-            await message.reply("⚠️ Usage: `lang en -imp` or `lang es -imp` / Uso: `idioma es -imp` o `idioma en -imp`", mention_author=False)
+            await message.reply("⚠️ Usage: `mimi lang <en|es>` (or `lang en -mimi`) / Uso: `mimi idioma <es|en>` (o `idioma es -mimi`)", mention_author=False)
             return
 
         elegido = args[0].lower()
