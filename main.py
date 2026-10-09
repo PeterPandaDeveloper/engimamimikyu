@@ -394,6 +394,7 @@ async def imphelp(interaction: discord.Interaction):
     embed.add_field(name=t("help_step4_name", gid), value=t("help_step4_value", gid), inline=False)
     embed.add_field(name=t("help_modes_name", gid), value=t("help_modes_value", gid), inline=False)
     embed.add_field(name=t("help_commands_name", gid), value=t("help_commands_value", gid), inline=False)
+    embed.add_field(name=t("help_art_credits_name", gid), value=t("help_art_credits_value", gid), inline=False)
     embed.set_footer(text=t("help_footer", gid))
     await interaction.response.send_message(embed=embed)
 
@@ -401,6 +402,41 @@ async def imphelp(interaction: discord.Interaction):
 @bot.tree.command(name="help", description="How to play PokeImpostor / Cómo jugar")
 async def help_cmd(interaction: discord.Interaction):
     await imphelp(interaction)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  /impcreditos — Créditos del artista
+# ═══════════════════════════════════════════════════════════════════════════════
+
+async def _ejecutar_creditos(interaction: discord.Interaction):
+    gid = interaction.guild_id
+    embed = discord.Embed(
+        title=t("credits_title", gid),
+        description=t("credits_desc", gid),
+        color=discord.Color.from_rgb(255, 105, 180),
+    )
+    embed.set_footer(text=t("credits_footer", gid))
+    await interaction.response.send_message(embed=embed)
+
+
+@bot.tree.command(name="impcreditos", description="Artist and illustration credits / Créditos del artista de PokeImpostor")
+async def impcreditos(interaction: discord.Interaction):
+    await _ejecutar_creditos(interaction)
+
+
+@bot.tree.command(name="impcredits", description="Artist and illustration credits / Créditos del artista de PokeImpostor")
+async def impcredits(interaction: discord.Interaction):
+    await _ejecutar_creditos(interaction)
+
+
+@bot.tree.command(name="creditos", description="Artist and illustration credits / Créditos del artista de PokeImpostor")
+async def creditos(interaction: discord.Interaction):
+    await _ejecutar_creditos(interaction)
+
+
+@bot.tree.command(name="credits", description="Artist and illustration credits / Créditos del artista de PokeImpostor")
+async def credits_cmd(interaction: discord.Interaction):
+    await _ejecutar_creditos(interaction)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -468,6 +504,7 @@ async def _ejecutar_perfil(interaction: discord.Interaction, usuario: discord.Me
             inline=True,
         )
 
+    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
     await interaction.response.send_message(embed=embed)
 
 
@@ -526,6 +563,7 @@ async def _ejecutar_ranking(interaction: discord.Interaction, categoria: str = "
         )
 
     embed.description = "\n".join(lines)
+    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
     await interaction.response.send_message(embed=embed)
 
 
@@ -603,6 +641,7 @@ async def _ejecutar_stats(interaction: discord.Interaction):
         inline=True,
     )
 
+    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
     await interaction.response.send_message(embed=embed)
 
 
@@ -768,6 +807,7 @@ async def _ejecutar_canjear(interaction: discord.Interaction, clave: str):
         description=t("redeem_success_desc", gid, tipo=tipo.upper(), details=det),
         color=discord.Color.green(),
     )
+    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
     await interaction.response.send_message(embed=embed)
 
 
@@ -804,6 +844,7 @@ async def _ejecutar_licencia(interaction: discord.Interaction):
             description=t("license_status_free", gid),
             color=discord.Color.light_grey(),
         )
+    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
     await interaction.response.send_message(embed=embed)
 
 
@@ -1069,6 +1110,7 @@ async def on_message(message: discord.Message):
                 value=t("profile_pokemon_value", gid, name=stats["pokemon_frecuente"]),
                 inline=True,
             )
+        embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
         await message.reply(embed=embed, mention_author=False)
         return
 
@@ -1108,6 +1150,7 @@ async def on_message(message: discord.Message):
                   total=row["total"])
             )
         embed.description = "\n".join(lines)
+        embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
         await message.reply(embed=embed, mention_author=False)
         return
 
@@ -1148,6 +1191,7 @@ async def on_message(message: discord.Message):
             value=f"**{stats['pokemon_comun']}**",
             inline=True,
         )
+        embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
         await message.reply(embed=embed, mention_author=False)
         return
 
@@ -1166,6 +1210,7 @@ async def on_message(message: discord.Message):
                 description=t("license_status_free", gid),
                 color=discord.Color.light_grey(),
             )
+        embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
         await message.reply(embed=embed, mention_author=False)
         return
 
@@ -1203,6 +1248,7 @@ async def on_message(message: discord.Message):
             description=t("redeem_success_desc", gid, tipo=tipo.upper(), details=det),
             color=discord.Color.green(),
         )
+        embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
         await message.reply(embed=embed, mention_author=False)
         return
 
@@ -1248,7 +1294,19 @@ async def on_message(message: discord.Message):
         embed.add_field(name=t("help_step4_name", gid), value=t("help_step4_value", gid), inline=False)
         embed.add_field(name=t("help_modes_name", gid), value=t("help_modes_value", gid), inline=False)
         embed.add_field(name=t("help_commands_name", gid), value=t("help_commands_value", gid), inline=False)
+        embed.add_field(name=t("help_art_credits_name", gid), value=t("help_art_credits_value", gid), inline=False)
         embed.set_footer(text=t("help_footer", gid))
+        await message.reply(embed=embed, mention_author=False)
+        return
+
+    # 11. creditos / credits / arte / art
+    elif cmd in ("creditos", "credito", "credits", "credit", "arte", "art", "artista", "artist"):
+        embed = discord.Embed(
+            title=t("credits_title", gid),
+            description=t("credits_desc", gid),
+            color=discord.Color.from_rgb(255, 105, 180),
+        )
+        embed.set_footer(text=t("credits_footer", gid))
         await message.reply(embed=embed, mention_author=False)
         return
 

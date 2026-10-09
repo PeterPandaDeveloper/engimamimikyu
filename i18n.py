@@ -65,8 +65,8 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "*Nadie todavía... ¡sé el primero!*",
     },
     "lobby_footer": {
-        "en": "At least 3 players are needed to start.",
-        "es": "Se necesitan al menos 3 jugadores para iniciar.",
+        "en": "At least 3 players are needed to start · 🎨 Art: @xeechithecat.bsky.social",
+        "es": "Se necesitan al menos 3 jugadores para iniciar · 🎨 Arte: @xeechithecat.bsky.social",
     },
     "lobby_already_in": {
         "en": "You're already in the lobby.",
@@ -349,8 +349,8 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "Tus cómplices: {names}",
     },
     "dm_impostor_footer": {
-        "en": "Don't share this message. Good luck, traitor!",
-        "es": "No reenvíes este mensaje. ¡Buena suerte, traidor!",
+        "en": "Don't share this message · 🎨 Art: @xeechithecat.bsky.social",
+        "es": "No reenvíes este mensaje · 🎨 Arte: @xeechithecat.bsky.social",
     },
     "dm_crew_title": {
         "en": "✅ YOU ARE A CREWMATE",
@@ -371,8 +371,8 @@ STRINGS: dict[str, dict[str, str]] = {
         ),
     },
     "dm_crew_footer": {
-        "en": "Use /impver if you need to see it again during the game.",
-        "es": "Usa /impver si necesitas volver a verlo durante la partida.",
+        "en": "Use /impver to see again · 🎨 Art: @xeechithecat.bsky.social",
+        "es": "Usa /impver si necesitas volver a verlo · 🎨 Arte: @xeechithecat.bsky.social",
     },
 
     # ── Pistas generadas ──────────────────────────────────────────────────────
@@ -663,8 +663,8 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "Ninguno (Modo Caos)",
     },
     "final_footer": {
-        "en": "Round {n} completed.",
-        "es": "Ronda {n} completada.",
+        "en": "Round {n} completed · 🎨 Art: @xeechithecat.bsky.social",
+        "es": "Ronda {n} completada · 🎨 Arte: @xeechithecat.bsky.social",
     },
 
     # ── Sesión cerrada ────────────────────────────────────────────────────────
@@ -792,6 +792,7 @@ STRINGS: dict[str, dict[str, str]] = {
             "• `/impstats` (or `stats -imp`) — Server match analytics\n"
             "• `/implicencia` (or `licencia -imp`) — Check VIP status\n"
             "• `/impcanjear <key>` (or `canjear <key> -imp`) — Redeem VIP Key\n"
+            "• `/impcreditos` (or `creditos -imp`) — Artist & illustration credits\n"
             "• `/implang` (or `lang -imp`) — Change language (Admin only)\n"
             "• `/imphelp` (or `help -imp`) — Show this guide\n"
             "*(💡 You can use slash commands `/imp...` or write any command with `-imp` suffix!)*"
@@ -804,14 +805,51 @@ STRINGS: dict[str, dict[str, str]] = {
             "• `/impstats` (o `stats -imp`) — Analítica de partidas del servidor\n"
             "• `/implicencia` (o `licencia -imp`) — Consultar estado VIP\n"
             "• `/impcanjear <clave>` (o `canjear <clave> -imp`) — Canjear clave VIP\n"
+            "• `/impcreditos` (o `creditos -imp`) — Créditos del artista del bot\n"
             "• `/implang` (o `lang -imp`) — Cambiar idioma (Solo Admin)\n"
             "• `/imphelp` (o `help -imp`) — Mostrar esta guía\n"
             "*(💡 ¡Puedes usar slash commands `/imp...` o escribir en el chat con sufijo `-imp`!)*"
         ),
     },
     "help_footer": {
-        "en": "Good luck, trainer!",
-        "es": "¡Buena suerte, entrenador!",
+        "en": "Good luck, trainer! · 🎨 Art: @xeechithecat.bsky.social",
+        "es": "¡Buena suerte, entrenador! · 🎨 Arte: @xeechithecat.bsky.social",
+    },
+    "help_art_credits_name": {
+        "en": "🎨  Art & Illustrations / Arte del Bot",
+        "es": "🎨  Arte e Ilustraciones del Bot",
+    },
+    "help_art_credits_value": {
+        "en": (
+            "Illustrated with love by **@xeechithecat.bsky.social**!\n"
+            "🔗 Follow on Bluesky: [bsky.app/profile/xeechithecat.bsky.social](https://bsky.app/profile/xeechithecat.bsky.social)"
+        ),
+        "es": (
+            "¡Ilustrado con amor por **@xeechithecat.bsky.social**!\n"
+            "🔗 Sigue su trabajo en Bluesky: [bsky.app/profile/xeechithecat.bsky.social](https://bsky.app/profile/xeechithecat.bsky.social)"
+        ),
+    },
+    "credits_title": {
+        "en": "🎨 Artist Credits — PokeImpostor",
+        "es": "🎨 Créditos del Artista — PokeImpostor",
+    },
+    "credits_desc": {
+        "en": (
+            "The character art, sprites, and illustrations of PokeImpostor are made by the talented artist:\n\n"
+            "🌟 **@xeechithecat.bsky.social**\n"
+            "🌐 Bluesky: [https://bsky.app/profile/xeechithecat.bsky.social](https://bsky.app/profile/xeechithecat.bsky.social)\n\n"
+            "Be sure to visit their profile and show some love to their work! 💖"
+        ),
+        "es": (
+            "El arte de personajes, sprites e ilustraciones de PokeImpostor fueron creados por el talentoso artista:\n\n"
+            "🌟 **@xeechithecat.bsky.social**\n"
+            "🌐 Perfil de Bluesky: [https://bsky.app/profile/xeechithecat.bsky.social](https://bsky.app/profile/xeechithecat.bsky.social)\n\n"
+            "¡Visita su perfil de Bluesky y dale mucho apoyo a su arte! 💖"
+        ),
+    },
+    "credits_footer": {
+        "en": "🎨 Art by @xeechithecat.bsky.social",
+        "es": "🎨 Arte por @xeechithecat.bsky.social",
     },
 
     # ── /impregister ──────────────────────────────────────────────────────────
@@ -926,8 +964,8 @@ STRINGS["dm_ebrios_desc"] = {
     ),
 }
 STRINGS["dm_ebrios_footer"] = {
-    "en": "The sprite is your only visual clue. Good luck!",
-    "es": "El sprite es tu única pista visual. ¡Buena suerte!",
+    "en": "The sprite is your clue · 🎨 Art: @xeechithecat.bsky.social",
+    "es": "El sprite es tu pista · 🎨 Arte: @xeechithecat.bsky.social",
 }
 
 # ── Pantalla final nuevos modos ───────────────────────────────────────────────
