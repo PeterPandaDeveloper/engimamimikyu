@@ -11,7 +11,7 @@ import discord
 from motor_juego import Partida
 from i18n import t
 
-from .common import TIMEOUT_DEBATE, gid, NOMBRE_ROL_HOST, es_anfitrion_o_admin
+from .common import TIMEOUT_DEBATE, gid, NOMBRE_ROL_HOST, es_anfitrion_o_admin, obtener_nombre_rol_host
 
 
 class PanelDebate(discord.ui.View):
@@ -40,7 +40,7 @@ class PanelDebate(discord.ui.View):
         g = inter.guild_id
         if not es_anfitrion_o_admin(inter.user, inter.guild):
             return await inter.response.send_message(
-                t("only_host_or_admin", g, role=NOMBRE_ROL_HOST), ephemeral=True
+                t("only_host_or_admin", g, role=obtener_nombre_rol_host(inter.guild)), ephemeral=True
             )
 
         async with self.partida.lock:

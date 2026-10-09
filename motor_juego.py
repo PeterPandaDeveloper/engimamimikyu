@@ -674,8 +674,8 @@ class Partida:
         # 1. Selección completamente aleatoria e independiente del objetivo y del/los impostor(es)
         self.objetivo_humano = random.choice(self.jugadores)
 
-        num_imp = min(len(self.jugadores), self.config.numero_impostores)
-        self.impostores = random.sample(self.jugadores, k=max(1, num_imp))
+        num_imp = max(1, min(len(self.jugadores) - 1, self._calcular_impostores(len(self.jugadores))))
+        self.impostores = random.sample(self.jugadores, k=num_imp)
         self.jugadores_iniciales  = self.jugadores.copy()
         self.impostores_iniciales = self.impostores.copy()
 

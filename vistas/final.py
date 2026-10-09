@@ -10,7 +10,7 @@ from motor_juego import Partida, ModoJuego, CaosVariante
 from i18n import t
 from db import guardar_partida_async
 
-from .common import TIMEOUT_LOBBY, gid, NOMBRE_ROL_HOST, es_anfitrion_o_admin
+from .common import TIMEOUT_LOBBY, gid, NOMBRE_ROL_HOST, es_anfitrion_o_admin, obtener_nombre_rol_host
 
 
 async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, victoria_impostores: bool):
@@ -176,7 +176,7 @@ class PanelPostRonda(discord.ui.View):
         g = inter.guild_id
         if not es_anfitrion_o_admin(inter.user, inter.guild):
             return await inter.response.send_message(
-                t("only_host_or_admin", g, role=NOMBRE_ROL_HOST), ephemeral=True
+                t("only_host_or_admin", g, role=obtener_nombre_rol_host(inter.guild)), ephemeral=True
             )
 
         async with self.partida.lock:
@@ -215,7 +215,7 @@ class PanelPostRonda(discord.ui.View):
         g = inter.guild_id
         if not es_anfitrion_o_admin(inter.user, inter.guild):
             return await inter.response.send_message(
-                t("only_host_or_admin", g, role=NOMBRE_ROL_HOST), ephemeral=True
+                t("only_host_or_admin", g, role=obtener_nombre_rol_host(inter.guild)), ephemeral=True
             )
 
         self.partida.terminada = False
@@ -236,7 +236,7 @@ class PanelPostRonda(discord.ui.View):
         g = inter.guild_id
         if not es_anfitrion_o_admin(inter.user, inter.guild):
             return await inter.response.send_message(
-                t("only_host_or_admin", g, role=NOMBRE_ROL_HOST), ephemeral=True
+                t("only_host_or_admin", g, role=obtener_nombre_rol_host(inter.guild)), ephemeral=True
             )
 
         self.partida.jugadores = []
