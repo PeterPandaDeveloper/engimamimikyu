@@ -261,6 +261,12 @@ async def register(interaction: discord.Interaction):
     await impregister(interaction)
 
 
+@bot.tree.command(name="imp", description="Open a new PokeImpostor lobby / Abrir sala de PokeImpostor")
+async def imp_slash(interaction: discord.Interaction):
+    await impregister(interaction)
+
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  /impver — reenviar rol por DM
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -395,6 +401,27 @@ async def implanguage(interaction: discord.Interaction, language: str):
 ])
 async def lang(interaction: discord.Interaction, language: str):
     await _ejecutar_cambio_idioma(interaction, language)
+
+
+@bot.tree.command(name="impidioma", description="Change the bot language for this server / Cambiar idioma del bot")
+@app_commands.describe(language="Choose language / Elige idioma")
+@app_commands.choices(language=[
+    app_commands.Choice(name="🇬🇧 English", value="en"),
+    app_commands.Choice(name="🇪🇸 Español", value="es"),
+])
+async def impidioma(interaction: discord.Interaction, language: str):
+    await _ejecutar_cambio_idioma(interaction, language)
+
+
+@bot.tree.command(name="idioma", description="Change the bot language for this server / Cambiar idioma del bot")
+@app_commands.describe(language="Choose language / Elige idioma")
+@app_commands.choices(language=[
+    app_commands.Choice(name="🇬🇧 English", value="en"),
+    app_commands.Choice(name="🇪🇸 Español", value="es"),
+])
+async def idioma(interaction: discord.Interaction, language: str):
+    await _ejecutar_cambio_idioma(interaction, language)
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1198,8 +1225,12 @@ def _extraer_comando_imp(texto: str) -> tuple[bool, str, list[str]]:
         cmd_str = s[5:].strip()
     elif low.startswith("!imp "):
         cmd_str = s[5:].strip()
+    elif low.startswith("/imp "):
+        cmd_str = s[5:].strip()
     elif low in ("-imp", "!imp"):
         cmd_str = "help"
+    elif low == "/imp":
+        cmd_str = "register"
 
     if cmd_str is None:
         return False, "", []
@@ -1508,25 +1539,25 @@ async def on_message(message: discord.Message):
         await message.reply(embed=embed, mention_author=False)
         return
 
-    # 8. lang / implang / implanguage
-    elif cmd in ("lang", "language", "idioma"):
+    # 8. lang / implang / implanguage / idioma / impidioma
+    elif cmd in ("lang", "language", "idioma", "idiomas", "lenguaje"):
         if not es_anfitrion_o_admin(message.author, message.guild):
             await message.reply(t("lang_only_admin", gid), mention_author=False)
             return
 
         if not args:
-            await message.reply("⚠️ Uso: `lang en -imp` o `lang es -imp`", mention_author=False)
+            await message.reply("⚠️ Usage: `lang en -imp` or `lang es -imp` / Uso: `idioma es -imp` o `idioma en -imp`", mention_author=False)
             return
 
         elegido = args[0].lower()
-        if elegido in ("en", "english", "ingles"):
+        if elegido in ("en", "english", "ingles", "inglés"):
             set_lang(gid, "en")
             await message.reply(t("lang_changed_en", gid), mention_author=False)
         elif elegido in ("es", "spanish", "espanol", "español"):
             set_lang(gid, "es")
             await message.reply(t("lang_changed_es", gid), mention_author=False)
         else:
-            await message.reply("⚠️ Opciones válidas: `en` o `es`", mention_author=False)
+            await message.reply("⚠️ Valid options: `en` or `es` / Opciones válidas: `en` o `es`", mention_author=False)
         return
 
     # 9. generarkey / impgenerarkey / genkey
