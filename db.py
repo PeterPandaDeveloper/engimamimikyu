@@ -618,7 +618,12 @@ def _canjear_licencia_sync(codigo: str, guild_id: int, user_id: int) -> dict[str
             """, [guild_id, motivo])
 
         elif tipo == "dias":
-            motivo = f"Pase VIP {duracion_dias} Días"
+            if duracion_dias in (28, 29, 30, 31):
+                motivo = "Pase VIP 1 Mes"
+            elif duracion_dias > 31 and duracion_dias % 30 == 0:
+                motivo = f"Pase VIP {duracion_dias // 30} Meses"
+            else:
+                motivo = f"Pase VIP {duracion_dias} Días"
             base_fecha = ahora
             if prev and prev[0] == "vip_dias" and prev[2] and prev[2] > ahora:
                 base_fecha = prev[2]
@@ -696,11 +701,17 @@ def _verificar_estado_premium_sync(guild_id: int) -> dict[str, Any]:
         if tipo == "vip_dias":
             if expira_en and expira_en > ahora:
                 dias_restantes = (expira_en - ahora).days
+                if dias_restantes in (28, 29, 30, 31):
+                    tiempo_str = f"1 mes ({dias_restantes} días)"
+                elif dias_restantes > 31:
+                    tiempo_str = f"{dias_restantes // 30} meses ({dias_restantes} días)"
+                else:
+                    tiempo_str = f"{dias_restantes} días"
                 return {
                     "es_premium": True,
                     "tipo": "vip_dias",
                     "motivo": motivo or "Pase Temporal",
-                    "detalle": f"Válido hasta {expira_en.strftime('%d/%m/%Y')} ({dias_restantes} días)",
+                    "detalle": f"Válido hasta {expira_en.strftime('%d/%m/%Y')} ({tiempo_str})",
                     "expira_en": expira_en,
                     "partidas_restantes": -1,
                 }

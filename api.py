@@ -8,6 +8,7 @@ import asyncio
 import json
 import os
 import random
+import threading
 import aiohttp
 
 # Sesión compartida — se inicializa una vez y se reutiliza
@@ -16,6 +17,7 @@ _session: aiohttp.ClientSession | None = None
 # Caché en memoria: { (id_pokemon, lang): datos_dict }
 _CACHE_POKEMON: dict[tuple[int, str], dict] = {}
 _CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "pokemon_cache.json")
+_CACHE_LOCK = threading.Lock()
 
 
 def _cargar_cache_disco():
@@ -34,17 +36,24 @@ def _cargar_cache_disco():
 
 
 def _guardar_en_cache_disco(id_pokemon: int, lang: str, datos: dict):
-    try:
-        os.makedirs(os.path.dirname(_CACHE_FILE), exist_ok=True)
-        raw = {}
-        if os.path.exists(_CACHE_FILE):
-            with open(_CACHE_FILE, "r", encoding="utf-8") as f:
-                raw = json.load(f)
-        raw[f"{id_pokemon}:{lang}"] = datos
-        with open(_CACHE_FILE, "w", encoding="utf-8") as f:
-            json.dump(raw, f, ensure_ascii=False)
-    except Exception as e:
-        print(f"[Caché] Error al guardar en caché: {e}")
+    with _CACHE_LOCK:
+        try:
+            cache_dir = os.path.dirname(_CACHE_FILE)
+            os.makedirs(cache_dir, exist_ok=True)
+            raw = {}
+            if os.path.exists(_CACHE_FILE):
+                try:
+                    with open(_CACHE_FILE, "r", encoding="utf-8") as f:
+                        raw = json.load(f)
+                except Exception:
+                    raw = {}
+            raw[f"{id_pokemon}:{lang}"] = datos
+            tmp_file = f"{_CACHE_FILE}.tmp.{os.getpid()}"
+            with open(tmp_file, "w", encoding="utf-8") as f:
+                json.dump(raw, f, ensure_ascii=False)
+            os.replace(tmp_file, _CACHE_FILE)
+        except Exception as e:
+            print(f"[Caché] Error al guardar en caché: {e}")
 
 
 # Inicializar caché en arranque

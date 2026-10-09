@@ -480,13 +480,6 @@ class Partida:
                 value=t("dm_impostor_accomplices_value", gid, names=nombres),
                 inline=False,
             )
-        elif modo == ModoJuego.CAOS and total_imp > 1:
-            nombres = ", ".join(f"**{c.display_name}**" for c in complices)
-            embed.add_field(
-                name=t("dm_impostor_accomplices_title_hidden", gid),
-                value=t("dm_impostor_accomplices_value", gid, names=nombres),
-                inline=False,
-            )
         embed.set_footer(text=t("dm_impostor_footer", gid))
         return embed
 
@@ -504,18 +497,18 @@ class Partida:
         return embed
 
     # ── DM variante Objetivo Humano ──────────────────────────────────────────
-    def _build_dm_caos_jugador_impostor(self) -> discord.Embed:
+    def _build_dm_caos_jugador_impostor(self, pista: str = "") -> discord.Embed:
         gid = self.canal.guild.id
         embed = discord.Embed(
             title=t("dm_impostor_title", gid),
-            description=t("dm_caos_jugador_impostor_desc", gid),
+            description=t("dm_impostor_desc", gid, hint=pista),
             color=discord.Color.from_rgb(180, 30, 30),
         )
         embed.set_footer(text=t("dm_impostor_footer", gid))
         return embed
 
     def _build_dm_caos_jugador_detective(self, objetivo: discord.Member, pista: str = "") -> discord.Embed:
-        return self._build_dm_caos_jugador_impostor()
+        return self._build_dm_caos_jugador_impostor(pista)
 
     def _build_dm_caos_jugador_tripulante(self, objetivo: discord.Member) -> discord.Embed:
         gid = self.canal.guild.id
@@ -678,22 +671,43 @@ class Partida:
 
     # ── Subrutina: Caos Jugador ────────────────────────────────────────────────
     async def _arrancar_caos_jugador(self) -> bool:
-        # Elegir un jugador al azar como "objetivo"
+        # 1. Selección completamente aleatoria e independiente del objetivo y del/los impostor(es)
         self.objetivo_humano = random.choice(self.jugadores)
-        # El objetivo ES el impostor: así no se spoilea ni ve que le tocó ser el objetivo
-        self.impostores = [self.objetivo_humano]
+
+        num_imp = min(len(self.jugadores), self.config.numero_impostores)
+        self.impostores = random.sample(self.jugadores, k=max(1, num_imp))
         self.jugadores_iniciales  = self.jugadores.copy()
         self.impostores_iniciales = self.impostores.copy()
+
+        gid = self.canal.guild.id
+        # Extraer letra inicial y letra final de forma segura
+        nombre_limpio = [c.upper() for c in self.objetivo_humano.display_name if c.isalnum()]
+        if nombre_limpio:
+            primera_letra = nombre_limpio[0]
+            ultima_letra = nombre_limpio[-1]
+        else:
+            primera_letra = self.objetivo_humano.display_name[0].upper()
+            ultima_letra = self.objetivo_humano.display_name[-1].upper()
+
+        # Generar pista ambigua (empieza con / termina con) para camuflar al impostor
+        for imp in self.impostores:
+            if random.choice([True, False]):
+                pista = t("hint_text_letter", gid, v=primera_letra)
+            else:
+                pista = t("hint_text_ends_letter", gid, v=ultima_letra)
+            self.pistas_impostores[imp.id] = pista
 
         dm_fallidos: list[discord.Member] = []
 
         async def _enviar_dm_humano(jugador: discord.Member):
             try:
-                if jugador == self.objetivo_humano:
-                    # El elegido es el impostor: recibe DM de impostor (no ve que él es el objetivo)
-                    await jugador.send(embed=self._build_dm_caos_jugador_impostor())
+                if jugador in self.impostores:
+                    # El impostor recibe el DM ESTÁNDAR de impostor con su pista ambigua.
+                    # NO sabe que es modo objetivo humano ni se spoilea.
+                    pista = self.pistas_impostores.get(jugador.id, "")
+                    await jugador.send(embed=self._build_dm_caos_jugador_impostor(pista))
                 else:
-                    # Los demás son tripulantes: reciben el nombre de usuario del servidor y la imagen
+                    # Los tripulantes reciben el nombre de usuario del servidor y la imagen
                     await jugador.send(embed=self._build_dm_caos_jugador_tripulante(self.objetivo_humano))
             except Exception as e:
                 print(f"[DM] Falló con {jugador.display_name}: {e}")

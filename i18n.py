@@ -376,8 +376,9 @@ STRINGS: dict[str, dict[str, str]] = {
     },
 
     # ── Pistas generadas ──────────────────────────────────────────────────────
-    "hint_text_letter":  {"en": "Its name starts with the letter **{v}**.",  "es": "Su nombre empieza con la letra **{v}**."},
-    "hint_text_type":    {"en": "Its type is **{v}**.",                      "es": "Es de tipo **{v}**."},
+    "hint_text_letter":      {"en": "Its name starts with the letter **{v}**.",  "es": "Su nombre empieza con la letra **{v}**."},
+    "hint_text_ends_letter": {"en": "Its name ends with the letter **{v}**.",    "es": "Su nombre termina con la letra **{v}**."},
+    "hint_text_type":        {"en": "Its type is **{v}**.",                      "es": "Es de tipo **{v}**."},
     "hint_text_region":  {"en": "It first appeared in the **{v}**.",         "es": "Apareció por primera vez en la **{v}**."},
     "hint_text_ability": {"en": "One of its abilities is **{v}**.",          "es": "Una de sus habilidades es **{v}**."},
 
@@ -1335,12 +1336,12 @@ STRINGS["license_key_modal_pwd"] = {
     "es": "Contraseña Maestra",
 }
 STRINGS["license_key_modal_type"] = {
-    "en": "Type: dias / permanente / cargas",
-    "es": "Tipo: dias / permanente / cargas",
+    "en": "Type: mes / dias / permanente / cargas",
+    "es": "Tipo: mes / dias / permanente / cargas",
 }
 STRINGS["license_key_modal_val"] = {
-    "en": "Duration / Charges (e.g. 30 or 10)",
-    "es": "Duración / Cargas (ej: 30 o 10)",
+    "en": "Duration (e.g. 1 month, 30 days) or Charges",
+    "es": "Duración (ej: 1 mes, 30 días) o Cargas",
 }
 STRINGS["license_auth_failed"] = {
     "en": "❌ Authorization failed: Incorrect master password.",

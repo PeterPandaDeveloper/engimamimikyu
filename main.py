@@ -284,7 +284,8 @@ async def impver(interaction: discord.Interaction):
         if es_cj:
             # Variante Objetivo Humano
             if es_impostor:
-                await interaction.user.send(embed=partida._build_dm_caos_jugador_impostor())
+                pista = partida.pistas_impostores.get(interaction.user.id, "")
+                await interaction.user.send(embed=partida._build_dm_caos_jugador_impostor(pista))
             else:
                 await interaction.user.send(embed=partida._build_dm_caos_jugador_tripulante(partida.objetivo_humano))
 
@@ -731,15 +732,15 @@ class ModalGenerarKey(discord.ui.Modal):
         )
         self.tipo_input = discord.ui.TextInput(
             label=t("license_key_modal_type", gid),
-            placeholder="dias / permanente / cargas",
-            default="dias",
+            placeholder="mes / dias / permanente / cargas",
+            default="mes",
             required=True,
             style=discord.TextStyle.short,
         )
         self.valor_input = discord.ui.TextInput(
             label=t("license_key_modal_val", gid),
-            placeholder="30 (para días) o 10 (para cargas)",
-            default="30",
+            placeholder="1 (para 1 mes) o 30 (días) o 10 (cargas)",
+            default="1",
             required=False,
             style=discord.TextStyle.short,
         )
@@ -756,27 +757,42 @@ class ModalGenerarKey(discord.ui.Modal):
             )
 
         tipo_raw = self.tipo_input.value.strip().lower()
+        val_str = self.valor_input.value.strip().lower()
+
         if "perm" in tipo_raw:
             tipo = "permanente"
             duracion_dias = 0
             cargas = 0
-            detalle = "Membresía Permanente de por vida"
+            detalle = "Membresía VIP Permanente de por vida"
         elif "carg" in tipo_raw or "partid" in tipo_raw:
             tipo = "cargas"
-            try:
-                cargas = int(self.valor_input.value.strip())
-            except ValueError:
-                cargas = 10
+            import re
+            nums = re.findall(r"\d+", val_str)
+            cargas = int(nums[0]) if nums else 10
             duracion_dias = 0
             detalle = f"{cargas} Partidas VIP con todo desbloqueado"
         else:
             tipo = "dias"
-            try:
-                duracion_dias = int(self.valor_input.value.strip())
-            except ValueError:
-                duracion_dias = 30
+            import re
+            nums = re.findall(r"\d+", val_str)
+            raw_num = int(nums[0]) if nums else 1
+
+            # Detección inteligente: meses vs días
+            es_explicito_dias = "dia" in val_str or "day" in val_str or val_str.endswith("d")
+            es_meses = (
+                "mes" in tipo_raw or "month" in tipo_raw or tipo_raw == "m" or
+                "mes" in val_str or "month" in val_str or
+                (raw_num <= 12 and not es_explicito_dias)
+            )
+
+            if es_meses:
+                meses = max(1, raw_num)
+                duracion_dias = 365 if meses == 12 else meses * 30
+                detalle = f"{meses} Mes{'es' if meses > 1 else ''} ({duracion_dias} Días) de Acceso VIP"
+            else:
+                duracion_dias = max(1, raw_num)
+                detalle = f"{duracion_dias} Días de Acceso VIP"
             cargas = 0
-            detalle = f"{duracion_dias} Días de Acceso VIP"
 
         nueva_key = generar_codigo_licencia()
         exito = await crear_licencia_async(nueva_key, tipo, duracion_dias, cargas)
@@ -862,7 +878,13 @@ async def _ejecutar_canjear(interaction: discord.Interaction, clave: str):
         det = "Acceso Ilimitado Permanente (Servidor Fundador/VIP)"
     elif tipo == "dias":
         exp = res["expira_en"].strftime("%d/%m/%Y") if res.get("expira_en") else "?"
-        det = f"{res['duracion_dias']} días (hasta {exp})"
+        dias = res.get("duracion_dias", 30)
+        if dias in (28, 29, 30, 31):
+            det = f"1 Mes ({dias} días, hasta {exp})"
+        elif dias > 31 and dias % 30 == 0:
+            det = f"{dias // 30} Meses ({dias} días, hasta {exp})"
+        else:
+            det = f"{dias} días (hasta {exp})"
     else:
         det = f"{res['cargas_totales']} partidas VIP disponibles"
 
@@ -1244,7 +1266,8 @@ async def on_message(message: discord.Message):
 
             if es_cj:
                 if es_impostor:
-                    await message.author.send(embed=partida._build_dm_caos_jugador_impostor())
+                    pista = partida.pistas_impostores.get(message.author.id, "")
+                    await message.author.send(embed=partida._build_dm_caos_jugador_impostor(pista))
                 else:
                     await message.author.send(embed=partida._build_dm_caos_jugador_tripulante(partida.objetivo_humano))
 
@@ -1466,7 +1489,13 @@ async def on_message(message: discord.Message):
             det = "Acceso Ilimitado Permanente (Servidor Fundador/VIP)"
         elif tipo == "dias":
             exp = res["expira_en"].strftime("%d/%m/%Y") if res.get("expira_en") else "?"
-            det = f"{res['duracion_dias']} días (hasta {exp})"
+            dias = res.get("duracion_dias", 30)
+            if dias in (28, 29, 30, 31):
+                det = f"1 Mes ({dias} días, hasta {exp})"
+            elif dias > 31 and dias % 30 == 0:
+                det = f"{dias // 30} Meses ({dias} días, hasta {exp})"
+            else:
+                det = f"{dias} días (hasta {exp})"
         else:
             det = f"{res['cargas_totales']} partidas VIP disponibles"
 

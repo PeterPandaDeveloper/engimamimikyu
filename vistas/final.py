@@ -202,13 +202,6 @@ class PanelPostRonda(discord.ui.View):
                 await inter.channel.send(t("api_error", g))
                 return
 
-        if self.partida.caos_sin_impostores:
-            await inter.channel.send(embed=discord.Embed(
-                title=t("caos_zero_title", g),
-                description=t("caos_zero_desc", g),
-                color=discord.Color.from_rgb(100, 0, 200),
-            ))
-
         from .debate import PanelDebate
         from .common import build_embed_ronda
         view_deb = PanelDebate(self.partida)
