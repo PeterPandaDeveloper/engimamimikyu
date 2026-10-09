@@ -64,15 +64,15 @@ def build_embed_config(partida: Partida) -> discord.Embed:
         ModoJuego.CAOS:      t("mode_caos_display",     g),
     }
     ventaja_display = {
-        Ventaja.ALEATORIO:    t("hint_random",   g),
-        Ventaja.LETRA:        t("hint_letter",   g),
-        Ventaja.TIPO:         t("hint_type",     g),
-        Ventaja.RANGO_REGION: t("hint_region",   g),
-        Ventaja.HABILIDAD:    t("hint_ability",  g),
-        Ventaja.ESTADISTICAS: t("hint_stats",    g),
-        Ventaja.PERFIL:       t("hint_profile",  g),
-        Ventaja.DEBILIDADES:  t("hint_weakness", g),
-        Ventaja.POKEDEX:      t("hint_pokedex",  g),
+        Ventaja.ALEATORIO:       t("hint_random",   g),
+        Ventaja.LETRA:           t("hint_letter",   g),
+        Ventaja.TIPO:            t("hint_type",     g),
+        Ventaja.RANGO_REGION:    t("hint_region",   g),
+        Ventaja.HABILIDAD:       t("hint_ability",  g),
+        Ventaja.PALABRA_AMBIGUA: t("hint_word",     g),
+        Ventaja.PERFIL:          t("hint_profile",  g),
+        Ventaja.DEBILIDADES:     t("hint_weakness", g),
+        Ventaja.POKEDEX:         t("hint_pokedex",  g),
     }
     if cfg.regiones == ["todas"]:
         regiones_str = t("region_all", g)
@@ -89,10 +89,11 @@ def build_embed_config(partida: Partida) -> discord.Embed:
 
 def build_embed_ronda(partida: Partida) -> discord.Embed:
     g = gid(partida)
+    # En Modo Caos, NO se debe saber que es Modo Caos: se camufla como Clásico
     modo_display = {
         ModoJuego.CLASICO:   t("mode_classic",  g),
         ModoJuego.EXTENDIDO: t("mode_extended", g),
-        ModoJuego.CAOS:      t("mode_caos",     g),
+        ModoJuego.CAOS:      t("mode_classic",  g),  # Camuflado: tripulantes e impostores no saben que es Caos
     }
     modo_val = modo_display.get(partida.config.modo_juego, "?")
     restantes = partida.rondas_restantes

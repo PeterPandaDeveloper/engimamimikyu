@@ -36,15 +36,15 @@ class CaosVariante(str, Enum):
 
 
 class Ventaja(str, Enum):
-    ALEATORIO   = "aleatorio"
-    LETRA       = "letra"
-    TIPO        = "tipo"
-    RANGO_REGION = "rango_region"
-    HABILIDAD   = "habilidad"
-    ESTADISTICAS = "estadisticas"  # listado de stats más altas/bajas juntas
-    PERFIL      = "perfil"          # especie + hábitat + grupo huevo (3 datos)
-    DEBILIDADES = "debilidades"     # x4 si existe, sino x2, sino "sin debilidades"
-    POKEDEX     = "pokedex"         # primeras palabras de la entrada Pokédex
+    ALEATORIO       = "aleatorio"
+    LETRA           = "letra"
+    TIPO            = "tipo"
+    RANGO_REGION    = "rango_region"
+    HABILIDAD       = "habilidad"
+    PALABRA_AMBIGUA = "palabra_ambigua"  # Pista de una sola palabra ambigua y temática
+    PERFIL          = "perfil"          # especie + hábitat + grupo huevo (3 datos)
+    DEBILIDADES     = "debilidades"     # x4 si existe, sino x2, sino "sin debilidades"
+    POKEDEX         = "pokedex"         # primeras palabras de la entrada Pokédex
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -203,10 +203,10 @@ class Partida:
             Ventaja.TIPO:         t("hint_text_type",   gid, v=", ".join(dp.get("tipos", ["?"]))),
             Ventaja.RANGO_REGION: t("hint_text_region", gid, v=dp.get("gen", "?")),
             Ventaja.HABILIDAD:    t("hint_text_ability", gid, v=hab_valor),
-            Ventaja.ESTADISTICAS: self._pista_estadisticas(dp, gid),
-            Ventaja.PERFIL:       self._pista_perfil(dp, gid),
-            Ventaja.DEBILIDADES:  self._pista_debilidades(dp, gid),
-            Ventaja.POKEDEX:      self._pista_pokedex(dp, gid),
+            Ventaja.PALABRA_AMBIGUA: self._pista_palabra_ambigua(dp, gid),
+            Ventaja.PERFIL:          self._pista_perfil(dp, gid),
+            Ventaja.DEBILIDADES:     self._pista_debilidades(dp, gid),
+            Ventaja.POKEDEX:         self._pista_pokedex(dp, gid),
         }
 
         if self.config.ventaja != Ventaja.ALEATORIO:
@@ -219,52 +219,137 @@ class Partida:
                 return random.choice(disponibles)
         return random.choice(list(opciones.values()))
 
-    # ── Pista: estadísticas (Arquetipo de Rol RPG) ───────────────────────────
+    # ── Pista: una sola palabra ambigua y temática (Sin estadísticas RPG) ────
     @staticmethod
-    def _pista_estadisticas(dp: dict, gid: int) -> str:
-        stats: dict[str, int] = dp.get("stats", {})
-        if not stats:
-            return t("hint_text_type", gid, v=", ".join(dp.get("tipos", ["?"])))
+    def _pista_palabra_ambigua(dp: dict, gid: int) -> str:
+        """
+        Pista de una sola palabra ambigua para el impostor.
+        Entrega un término conceptual, rasgo, temática o comportamiento del Pokémon
+        sin revelar su nombre directamente ni usar estadísticas numéricas.
+        """
+        lang = get_lang(gid)
+        nombre = dp.get("nombre", "").lower()
+        especie = dp.get("especie", "")
+        habitat = dp.get("habitat", "")
+        tipos = dp.get("tipos", [])
 
-        hp = stats.get("hp", 70)
-        atk = stats.get("attack", 70)
-        def_stat = stats.get("defense", 70)
-        spa = stats.get("special-attack", 70)
-        spd = stats.get("special-defense", 70)
-        spe = stats.get("speed", 70)
+        # 1. Vocabulario temático curado para Pokémon icónicos
+        VOCABULARIO_TEMATICO: dict[str, tuple[str, str]] = {
+            "pikachu": ("Chispa", "Spark"),
+            "raichu": ("Relámpago", "Lightning"),
+            "charizard": ("Alas", "Wings"),
+            "charmander": ("Rescoldo", "Ember"),
+            "blastoise": ("Coraza", "Shell"),
+            "squirtle": ("Caparazón", "Carapace"),
+            "venusaur": ("Florecer", "Bloom"),
+            "bulbasaur": ("Semilla", "Seed"),
+            "gengar": ("Sombra", "Shadow"),
+            "haunter": ("Espectro", "Specter"),
+            "gastly": ("Gas", "Vapor"),
+            "snorlax": ("Letargo", "Slumber"),
+            "eevee": ("Adaptación", "Adaptable"),
+            "lucario": ("Aura", "Aura"),
+            "mewtwo": ("Genético", "Genetic"),
+            "mew": ("Misterio", "Mystery"),
+            "mimikyu": ("Disfraz", "Disguise"),
+            "zoroark": ("Ilusión", "Illusion"),
+            "talonflame": ("Rapaz", "Falcon"),
+            "greninja": ("Sigilo", "Stealth"),
+            "garchomp": ("Tiburón", "Shark"),
+            "dragonite": ("Mensajero", "Messenger"),
+            "gyarados": ("Furia", "Rage"),
+            "magikarp": ("Salto", "Splash"),
+            "ditto": ("Transformación", "Morph"),
+            "lapras": ("Navegante", "Voyager"),
+            "articuno": ("Escarcha", "Frost"),
+            "zapdos": ("Tormenta", "Storm"),
+            "moltres": ("Llama", "Blaze"),
+            "tyranitar": ("Armadura", "Armor"),
+            "lugia": ("Mareas", "Tides"),
+            "ho-oh": ("Arcoíris", "Rainbow"),
+            "gardevoir": ("Lealtad", "Loyalty"),
+            "rayquaza": ("Estratosfera", "Sky"),
+            "dialga": ("Tiempo", "Time"),
+            "palkia": ("Espacio", "Space"),
+            "giratina": ("Distorsión", "Distortion"),
+            "darkrai": ("Pesadilla", "Nightmare"),
+            "arceus": ("Creación", "Creation"),
+            "meowscarada": ("Truco", "Illusionist"),
+            "skeledirge": ("Canto", "Melody"),
+            "quaquaval": ("Danza", "Dancer"),
+            "tinkaton": ("Forja", "Forge"),
+            "ceruledge": ("Filo", "Blade"),
+            "armarouge": ("Cañón", "Cannon"),
+            "dragapult": ("Proyectil", "Missile"),
+            "corviknight": ("Blindaje", "Steely"),
+            "toxtricity": ("Punk", "Voltage"),
+            "decidueye": ("Tirador", "Archer"),
+            "incineroar": ("Luchador", "Brawler"),
+            "primarina": ("Sirena", "Siren"),
+        }
 
-        max_atk = max(atk, spa)
-        bulk = (hp + def_stat + spd) / 3
+        if nombre in VOCABULARIO_TEMATICO:
+            pal_es, pal_en = VOCABULARIO_TEMATICO[nombre]
+            palabra = pal_es if lang == "es" else pal_en
+            return t("hint_text_word", gid, word=palabra)
 
-        ordenadas = sorted(stats.items(), key=lambda kv: kv[1], reverse=True)
-        top_stat = ordenadas[0][0] if ordenadas else "speed"
+        # 2. Extracción dinámica desde 'especie' (género taxonómico)
+        if especie:
+            limpia = especie.replace("Pokémon", "").replace("Pokemon", "").strip()
+            partes = limpia.split()
+            if partes:
+                palabra = partes[-1].capitalize() if lang == "es" else partes[0].capitalize()
+                if len(palabra) >= 3 and palabra.lower() != nombre:
+                    return t("hint_text_word", gid, word=palabra)
 
-        # Clasificación de arquetipo intuitivo
-        if max_atk >= 95 and spe >= 90 and (def_stat < 75 or hp < 75):
-            arch_key = "arch_glass_cannon"
-        elif spe >= 105 and max_atk < 95:
-            arch_key = "arch_agile_scout"
-        elif max_atk >= 95 and spe <= 65 and bulk >= 70:
-            arch_key = "arch_heavy_hitter"
-        elif bulk >= 85 and max_atk < 95:
-            arch_key = "arch_defensive_tank"
-        elif max_atk >= 100 and bulk >= 80:
-            arch_key = "arch_bulky_powerhouse"
-        elif max(stats.values()) - min(stats.values()) <= 30:
-            arch_key = "arch_well_rounded"
-        else:
-            if spe >= 85 and max_atk >= 80:
-                arch_key = "arch_glass_cannon"
-            elif bulk >= 75:
-                arch_key = "arch_defensive_tank"
-            else:
-                arch_key = "arch_well_rounded"
+        # 3. Extracción dinámica por hábitat
+        HABITATS_AMBIGUOS: dict[str, tuple[str, str]] = {
+            "cave": ("Caverna", "Cavern"),
+            "forest": ("Silvestre", "Woodland"),
+            "grassland": ("Pradera", "Meadow"),
+            "mountain": ("Cumbre", "Summit"),
+            "rare": ("Insólito", "Uncommon"),
+            "rough-terrain": ("Rocoso", "Craggy"),
+            "sea": ("Abisal", "Marine"),
+            "urban": ("Metrópolis", "Urban"),
+            "waters-edge": ("Ribera", "Shore"),
+        }
+        hab_key = str(habitat).lower()
+        if hab_key in HABITATS_AMBIGUOS:
+            p_es, p_en = HABITATS_AMBIGUOS[hab_key]
+            palabra = p_es if lang == "es" else p_en
+            return t("hint_text_word", gid, word=palabra)
 
-        archetype = t(f"{arch_key}_name", gid)
-        desc = t(f"{arch_key}_desc", gid)
-        highlight = t(f"highlight_{top_stat}", gid)
+        # 4. Fallback temático por Tipo elemental
+        TIPOS_AMBIGUOS: dict[str, tuple[str, str]] = {
+            "fire": ("Calor", "Warmth"),
+            "water": ("Fluido", "Flow"),
+            "grass": ("Clorofila", "Flora"),
+            "electric": ("Voltio", "Energy"),
+            "ice": ("Gélido", "Glacial"),
+            "fighting": ("Marcial", "Martial"),
+            "poison": ("Tóxico", "Venom"),
+            "ground": ("Terrestre", "Earthy"),
+            "flying": ("Aéreo", "Aerial"),
+            "psychic": ("Mental", "Mind"),
+            "bug": ("Exoesqueleto", "Insect"),
+            "rock": ("Mineral", "Mineral"),
+            "ghost": ("Incorpóreo", "Ethereal"),
+            "dragon": ("Ancestral", "Ancient"),
+            "steel": ("Metálico", "Alloy"),
+            "dark": ("Penumbra", "Gloom"),
+            "fairy": ("Encanto", "Fae"),
+            "normal": ("Común", "Plain"),
+        }
+        for t_elem in tipos:
+            t_low = t_elem.lower()
+            if t_low in TIPOS_AMBIGUOS:
+                p_es, p_en = TIPOS_AMBIGUOS[t_low]
+                palabra = p_es if lang == "es" else p_en
+                return t("hint_text_word", gid, word=palabra)
 
-        return t("hint_text_stats", gid, archetype=archetype, desc=desc, highlight=highlight)
+        palabra = "Enigma" if lang == "es" else "Enigma"
+        return t("hint_text_word", gid, word=palabra)
 
     # ── Pista: perfil (especie + hábitat + grupo huevo) ───────────────────────
     @staticmethod

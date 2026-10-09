@@ -50,15 +50,15 @@ class PanelConfiguracion(discord.ui.View):
     # ── Select: tipo de pista para el impostor ──────────────────────────────
     def _add_select_pista(self, g: int):
         pista_specs = [
-            (Ventaja.ALEATORIO,    "hint_random",      "hint_random_desc"),
-            (Ventaja.LETRA,        "hint_letter",      None),
-            (Ventaja.TIPO,         "hint_type",        None),
-            (Ventaja.RANGO_REGION, "hint_region",      None),
-            (Ventaja.HABILIDAD,    "hint_ability",     None),
-            (Ventaja.ESTADISTICAS, "hint_stats",       "hint_stats_desc"),
-            (Ventaja.PERFIL,       "hint_profile",     "hint_profile_desc"),
-            (Ventaja.DEBILIDADES,  "hint_weakness",    "hint_weakness_desc"),
-            (Ventaja.POKEDEX,      "hint_pokedex",     "hint_pokedex_desc"),
+            (Ventaja.ALEATORIO,       "hint_random",      "hint_random_desc"),
+            (Ventaja.LETRA,           "hint_letter",      None),
+            (Ventaja.TIPO,            "hint_type",        None),
+            (Ventaja.RANGO_REGION,    "hint_region",      None),
+            (Ventaja.HABILIDAD,       "hint_ability",     None),
+            (Ventaja.PALABRA_AMBIGUA, "hint_word",        "hint_word_desc"),
+            (Ventaja.PERFIL,          "hint_profile",     "hint_profile_desc"),
+            (Ventaja.DEBILIDADES,     "hint_weakness",    "hint_weakness_desc"),
+            (Ventaja.POKEDEX,         "hint_pokedex",     "hint_pokedex_desc"),
         ]
         options = [
             discord.SelectOption(
@@ -196,13 +196,6 @@ class PanelConfiguracion(discord.ui.View):
             if not exito:
                 await inter.channel.send(t("api_error", g))
                 return
-
-        if self.partida.caos_sin_impostores:
-            await inter.channel.send(embed=discord.Embed(
-                title=t("caos_zero_title", g),
-                description=t("caos_zero_desc", g),
-                color=discord.Color.from_rgb(100, 0, 200),
-            ))
 
         # Import diferido para evitar ciclo de imports
         from .debate import PanelDebate

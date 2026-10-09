@@ -256,13 +256,13 @@ STRINGS: dict[str, dict[str, str]] = {
     "hint_type":         {"en": "Type",                "es": "Tipo"},
     "hint_region":       {"en": "Origin Region",       "es": "Región de origen"},
     "hint_ability":      {"en": "Ability",             "es": "Habilidad"},
-    "hint_stats": {
-        "en": "Stat Spread",
-        "es": "Estadísticas",
+    "hint_word": {
+        "en": "Ambiguous Word",
+        "es": "Palabra Ambigua",
     },
-    "hint_stats_desc": {
-        "en": "Highest & lowest stats together",
-        "es": "Estadísticas más altas y más bajas juntas",
+    "hint_word_desc": {
+        "en": "A single ambiguous and thematic word",
+        "es": "Una sola palabra ambigua y temática",
     },
     "hint_profile": {
         "en": "Species Profile",
@@ -389,9 +389,9 @@ STRINGS: dict[str, dict[str, str]] = {
     "stat_name_spdef":   {"en": "Sp. Defense",     "es": "Defensa Esp."},
     "stat_name_speed":   {"en": "Speed",           "es": "Velocidad"},
 
-    "hint_text_stats": {
-        "en": "⚔️ Combat Archetype: **{archetype}** ({desc})\n⭐ Standout attribute: **{highlight}**",
-        "es": "⚔️ Arquetipo de Combate: **{archetype}** ({desc})\n⭐ Atributo más destacado: **{highlight}**",
+    "hint_text_word": {
+        "en": "🔮 Concept Clue: **{word}**\n*(An ambiguous thematic word related to the secret Pokémon)*",
+        "es": "🔮 Pista Conceptual: **{word}**\n*(Una palabra ambigua y temática relacionada con el Pokémon secreto)*",
     },
 
     # Arquetipos RPG de estadísticas
@@ -593,8 +593,8 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "🎉 ¡IMPOSTOR REVELADO!",
     },
     "results_impostor_found_desc": {
-        "en": "**{name} WAS THE IMPOSTOR.**\n\n🦊 **Zoroark has dropped its disguise.**\nThe crewmates win!",
-        "es": "**{name} SÍ ERA IMPOSTOR.**\n\n🦊 **El Zoroark ha abandonado su disfraz.**\n¡Los tripulantes han ganado!",
+        "en": "**{name} WAS THE IMPOSTOR.**\n\n👻 **Mimikyu has dropped its disguise.**\nThe crewmates win!",
+        "es": "**{name} SÍ ERA IMPOSTOR.**\n\n👻 **El Mimikyu ha abandonado su disfraz.**\n¡Los tripulantes han ganado!",
     },
     "results_impostor_more_title": {
         "en": "🔪 Impostor found",
@@ -785,20 +785,28 @@ STRINGS: dict[str, dict[str, str]] = {
     },
     "help_commands_value": {
         "en": (
-            "• `/impregister` — Open a new lobby\n"
-            "• `/impver` — Re-send your secret role by DM\n"
-            "• `/perfil [@user]` — View trainer statistics and winrate\n"
-            "• `/ranking` — Server leaderboards (General / Impostors / Crew)\n"
-            "• `/stats_partidas` — Server-wide match analytics\n"
-            "• `/implanguage` — Change bot language (Admin only)"
+            "• `/impregister` (or `register -imp`) — Open a new lobby\n"
+            "• `/impver` (or `ver -imp`) — Re-send your secret role by DM\n"
+            "• `/impperfil [@user]` (or `perfil -imp`) — View trainer profile\n"
+            "• `/impranking` (or `ranking -imp`) — Server leaderboard\n"
+            "• `/impstats` (or `stats -imp`) — Server match analytics\n"
+            "• `/implicencia` (or `licencia -imp`) — Check VIP status\n"
+            "• `/impcanjear <key>` (or `canjear <key> -imp`) — Redeem VIP Key\n"
+            "• `/implang` (or `lang -imp`) — Change language (Admin only)\n"
+            "• `/imphelp` (or `help -imp`) — Show this guide\n"
+            "*(💡 You can use slash commands `/imp...` or write any command with `-imp` suffix!)*"
         ),
         "es": (
-            "• `/impregister` — Abrir nueva sala de espera\n"
-            "• `/impver` — Reenviar tu rol secreto por mensaje privado\n"
-            "• `/perfil [@usuario]` — Ver estadísticas y porcentaje de victoria\n"
-            "• `/ranking` — Tablas de clasificación (General / Impostores / Tripulantes)\n"
-            "• `/stats_partidas` — Analítica global del servidor\n"
-            "• `/implanguage` — Cambiar idioma del bot (Solo Admin)"
+            "• `/impregister` (o `register -imp`) — Abrir nueva sala de espera\n"
+            "• `/impver` (o `ver -imp`) — Reenviar tu rol secreto por DM\n"
+            "• `/impperfil [@usuario]` (o `perfil -imp`) — Ver perfil de entrenador\n"
+            "• `/impranking` (o `ranking -imp`) — Tablas de clasificación\n"
+            "• `/impstats` (o `stats -imp`) — Analítica de partidas del servidor\n"
+            "• `/implicencia` (o `licencia -imp`) — Consultar estado VIP\n"
+            "• `/impcanjear <clave>` (o `canjear <clave> -imp`) — Canjear clave VIP\n"
+            "• `/implang` (o `lang -imp`) — Cambiar idioma (Solo Admin)\n"
+            "• `/imphelp` (o `help -imp`) — Mostrar esta guía\n"
+            "*(💡 ¡Puedes usar slash commands `/imp...` o escribir en el chat con sufijo `-imp`!)*"
         ),
     },
     "help_footer": {

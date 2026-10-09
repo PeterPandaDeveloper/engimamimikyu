@@ -40,6 +40,9 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="pkmi!", intents=intents)
 
+# Servidor central autorizado exclusivamente para generar keys y gestionar partners
+SERVER_ADMIN_CENTRAL_ID = 402155389958881310
+
 # ── Persistencia ligera de sesiones activas ──────────────────────────────────
 # No persistimos el ESTADO completo de cada Partida (contiene objetos
 # discord.Member que no son serializables y que habría que re-resolver vía
@@ -243,6 +246,11 @@ async def impregister(interaction: discord.Interaction):
         pass
 
 
+@bot.tree.command(name="register", description="Open a new PokeImpostor lobby / Abrir sala de PokeImpostor")
+async def register(interaction: discord.Interaction):
+    await impregister(interaction)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  /impver — reenviar rol por DM
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -333,6 +341,11 @@ async def impver(interaction: discord.Interaction):
         await interaction.response.send_message(t("impver_dm_blocked", gid), ephemeral=True)
 
 
+@bot.tree.command(name="ver", description="Re-send your role by DM (only during an active game)")
+async def ver(interaction: discord.Interaction):
+    await impver(interaction)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  /implanguage — cambiar idioma del servidor
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -352,6 +365,16 @@ async def _ejecutar_cambio_idioma(interaction: discord.Interaction, language: st
     set_lang(gid, language)
     key = "lang_changed_en" if language == "en" else "lang_changed_es"
     await interaction.response.send_message(t(key, gid))
+
+
+@bot.tree.command(name="implang", description="Change the bot language for this server / Cambiar idioma del bot")
+@app_commands.describe(language="Choose language / Elige idioma")
+@app_commands.choices(language=[
+    app_commands.Choice(name="🇬🇧 English", value="en"),
+    app_commands.Choice(name="🇪🇸 Español", value="es"),
+])
+async def implang(interaction: discord.Interaction, language: str):
+    await _ejecutar_cambio_idioma(interaction, language)
 
 
 @bot.tree.command(name="implanguage", description="Change the bot language for this server / Cambiar idioma del bot")
@@ -396,13 +419,16 @@ async def imphelp(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 
 
+@bot.tree.command(name="help", description="How to play PokeImpostor / Cómo jugar")
+async def help_cmd(interaction: discord.Interaction):
+    await imphelp(interaction)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
-#  /perfil — Estadísticas y perfil del jugador
+#  /impperfil — Estadísticas y perfil del jugador
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@bot.tree.command(name="perfil", description="View your or another trainer's profile / Ver perfil de entrenador")
-@app_commands.describe(usuario="Trainer to inspect (optional) / Entrenador a consultar (opcional)")
-async def perfil(interaction: discord.Interaction, usuario: discord.Member | None = None):
+async def _ejecutar_perfil(interaction: discord.Interaction, usuario: discord.Member | None = None):
     if interaction.guild_id is None:
         return await interaction.response.send_message(
             "❌ This command only works inside a server. / Este comando solo funciona dentro de un servidor.",
@@ -466,18 +492,23 @@ async def perfil(interaction: discord.Interaction, usuario: discord.Member | Non
     await interaction.response.send_message(embed=embed)
 
 
+@bot.tree.command(name="impperfil", description="View your or another trainer's profile / Ver perfil de entrenador")
+@app_commands.describe(usuario="Trainer to inspect (optional) / Entrenador a consultar (opcional)")
+async def impperfil(interaction: discord.Interaction, usuario: discord.Member | None = None):
+    await _ejecutar_perfil(interaction, usuario)
+
+
+@bot.tree.command(name="perfil", description="View your or another trainer's profile / Ver perfil de entrenador")
+@app_commands.describe(usuario="Trainer to inspect (optional) / Entrenador a consultar (opcional)")
+async def perfil(interaction: discord.Interaction, usuario: discord.Member | None = None):
+    await _ejecutar_perfil(interaction, usuario)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
-#  /ranking — Tabla de clasificación del servidor
+#  /impranking — Tabla de clasificación del servidor
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@bot.tree.command(name="ranking", description="View the server leaderboard / Ver tabla de clasificación del servidor")
-@app_commands.describe(categoria="Leaderboard category / Categoría de la clasificación")
-@app_commands.choices(categoria=[
-    app_commands.Choice(name="🏆 General (Victorias / Most Wins)", value="general"),
-    app_commands.Choice(name="🔪 Impostores (Deadliest Impostors)", value="impostores"),
-    app_commands.Choice(name="🔍 Tripulantes (Best Crewmates)", value="detectives"),
-])
-async def ranking(interaction: discord.Interaction, categoria: str = "general"):
+async def _ejecutar_ranking(interaction: discord.Interaction, categoria: str = "general"):
     if interaction.guild_id is None:
         return await interaction.response.send_message(
             "❌ This command only works inside a server. / Este comando solo funciona dentro de un servidor.",
@@ -519,12 +550,33 @@ async def ranking(interaction: discord.Interaction, categoria: str = "general"):
     await interaction.response.send_message(embed=embed)
 
 
+@bot.tree.command(name="impranking", description="View the server leaderboard / Ver tabla de clasificación del servidor")
+@app_commands.describe(categoria="Leaderboard category / Categoría de la clasificación")
+@app_commands.choices(categoria=[
+    app_commands.Choice(name="🏆 General (Victorias / Most Wins)", value="general"),
+    app_commands.Choice(name="🔪 Impostores (Deadliest Impostors)", value="impostores"),
+    app_commands.Choice(name="🔍 Tripulantes (Best Crewmates)", value="detectives"),
+])
+async def impranking(interaction: discord.Interaction, categoria: str = "general"):
+    await _ejecutar_ranking(interaction, categoria)
+
+
+@bot.tree.command(name="ranking", description="View the server leaderboard / Ver tabla de clasificación del servidor")
+@app_commands.describe(categoria="Leaderboard category / Categoría de la clasificación")
+@app_commands.choices(categoria=[
+    app_commands.Choice(name="🏆 General (Victorias / Most Wins)", value="general"),
+    app_commands.Choice(name="🔪 Impostores (Deadliest Impostors)", value="impostores"),
+    app_commands.Choice(name="🔍 Tripulantes (Best Crewmates)", value="detectives"),
+])
+async def ranking(interaction: discord.Interaction, categoria: str = "general"):
+    await _ejecutar_ranking(interaction, categoria)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
-#  /stats_partidas — Analítica global del servidor
+#  /impstats — Analítica global del servidor
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@bot.tree.command(name="stats_partidas", description="Global game statistics on this server / Estadísticas de partidas en este servidor")
-async def stats_partidas(interaction: discord.Interaction):
+async def _ejecutar_stats(interaction: discord.Interaction):
     if interaction.guild_id is None:
         return await interaction.response.send_message(
             "❌ This command only works inside a server. / Este comando solo funciona dentro de un servidor.",
@@ -573,6 +625,21 @@ async def stats_partidas(interaction: discord.Interaction):
     )
 
     await interaction.response.send_message(embed=embed)
+
+
+@bot.tree.command(name="impstats", description="Global game statistics on this server / Estadísticas de partidas en este servidor")
+async def impstats(interaction: discord.Interaction):
+    await _ejecutar_stats(interaction)
+
+
+@bot.tree.command(name="stats_partidas", description="Global game statistics on this server / Estadísticas de partidas en este servidor")
+async def stats_partidas(interaction: discord.Interaction):
+    await _ejecutar_stats(interaction)
+
+
+@bot.tree.command(name="stats", description="Global game statistics on this server / Estadísticas de partidas en este servidor")
+async def stats(interaction: discord.Interaction):
+    await _ejecutar_stats(interaction)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -656,8 +723,13 @@ class ModalGenerarKey(discord.ui.Modal):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
-@bot.tree.command(name="generarkey", description="Owner only: Generate VIP License Keys / Generar claves VIP con contraseña")
-async def generarkey(interaction: discord.Interaction):
+async def _ejecutar_generarkey(interaction: discord.Interaction):
+    # Verificación exclusiva de servidor central autorizado
+    if interaction.guild_id != SERVER_ADMIN_CENTRAL_ID:
+        return await interaction.response.send_message(
+            f"⛔ Este comando solo puede ser ejecutado en el servidor central autorizado (ID: {SERVER_ADMIN_CENTRAL_ID}).",
+            ephemeral=True
+        )
     # Verificación estricta de propietario del bot / app owner
     es_dueno = await bot.is_owner(interaction.user) or (
         os.getenv("OWNER_ID") and str(interaction.user.id) == os.getenv("OWNER_ID").strip()
@@ -672,9 +744,17 @@ async def generarkey(interaction: discord.Interaction):
     await interaction.response.send_modal(modal)
 
 
-@bot.tree.command(name="canjear", description="Redeem a VIP License Key for this server / Canjear clave de licencia VIP")
-@app_commands.describe(clave="VIP Key code (e.g. POKE-VIP-XXXX-YYYY)")
-async def canjear(interaction: discord.Interaction, clave: str):
+@bot.tree.command(name="impgenerarkey", description="Owner only: Generate VIP License Keys / Generar claves VIP con contraseña")
+async def impgenerarkey(interaction: discord.Interaction):
+    await _ejecutar_generarkey(interaction)
+
+
+@bot.tree.command(name="generarkey", description="Owner only: Generate VIP License Keys / Generar claves VIP con contraseña")
+async def generarkey(interaction: discord.Interaction):
+    await _ejecutar_generarkey(interaction)
+
+
+async def _ejecutar_canjear(interaction: discord.Interaction, clave: str):
     if interaction.guild_id is None or interaction.guild is None:
         return await interaction.response.send_message(
             "❌ This command only works inside a server. / Este comando solo funciona dentro de un servidor.",
@@ -712,8 +792,19 @@ async def canjear(interaction: discord.Interaction, clave: str):
     await interaction.response.send_message(embed=embed)
 
 
-@bot.tree.command(name="licencia", description="Check this server's license and VIP tier / Consultar estado de licencia")
-async def licencia(interaction: discord.Interaction):
+@bot.tree.command(name="impcanjear", description="Redeem a VIP License Key for this server / Canjear clave de licencia VIP")
+@app_commands.describe(clave="VIP Key code (e.g. POKE-VIP-XXXX-YYYY)")
+async def impcanjear(interaction: discord.Interaction, clave: str):
+    await _ejecutar_canjear(interaction, clave)
+
+
+@bot.tree.command(name="canjear", description="Redeem a VIP License Key for this server / Canjear clave de licencia VIP")
+@app_commands.describe(clave="VIP Key code (e.g. POKE-VIP-XXXX-YYYY)")
+async def canjear(interaction: discord.Interaction, clave: str):
+    await _ejecutar_canjear(interaction, clave)
+
+
+async def _ejecutar_licencia(interaction: discord.Interaction):
     if interaction.guild_id is None:
         return await interaction.response.send_message(
             "❌ This command only works inside a server. / Este comando solo funciona dentro de un servidor.",
@@ -737,9 +828,23 @@ async def licencia(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 
 
-@bot.tree.command(name="partner_add", description="Owner only: Grant permanent Beta Partner status to a server")
-@app_commands.describe(servidor_id="Guild ID / ID del servidor", motivo="Partner description / Motivo")
-async def partner_add(interaction: discord.Interaction, servidor_id: str, motivo: str = "Beta Tester Fundador"):
+@bot.tree.command(name="implicencia", description="Check this server's license and VIP tier / Consultar estado de licencia")
+async def implicencia(interaction: discord.Interaction):
+    await _ejecutar_licencia(interaction)
+
+
+@bot.tree.command(name="licencia", description="Check this server's license and VIP tier / Consultar estado de licencia")
+async def licencia(interaction: discord.Interaction):
+    await _ejecutar_licencia(interaction)
+
+
+async def _ejecutar_partner_add(interaction: discord.Interaction, servidor_id: str, motivo: str = "Beta Tester Fundador"):
+    # Verificación exclusiva de servidor central autorizado
+    if interaction.guild_id != SERVER_ADMIN_CENTRAL_ID:
+        return await interaction.response.send_message(
+            f"⛔ Este comando solo puede ser ejecutado en el servidor central autorizado (ID: {SERVER_ADMIN_CENTRAL_ID}).",
+            ephemeral=True
+        )
     # Verificación estricta de propietario del bot / app owner
     es_dueno = await bot.is_owner(interaction.user) or (
         os.getenv("OWNER_ID") and str(interaction.user.id) == os.getenv("OWNER_ID").strip()
@@ -783,6 +888,410 @@ async def partner_add(interaction: discord.Interaction, servidor_id: str, motivo
                 await modal_inter.response.send_message("❌ Error al registrar partner.", ephemeral=True)
 
     await interaction.response.send_modal(ModalPartnerAuth())
+
+
+@bot.tree.command(name="imppartner_add", description="Owner only: Grant permanent Beta Partner status to a server")
+@app_commands.describe(servidor_id="Guild ID / ID del servidor", motivo="Partner description / Motivo")
+async def imppartner_add(interaction: discord.Interaction, servidor_id: str, motivo: str = "Beta Tester Fundador"):
+    await _ejecutar_partner_add(interaction, servidor_id, motivo)
+
+
+@bot.tree.command(name="partner_add", description="Owner only: Grant permanent Beta Partner status to a server")
+@app_commands.describe(servidor_id="Guild ID / ID del servidor", motivo="Partner description / Motivo")
+async def partner_add(interaction: discord.Interaction, servidor_id: str, motivo: str = "Beta Tester Fundador"):
+    await _ejecutar_partner_add(interaction, servidor_id, motivo)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  INTERCEPTOR DE MENSAJES DE TEXTO (-imp sufijo y prefijo)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _extraer_comando_imp(texto: str) -> tuple[bool, str, list[str]]:
+    """
+    Detecta si un mensaje de texto es un comando para PokeImpostor.
+    Soporta:
+      - Sufijo: 'register -imp', 'perfil -imp', 'canjear ABCD -imp'
+      - Prefijo: '-imp register', '!imp register'
+    Retorna: (es_comando_valido, nombre_comando, argumentos)
+    """
+    s = texto.strip()
+    if not s:
+        return False, "", []
+
+    cmd_str = None
+    low = s.lower()
+
+    if low.endswith(" -imp"):
+        cmd_str = s[:-5].strip()
+    elif low.endswith("-imp"):
+        cmd_str = s[:-4].strip()
+    elif low.startswith("-imp "):
+        cmd_str = s[5:].strip()
+    elif low.startswith("!imp "):
+        cmd_str = s[5:].strip()
+    elif low in ("-imp", "!imp"):
+        cmd_str = "help"
+
+    if cmd_str is None:
+        return False, "", []
+
+    partes = cmd_str.split()
+    if not partes:
+        return True, "help", []
+
+    nombre = partes[0].lower().removeprefix("/").removeprefix("imp")
+    if nombre == "":
+        nombre = "help"
+    args = partes[1:]
+    return True, nombre, args
+
+
+@bot.event
+async def on_message(message: discord.Message):
+    if message.author.bot or message.guild is None:
+        return
+
+    es_cmd, cmd, args = _extraer_comando_imp(message.content)
+    if not es_cmd:
+        await bot.process_commands(message)
+        return
+
+    gid = message.guild.id
+
+    # 1. register / impregister
+    if cmd in ("register", "registrar", "sala", "lobby"):
+        await asegurar_rol_pokehost(message.guild)
+        if not es_anfitrion_o_admin(message.author, message.guild):
+            await message.reply(t("register_only_host", gid, role=NOMBRE_ROL_HOST), mention_author=False)
+            return
+
+        if message.channel.id in partidas_activas:
+            await message.reply(t("register_already_active", gid), mention_author=False)
+            return
+
+        nueva = Partida(canal=message.channel, partidas_activas=partidas_activas)
+        partidas_activas[message.channel.id] = nueva
+        view = PanelInscripcion(nueva)
+        msg_lobby = await message.channel.send(
+            embed=_build_embed_lobby(nueva),
+            view=view,
+        )
+        view.message = msg_lobby
+        return
+
+    # 2. ver / impver
+    elif cmd in ("ver", "rol", "role", "myrole"):
+        partida = partidas_activas.get(message.channel.id)
+        if partida is None or (partida.datos_pokemon is None and not partida.pokemons_ebrios and partida.objetivo_humano is None):
+            await message.reply(t("impver_no_game", gid), mention_author=False)
+            return
+
+        if message.author not in partida.jugadores_iniciales:
+            await message.reply(t("impver_not_player", gid), mention_author=False)
+            return
+
+        try:
+            es_impostor = message.author in partida.impostores_iniciales
+            es_ebrios = bool(partida.pokemons_ebrios)
+            es_cj = partida.objetivo_humano is not None
+
+            if es_cj:
+                if es_impostor:
+                    pista = partida.pistas_impostores.get(message.author.id, "—")
+                    await message.author.send(embed=discord.Embed(
+                        title=t("impver_impostor_title", gid),
+                        description=t("dm_caos_jugador_detective_desc", gid, hint=pista),
+                        color=discord.Color.from_rgb(180, 30, 30),
+                    ))
+                elif message.author == partida.objetivo_humano:
+                    await message.author.send(embed=discord.Embed(
+                        title=t("impver_crew_title", gid),
+                        description=t("dm_caos_jugador_target_desc", gid),
+                        color=discord.Color.from_rgb(30, 160, 80),
+                    ))
+                else:
+                    emb = discord.Embed(
+                        title=t("impver_crew_title", gid),
+                        description=t("dm_caos_jugador_crew_desc", gid, target=f"**{partida.objetivo_humano.display_name}**"),
+                        color=discord.Color.from_rgb(30, 160, 80),
+                    )
+                    if getattr(partida.objetivo_humano, "display_avatar", None):
+                        emb.set_image(url=partida.objetivo_humano.display_avatar.url)
+                    await message.author.send(embed=emb)
+
+            elif es_ebrios:
+                dp = partida.pokemons_ebrios.get(message.author.id)
+                if dp:
+                    emb = discord.Embed(
+                        title=t("dm_crew_title", gid),
+                        description=t("dm_ebrios_desc", gid, name=dp.get("nombre", "?"), types=" / ".join(dp.get("tipos", ["?"]))),
+                        color=discord.Color.from_rgb(30, 160, 80),
+                    )
+                    if dp.get("sprite"):
+                        emb.set_image(url=dp["sprite"])
+                    emb.set_footer(text=t("dm_ebrios_footer", gid))
+                    await message.author.send(embed=emb)
+
+            elif es_impostor:
+                pista = partida.pistas_impostores.get(message.author.id, partida.pista_generada)
+                await message.author.send(embed=discord.Embed(
+                    title=t("impver_impostor_title", gid),
+                    description=t("dm_impostor_desc", gid, hint=pista),
+                    color=discord.Color.from_rgb(180, 30, 30),
+                ))
+            else:
+                dp = partida.datos_pokemon
+                if dp:
+                    emb = discord.Embed(
+                        title=t("impver_crew_title", gid),
+                        description=t("dm_crew_desc", gid, name=dp.get("nombre", "?"), types=" / ".join(dp.get("tipos", ["?"]))),
+                        color=discord.Color.from_rgb(30, 160, 80),
+                    )
+                    if dp.get("sprite"):
+                        emb.set_image(url=dp["sprite"])
+                    await message.author.send(embed=emb)
+
+            try:
+                await message.add_reaction("📬")
+            except Exception:
+                await message.reply(t("impver_sent", gid), delete_after=10, mention_author=False)
+
+        except discord.Forbidden:
+            await message.reply(t("impver_dm_blocked", gid), mention_author=False)
+        return
+
+    # 3. perfil / impperfil
+    elif cmd in ("perfil", "profile"):
+        target = message.mentions[0] if message.mentions else message.author
+        stats = await obtener_perfil_jugador_async(gid, target.id)
+        if stats is None:
+            await message.reply(t("profile_no_games", gid), mention_author=False)
+            return
+
+        embed_color = target.color if getattr(target, "color", None) and target.color.value != 0 else discord.Color.from_rgb(255, 203, 5)
+        embed = discord.Embed(
+            title=t("profile_title", gid, name=target.display_name),
+            color=embed_color,
+        )
+        if getattr(target, "display_avatar", None) and target.display_avatar.url:
+            embed.set_thumbnail(url=target.display_avatar.url)
+
+        embed.add_field(
+            name=t("profile_general_field", gid),
+            value=t("profile_general_value", gid,
+                    total=stats["total_partidas"],
+                    wins=stats["victorias"],
+                    losses=stats["derrotas"],
+                    winrate=stats["winrate_gral"]),
+            inline=False,
+        )
+        embed.add_field(
+            name=t("profile_roles_field", gid),
+            value=t("profile_roles_value", gid,
+                    imp_wins=stats["victorias_impostor"],
+                    imp_games=stats["partidas_impostor"],
+                    imp_wr=stats["winrate_impostor"],
+                    crew_wins=stats["victorias_tripulante"],
+                    crew_games=stats["partidas_tripulante"],
+                    crew_wr=stats["winrate_tripulante"]),
+            inline=False,
+        )
+        if stats["expulsado_inocente"] > 0:
+            embed.add_field(
+                name=t("profile_innocent_field", gid),
+                value=t("profile_innocent_value", gid, count=stats["expulsado_inocente"]),
+                inline=True,
+            )
+        if stats["pokemon_frecuente"]:
+            embed.add_field(
+                name=t("profile_pokemon_field", gid),
+                value=t("profile_pokemon_value", gid, name=stats["pokemon_frecuente"]),
+                inline=True,
+            )
+        await message.reply(embed=embed, mention_author=False)
+        return
+
+    # 4. ranking / impranking
+    elif cmd in ("ranking", "leaderboard", "top"):
+        cat = "general"
+        if args:
+            arg_low = args[0].lower()
+            if "imp" in arg_low:
+                cat = "impostores"
+            elif "trip" in arg_low or "det" in arg_low or "crew" in arg_low:
+                cat = "detectives"
+
+        top = await obtener_ranking_async(gid, cat)
+        if not top:
+            await message.reply(t("ranking_empty", gid), mention_author=False)
+            return
+
+        title_key = (
+            "ranking_title_impostores" if cat == "impostores"
+            else ("ranking_title_detectives" if cat == "detectives" else "ranking_title_general")
+        )
+        embed = discord.Embed(
+            title=t(title_key, gid),
+            color=discord.Color.from_rgb(255, 203, 5),
+        )
+        medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
+        lines = []
+        for idx, row in enumerate(top):
+            medal = medals[idx] if idx < len(medals) else f"{idx + 1}."
+            lines.append(
+                t("ranking_entry", gid,
+                  medal=medal,
+                  name=row["user_name"],
+                  wins=row["victorias"],
+                  winrate=row["winrate"],
+                  total=row["total"])
+            )
+        embed.description = "\n".join(lines)
+        await message.reply(embed=embed, mention_author=False)
+        return
+
+    # 5. stats / impstats
+    elif cmd in ("stats", "stats_partidas", "serverstats", "partidas"):
+        stats = await obtener_stats_servidor_async(gid)
+        if stats is None:
+            await message.reply(t("server_stats_empty", gid), mention_author=False)
+            return
+
+        embed = discord.Embed(
+            title=t("server_stats_title", gid),
+            color=discord.Color.blurple(),
+        )
+        embed.add_field(
+            name=t("server_stats_balance_field", gid),
+            value=t("server_stats_balance_value", gid,
+                    total=stats["total_partidas"],
+                    imp_wins=stats["vic_impostores"],
+                    imp_pct=stats["pct_impostores"],
+                    crew_wins=stats["vic_tripulantes"],
+                    crew_pct=stats["pct_tripulantes"],
+                    no_imp=stats["sin_impostor"]),
+            inline=False,
+        )
+        embed.add_field(
+            name=t("server_stats_fav_mode", gid),
+            value=f"**{stats['modo_favorito'].capitalize()}**",
+            inline=True,
+        )
+        embed.add_field(
+            name=t("server_stats_deadliest_pk", gid),
+            value=f"**{stats['pokemon_letal']}**",
+            inline=True,
+        )
+        embed.add_field(
+            name=t("server_stats_common_pk", gid),
+            value=f"**{stats['pokemon_comun']}**",
+            inline=True,
+        )
+        await message.reply(embed=embed, mention_author=False)
+        return
+
+    # 6. licencia / implicencia
+    elif cmd in ("licencia", "license", "vip", "tier"):
+        estado = await verificar_estado_premium_async(gid)
+        if estado["es_premium"]:
+            embed = discord.Embed(
+                title=t("license_status_title", gid),
+                description=t("license_status_premium", gid, tipo=estado["tipo"].upper(), details=estado["detalle"]),
+                color=discord.Color.gold(),
+            )
+        else:
+            embed = discord.Embed(
+                title=t("license_status_title", gid),
+                description=t("license_status_free", gid),
+                color=discord.Color.light_grey(),
+            )
+        await message.reply(embed=embed, mention_author=False)
+        return
+
+    # 7. canjear / impcanjear
+    elif cmd in ("canjear", "redeem"):
+        if not es_anfitrion_o_admin(message.author, message.guild):
+            await message.reply(t("redeem_only_host", gid, role=NOMBRE_ROL_HOST), mention_author=False)
+            return
+
+        if not args:
+            await message.reply("⚠️ Uso: `canjear <CLAVE> -imp`", mention_author=False)
+            return
+
+        clave = args[0].strip()
+        res = await canjear_licencia_async(clave, gid, message.author.id)
+        if not res["exito"]:
+            err = res.get("error")
+            if err == "already_used":
+                await message.reply(t("redeem_already_used", gid), mention_author=False)
+            else:
+                await message.reply(t("redeem_not_found", gid), mention_author=False)
+            return
+
+        tipo = res["tipo"]
+        if tipo == "permanente":
+            det = "Acceso Ilimitado Permanente (Servidor Fundador/VIP)"
+        elif tipo == "dias":
+            exp = res["expira_en"].strftime("%d/%m/%Y") if res.get("expira_en") else "?"
+            det = f"{res['duracion_dias']} días (hasta {exp})"
+        else:
+            det = f"{res['cargas_totales']} partidas VIP disponibles"
+
+        embed = discord.Embed(
+            title=t("redeem_success_title", gid),
+            description=t("redeem_success_desc", gid, tipo=tipo.upper(), details=det),
+            color=discord.Color.green(),
+        )
+        await message.reply(embed=embed, mention_author=False)
+        return
+
+    # 8. lang / implang / implanguage
+    elif cmd in ("lang", "language", "idioma"):
+        if not es_anfitrion_o_admin(message.author, message.guild):
+            await message.reply(t("lang_only_admin", gid), mention_author=False)
+            return
+
+        if not args:
+            await message.reply("⚠️ Uso: `lang en -imp` o `lang es -imp`", mention_author=False)
+            return
+
+        elegido = args[0].lower()
+        if elegido in ("en", "english", "ingles"):
+            set_lang(gid, "en")
+            await message.reply(t("lang_changed_en", gid), mention_author=False)
+        elif elegido in ("es", "spanish", "espanol", "español"):
+            set_lang(gid, "es")
+            await message.reply(t("lang_changed_es", gid), mention_author=False)
+        else:
+            await message.reply("⚠️ Opciones válidas: `en` o `es`", mention_author=False)
+        return
+
+    # 9. generarkey / impgenerarkey
+    elif cmd in ("generarkey", "genkey"):
+        await message.reply(
+            "🔐 Por seguridad de Discord y entrada de contraseñas, usa el comando de barra: `/impgenerarkey`",
+            mention_author=False
+        )
+        return
+
+    # 10. help / imphelp / ayuda
+    elif cmd in ("help", "ayuda", "guia", "guide"):
+        embed = discord.Embed(
+            title=t("help_title", gid),
+            description=t("help_desc", gid),
+            color=discord.Color.from_rgb(255, 203, 5),
+        )
+        embed.add_field(name=t("help_step1_name", gid), value=t("help_step1_value", gid), inline=False)
+        embed.add_field(name=t("help_step2_name", gid), value=t("help_step2_value", gid), inline=False)
+        embed.add_field(name=t("help_step3_name", gid), value=t("help_step3_value", gid), inline=False)
+        embed.add_field(name=t("help_step4_name", gid), value=t("help_step4_value", gid), inline=False)
+        embed.add_field(name=t("help_modes_name", gid), value=t("help_modes_value", gid), inline=False)
+        embed.add_field(name=t("help_commands_name", gid), value=t("help_commands_value", gid), inline=False)
+        embed.set_footer(text=t("help_footer", gid))
+        await message.reply(embed=embed, mention_author=False)
+        return
+
+    await bot.process_commands(message)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
