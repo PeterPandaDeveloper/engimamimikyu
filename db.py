@@ -42,7 +42,9 @@ def _init_schema_sync(con: duckdb.DuckDBPyConnection) -> None:
         );
     """)
     try:
-        con.execute("ALTER TABLE servidores_config ADD COLUMN IF NOT EXISTS rol_host_id BIGINT;")
+        cols = [r[1] for r in con.execute("PRAGMA table_info('servidores_config')").fetchall()]
+        if "rol_host_id" not in cols:
+            con.execute("ALTER TABLE servidores_config ADD COLUMN rol_host_id BIGINT;")
     except Exception:
         pass
 
@@ -118,7 +120,6 @@ def _init_db_sync() -> None:
     """Crea tablas e índices y realiza la migración desde idiomas.json si existe."""
     with _DB_LOCK:
         con = _get_connection()
-        _init_schema_sync(con)
 
         # Auto-migración desde idiomas.json a la tabla servidores_config
         if os.path.exists(_LEGACY_LANG_FILE):
@@ -135,6 +136,11 @@ def _init_db_sync() -> None:
                 print(f"[DuckDB] Migracion completada: {len(data)} servidores desde idiomas.json.")
             except Exception as e:
                 print(f"[DuckDB] Error al migrar idiomas.json: {e}")
+
+        try:
+            con.execute("CHECKPOINT;")
+        except Exception:
+            pass
 
 
 async def init_db() -> None:
