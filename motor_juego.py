@@ -504,41 +504,36 @@ class Partida:
         return embed
 
     # ── DM variante Objetivo Humano ──────────────────────────────────────────
-    def _build_dm_caos_jugador_detective(self, objetivo: discord.Member, pista: str) -> discord.Embed:
+    def _build_dm_caos_jugador_impostor(self) -> discord.Embed:
         gid = self.canal.guild.id
-        # El detective recibe el MISMO título que un impostor normal para no
-        # revelar que está en un sub-modo especial. Solo cambia la descripción:
-        # su "pista" son datos sobre el jugador objetivo, pero el texto lo
-        # presenta como si fuera una pista sobre un Pokémon.
-        return discord.Embed(
+        embed = discord.Embed(
             title=t("dm_impostor_title", gid),
-            description=t("dm_impostor_desc", gid, hint=pista),
+            description=t("dm_caos_jugador_impostor_desc", gid),
             color=discord.Color.from_rgb(180, 30, 30),
-        ).set_footer(text=t("dm_impostor_footer", gid))
+        )
+        embed.set_footer(text=t("dm_impostor_footer", gid))
+        return embed
+
+    def _build_dm_caos_jugador_detective(self, objetivo: discord.Member, pista: str = "") -> discord.Embed:
+        return self._build_dm_caos_jugador_impostor()
 
     def _build_dm_caos_jugador_tripulante(self, objetivo: discord.Member) -> discord.Embed:
         gid = self.canal.guild.id
+        # Aparte de la imagen, entregamos nombre en servidor y username @ por si la imagen falla al cargar
+        tag_usuario = f"**{objetivo.display_name}** (`@{objetivo.name}`)"
         embed = discord.Embed(
             title=t("dm_crew_title", gid),
-            description=t("dm_caos_jugador_crew_neutral", gid),
+            description=t("dm_caos_jugador_crew_desc", gid, target=tag_usuario),
             color=discord.Color.from_rgb(30, 160, 80),
         )
-        if getattr(objetivo, "display_avatar", None):
+        if getattr(objetivo, "display_avatar", None) and objetivo.display_avatar.url:
             embed.set_image(url=objetivo.display_avatar.url)
+            embed.set_thumbnail(url=objetivo.display_avatar.url)
+        embed.set_footer(text=t("dm_crew_footer", gid))
         return embed
 
     def _build_dm_caos_jugador_objetivo(self) -> discord.Embed:
-        """
-        DM para el propio objetivo.
-        Recibe el mismo DM neutro que los demás tripulantes — no sabe que
-        ES el objetivo. Así no puede delatar accidentalmente su rol.
-        """
-        gid = self.canal.guild.id
-        return discord.Embed(
-            title=t("dm_crew_title", gid),
-            description=t("dm_caos_jugador_crew_neutral", gid),
-            color=discord.Color.from_rgb(30, 160, 80),
-        )
+        return self._build_dm_caos_jugador_impostor()
 
     # ── DM variante Danza Caos — NO revela sub-modo NI nombre del Pokémon ──
     def _build_dm_amigos_ebrios(self, jugador: discord.Member) -> discord.Embed:
@@ -683,45 +678,22 @@ class Partida:
 
     # ── Subrutina: Caos Jugador ────────────────────────────────────────────────
     async def _arrancar_caos_jugador(self) -> bool:
-        # elegir un jugador al azar como "objetivo" (el que los demás describen)
+        # Elegir un jugador al azar como "objetivo"
         self.objetivo_humano = random.choice(self.jugadores)
-        # el "detective" (impostor) es quien intenta adivinar
-        resto = [j for j in self.jugadores if j != self.objetivo_humano]
-        detective = random.choice(resto)
-        self.impostores = [detective]
-
+        # El objetivo ES el impostor: así no se spoilea ni ve que le tocó ser el objetivo
+        self.impostores = [self.objetivo_humano]
         self.jugadores_iniciales  = self.jugadores.copy()
         self.impostores_iniciales = self.impostores.copy()
-
-        # La pista del detective: 1 o 2 datos sobre el objetivo, según
-        # cuántos tripulantes normales habrá describiéndolo. Con pocos
-        # jugadores (3-4), solo 1-2 personas describen al objetivo, así
-        # que el detective recibe 2 pistas para que siga siendo jugable.
-        gid = self.canal.guild.id
-        pistas_posibles = [
-            t("caos_jugador_hint_avatar",  gid, target=self.objetivo_humano.display_name),
-            t("caos_jugador_hint_name",    gid, target=self.objetivo_humano.display_name[0]),
-            t("caos_jugador_hint_join",    gid, target=self.objetivo_humano.display_name),
-        ]
-        random.shuffle(pistas_posibles)
-
-        tripulantes_normales = len(resto) - 1  # resto sin contar al detective
-        n_pistas = 2 if tripulantes_normales <= 2 else 1
-        pista_detective = "\n".join(f"• {p}" for p in pistas_posibles[:n_pistas])
-
-        self.pistas_impostores[detective.id] = pista_detective
-        self.pista_generada = pista_detective
 
         dm_fallidos: list[discord.Member] = []
 
         async def _enviar_dm_humano(jugador: discord.Member):
             try:
-                if jugador == detective:
-                    await jugador.send(embed=self._build_dm_caos_jugador_detective(self.objetivo_humano, pista_detective))
-                elif jugador == self.objetivo_humano:
-                    # El objetivo NUNCA debe recibir "describe a [tu propio nombre]"
-                    await jugador.send(embed=self._build_dm_caos_jugador_objetivo())
+                if jugador == self.objetivo_humano:
+                    # El elegido es el impostor: recibe DM de impostor (no ve que él es el objetivo)
+                    await jugador.send(embed=self._build_dm_caos_jugador_impostor())
                 else:
+                    # Los demás son tripulantes: reciben el nombre de usuario del servidor y la imagen
                     await jugador.send(embed=self._build_dm_caos_jugador_tripulante(self.objetivo_humano))
             except Exception as e:
                 print(f"[DM] Falló con {jugador.display_name}: {e}")

@@ -855,22 +855,47 @@ STRINGS["mode_caos_jugador_desc"] = {
     "es": "Un jugador ES el objetivo. El detective intenta adivinarlo con pistas.",
 }
 
-# ── DMs nuevos modos ──────────────────────────────────────────────────────────
 STRINGS["dm_caos_jugador_detective_title"] = {
-    "en": "🕵️ YOU ARE THE DETECTIVE",
-    "es": "🕵️ ERES EL DETECTIVE",
+    "en": "🕵️ YOU ARE THE IMPOSTOR",
+    "es": "🕵️ ERES EL IMPOSTOR",
 }
-STRINGS["dm_caos_jugador_detective_desc"] = {
-    "en": "The other players are describing a real member of the group.\nYour clue: {hint}\n\nListen carefully and guess who they're talking about!",
-    "es": "Los demás jugadores están describiendo a un miembro real del grupo.\nTu pista: {hint}\n\n¡Escucha con atención e intenta adivinar de quién hablan!",
+STRINGS["dm_caos_jugador_impostor_title"] = {
+    "en": "🕵️ YOU ARE THE IMPOSTOR",
+    "es": "🕵️ ERES EL IMPOSTOR",
 }
+STRINGS["dm_caos_jugador_impostor_desc"] = {
+    "en": (
+        "The crewmates are describing a secret member of this server.\n\n"
+        "You do NOT know who the secret target is!\n"
+        "Listen carefully to what they say, blend in so they don't suspect you, "
+        "and try to figure out who everyone is talking about!"
+    ),
+    "es": (
+        "Los tripulantes están describiendo a un miembro secreto de este servidor.\n\n"
+        "¡Tú NO sabes quién es el objetivo secreto!\n"
+        "Escucha con atención lo que dicen, disimula para que no sospechen de ti "
+        "e intenta adivinar de quién están hablando."
+    ),
+}
+STRINGS["dm_caos_jugador_detective_desc"] = STRINGS["dm_caos_jugador_impostor_desc"]
+
 STRINGS["dm_caos_jugador_crew_title"] = {
     "en": "✅ YOU ARE A CREWMATE",
     "es": "✅ ERES TRIPULANTE",
 }
 STRINGS["dm_caos_jugador_crew_desc"] = {
-    "en": "Describe {target} without saying their name!\nThe detective is trying to figure out who you're talking about.",
-    "es": "¡Describe a {target} sin decir su nombre!\nEl detective intenta adivinar de quién hablan.",
+    "en": (
+        "🎯 Secret target to describe: {target}\n\n"
+        "Describe this person without saying their name directly!\n"
+        "The impostor is among you and has no idea who everyone is describing.\n"
+        "Find out who is pretending!"
+    ),
+    "es": (
+        "🎯 Objetivo secreto a describir: {target}\n\n"
+        "¡Describe a esta persona sin decir su nombre directamente!\n"
+        "El impostor está entre ustedes y no tiene idea de a quién están describiendo.\n"
+        "¡Descubran quién está fingiendo!"
+    ),
 }
 STRINGS["caos_jugador_hint_avatar"] = {
     "en": "The target has a profile picture.",
@@ -1115,12 +1140,14 @@ STRINGS["public_hint_desc"] = {
 # Solo ven la foto del jugador misterioso y una instrucción genérica.
 STRINGS["dm_caos_jugador_crew_neutral"] = {
     "en": (
-        "A special round has begun. Describe the person shown in the image "
-        "without saying their name.\nSomeone is trying to figure out who everyone is talking about!"
+        "🎯 Secret target to describe: {target}\n\n"
+        "Describe this person without saying their name directly.\n"
+        "Someone among you has no idea who everyone is talking about!"
     ),
     "es": (
-        "Ha comenzado una ronda especial. Describe a la persona de la imagen "
-        "sin decir su nombre.\n¡Alguien está intentando adivinar de quién hablan todos!"
+        "🎯 Objetivo secreto a describir: {target}\n\n"
+        "Describe a esta persona sin decir su nombre directamente.\n"
+        "¡Alguien entre ustedes no sabe de quién están hablando todos!"
     ),
 }
 

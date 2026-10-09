@@ -37,12 +37,7 @@ class PanelVotacion(discord.ui.View):
         modo  = partida.config.modo_juego
         total = len(partida.jugadores)
 
-        # ── Variante OBJETIVO_HUMANO de CAOS: solo el detective vota ──────────
-        if modo == ModoJuego.CAOS and partida.config.caos_variante == CaosVariante.OBJETIVO_HUMANO:
-            self._init_votacion_objetivo_humano(g)
-            return  # no construir el select normal
-
-        # ── Modos normales (Clásico / Extendido / Caos estándar) ──────────────
+        # ── Modos (Clásico / Extendido / Caos con todas sus variantes) ──────────────
         es_clasico = (modo == ModoJuego.CLASICO)
         max_v      = 1 if es_clasico else total
 

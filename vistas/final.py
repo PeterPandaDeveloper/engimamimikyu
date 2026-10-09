@@ -39,9 +39,10 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
     elif es_objetivo_humano:
         objetivo = partida.objetivo_humano
         if objetivo:
-            embed.add_field(name=t("final_caos_jugador_field", g), value=f"👤 **{objetivo.display_name}**", inline=False)
-            if getattr(objetivo, "display_avatar", None):
+            embed.add_field(name=t("final_caos_jugador_field", g), value=f"👤 **{objetivo.display_name}** (`@{objetivo.name}`)", inline=False)
+            if getattr(objetivo, "display_avatar", None) and objetivo.display_avatar.url:
                 embed.set_image(url=objetivo.display_avatar.url)
+                embed.set_thumbnail(url=objetivo.display_avatar.url)
 
     elif victoria_impostores:
         # Los impostores ganaron, pero igual revelamos el Pokémon —

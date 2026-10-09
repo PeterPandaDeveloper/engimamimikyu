@@ -274,30 +274,9 @@ async def impver(interaction: discord.Interaction):
         if es_cj:
             # Variante Objetivo Humano
             if es_impostor:
-                # El detective
-                pista = partida.pistas_impostores.get(interaction.user.id, "—")
-                await interaction.user.send(embed=discord.Embed(
-                    title=t("impver_impostor_title", gid),
-                    description=t("dm_caos_jugador_detective_desc", gid, hint=pista),
-                    color=discord.Color.from_rgb(180, 30, 30),
-                ))
-            elif interaction.user == partida.objetivo_humano:
-                # El propio objetivo — NUNCA debe ver "describe a [su nombre]"
-                await interaction.user.send(embed=discord.Embed(
-                    title=t("impver_crew_title", gid),
-                    description=t("dm_caos_jugador_target_desc", gid),
-                    color=discord.Color.from_rgb(30, 160, 80),
-                ))
+                await interaction.user.send(embed=partida._build_dm_caos_jugador_impostor())
             else:
-                # Tripulante normal describiendo al objetivo
-                emb = discord.Embed(
-                    title=t("impver_crew_title", gid),
-                    description=t("dm_caos_jugador_crew_desc", gid, target=f"**{partida.objetivo_humano.display_name}**"),
-                    color=discord.Color.from_rgb(30, 160, 80),
-                )
-                if getattr(partida.objetivo_humano, "display_avatar", None):
-                    emb.set_image(url=partida.objetivo_humano.display_avatar.url)
-                await interaction.user.send(embed=emb)
+                await interaction.user.send(embed=partida._build_dm_caos_jugador_tripulante(partida.objetivo_humano))
 
         elif es_ebrios:
             # Variante Danza Caos — usar el mismo título/color que tripulante normal
@@ -997,27 +976,9 @@ async def on_message(message: discord.Message):
 
             if es_cj:
                 if es_impostor:
-                    pista = partida.pistas_impostores.get(message.author.id, "—")
-                    await message.author.send(embed=discord.Embed(
-                        title=t("impver_impostor_title", gid),
-                        description=t("dm_caos_jugador_detective_desc", gid, hint=pista),
-                        color=discord.Color.from_rgb(180, 30, 30),
-                    ))
-                elif message.author == partida.objetivo_humano:
-                    await message.author.send(embed=discord.Embed(
-                        title=t("impver_crew_title", gid),
-                        description=t("dm_caos_jugador_target_desc", gid),
-                        color=discord.Color.from_rgb(30, 160, 80),
-                    ))
+                    await message.author.send(embed=partida._build_dm_caos_jugador_impostor())
                 else:
-                    emb = discord.Embed(
-                        title=t("impver_crew_title", gid),
-                        description=t("dm_caos_jugador_crew_desc", gid, target=f"**{partida.objetivo_humano.display_name}**"),
-                        color=discord.Color.from_rgb(30, 160, 80),
-                    )
-                    if getattr(partida.objetivo_humano, "display_avatar", None):
-                        emb.set_image(url=partida.objetivo_humano.display_avatar.url)
-                    await message.author.send(embed=emb)
+                    await message.author.send(embed=partida._build_dm_caos_jugador_tripulante(partida.objetivo_humano))
 
             elif es_ebrios:
                 dp = partida.pokemons_ebrios.get(message.author.id)
