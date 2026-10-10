@@ -674,8 +674,8 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "👋 Sesión cerrada",
     },
     "session_closed_desc": {
-        "en": "Thanks for playing **PokeImpostor**.\nUse `/impregister` to open a new lobby.",
-        "es": "Gracias por jugar **PokeImpostor**.\nUsen `/impregister` para abrir un nuevo lobby.",
+        "en": "Thanks for playing **PokeImpostor**.\nUse `/play-kyu` (or `-mimi play`) to open a new lobby.",
+        "es": "Gracias por jugar **PokeImpostor**.\nUsen `/play-kyu` (o `-mimi play`) para abrir un nuevo lobby.",
     },
 
     # ── /impver ───────────────────────────────────────────────────────────────
@@ -729,20 +729,20 @@ STRINGS: dict[str, dict[str, str]] = {
     },
     "help_step1_name":  {"en": "1️⃣  Join the Lobby",  "es": "1️⃣  Unirse al Lobby"},
     "help_step1_value": {
-        "en": "Use `/impregister` to open the room. Everyone presses **⚡ Join**.",
-        "es": "Usa `/impregister` para abrir la sala. Todos presionan **⚡ Unirse**.",
+        "en": "Use `/play-kyu` (or `-mimi play`) to open the room. Everyone presses **⚡ Join**.",
+        "es": "Usa `/play-kyu` (o `-mimi play`) para abrir la sala. Todos presionan **⚡ Unirse**.",
     },
     "help_step2_name":  {"en": "2️⃣  Check your DM",  "es": "2️⃣  Revisar el DM"},
     "help_step2_value": {
         "en": (
             "**Crewmates** get the image and name of the secret Pokémon.\n"
             "**The Impostor** only gets a clue and must pretend to know it.\n"
-            "If you closed the DM, use `/impver` to see it again."
+            "If you closed the DM, use `/role-kyu` (or `-mimi role`) to see it again."
         ),
         "es": (
             "**Tripulantes** reciben la imagen y nombre del Pokémon secreto.\n"
             "**El Impostor** recibe solo una pista y debe fingir que lo conoce.\n"
-            "Si cerraste el DM, usa `/impver` para volver a verlo."
+            "Si cerraste el DM, usa `/role-kyu` (o `-mimi ver`) para volver a verlo."
         ),
     },
     "help_step3_name":  {"en": "3️⃣  The Debate",  "es": "3️⃣  El Debate"},
@@ -1220,11 +1220,11 @@ STRINGS["round_already_started"] = {
 STRINGS["session_lost_after_restart"] = {
     "en": (
         "🔌 **I just restarted** and lost track of the game that was running in this channel.\n"
-        "Sorry about that! Please use `/impregister` to start a new lobby."
+        "Sorry about that! Please use `/play-kyu` to start a new lobby."
     ),
     "es": (
         "🔌 **Me acabo de reiniciar** y perdí el rastro de la partida que estaba en este canal.\n"
-        "¡Disculpen las molestias! Usen `/impregister` para abrir un nuevo lobby."
+        "¡Disculpen las molestias! Usen `/play-kyu` para abrir un nuevo lobby."
     ),
 }
 
@@ -1284,8 +1284,8 @@ STRINGS["ranking_title_detectives"] = {
     "es": "🔍 Tabla de Clasificación — Mejores Tripulantes",
 }
 STRINGS["ranking_empty"] = {
-    "en": "No games recorded on this server yet! Start one with `/impregister`.",
-    "es": "¡Aún no hay partidas registradas en este servidor! Inicien una con `/impregister`.",
+    "en": "No games recorded on this server yet! Start one with `/play-kyu`.",
+    "es": "¡Aún no hay partidas registradas en este servidor! Inicien una con `/play-kyu`.",
 }
 STRINGS["ranking_entry"] = {
     "en": "{medal} **{name}** — **{wins}** wins ({winrate}% in {total} games)",
