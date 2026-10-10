@@ -774,18 +774,26 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": (
             "• **Classic:** 1 secret Impostor, 1 secret Pokémon.\n"
             "• **Extended:** Multiple accomplice Impostors who know each other.\n"
-            "• **Chaos (Russian Roulette):** Unpredictable rules every round!\n"
-            "   ▫️ *Standard Chaos:* From 0 to (N-1) impostors (can be 0 where all are innocent with the same Pokémon!).\n"
-            "   ▫️ *Chaos Dance:* Zero impostors! Each trainer receives a different secret Pokémon without knowing it.\n"
-            "   ▫️ *Human Target:* One of the players in the server IS the secret target to deduce from hints!"
+            "• **Chaos (Russian Roulette):** Unpredictable rules rolled every round!\n"
+            "   ▫️ *0% Impostors:* Pure paranoia! Everyone shares the same Pokémon.\n"
+            "   ▫️ *1 Impostor:* Standard single impostor.\n"
+            "   ▫️ *50% of the Room:* Half the room are impostors with unique hints.\n"
+            "   ▫️ *75% of the Room:* 75% impostors with unique hints.\n"
+            "   ▫️ *100% Impostors:* Everyone is an impostor trying to bluff each other!\n"
+            "   ▫️ *Drunk Friends:* 0 impostors; each player gets a different Pokémon.\n"
+            "   ▫️ *Human Target:* A server player is the target (photo & name shown)."
         ),
         "es": (
             "• **Clásico:** 1 Impostor secreto, 1 Pokémon secreto.\n"
             "• **Extendido:** Múltiples Impostores cómplices que se conocen entre sí.\n"
-            "• **Caos (Ruleta Rusa):** ¡Reglas impredecibles en cada ronda!\n"
-            "   ▫️ *Caos Estándar:* De 0 a (N-1) impostores (¡incluso 0 donde todos son inocentes con el mismo Pokémon!).\n"
-            "   ▫️ *Danza Caos:* ¡Cero impostores! Cada jugador recibe un Pokémon secreto diferente sin saberlo.\n"
-            "   ▫️ *Objetivo Humano:* ¡Uno de los jugadores del servidor ES el objetivo a descubrir con pistas!"
+            "• **Caos (Ruleta Rusa):** ¡Reglas impredecibles sorteadas en cada ronda!\n"
+            "   ▫️ *0% Impostores:* ¡Paranoia pura! Todos comparten el mismo Pokémon.\n"
+            "   ▫️ *1 Impostor:* 1 solo impostor clásico.\n"
+            "   ▫️ *50% de la Sala:* La mitad de la sala son impostores con pistas únicas.\n"
+            "   ▫️ *75% de la Sala:* El 75% son impostores con pistas únicas.\n"
+            "   ▫️ *100% Impostores:* ¡Todos son impostores intentando engañarse entre sí!\n"
+            "   ▫️ *Amigos Borrachos:* 0 impostores; cada jugador recibe un Pokémon diferente.\n"
+            "   ▫️ *Objetivo Humano:* Un jugador de la sala es el objetivo (foto y nombre)."
         ),
     },
     "help_commands_name": {
@@ -794,38 +802,34 @@ STRINGS: dict[str, dict[str, str]] = {
     },
     "help_commands_value": {
         "en": (
-            "• `/play-kyu` (or `-mimi play` / `play -mimi`) — Start new waiting room / lobby\n"
-            "• `/role-kyu` (or `-mimi role` / `role -mimi`) — Re-send your secret role via DM\n"
-            "• `/profile-kyu [@user]` (or `-mimi profile` / `profile -mimi`) — View trainer profile\n"
-            "• `/leaderboard-kyu` (or `-mimi leaderboard` / `leaderboard -mimi`) — Server leaderboard\n"
-            "• `/stats-kyu` (or `-mimi stats` / `stats -mimi`) — Server match analytics\n"
-            "• `/setrole-kyu [@role] [@user]` (or `-mimi setrole`) — Set or create host role (Admin)\n"
-            "• `/vote-kyu` (or `-mimi vote` / `vote -mimi`) — Vote on Top.gg for 10 free premium matches\n"
-            "• `/donate-kyu` (or `-mimi donate` / `donate -mimi`) — Support & get $5 USD Lifetime Pass\n"
-            "• `/invite-kyu` (or `-mimi invite` / `invite -mimi`) — Invite Mimikyu to another server\n"
-            "• `/license-kyu` (or `-mimi license` / `license -mimi`) — Check VIP status\n"
-            "• `/redeem-kyu <key>` (or `-mimi redeem <key>`) — Redeem VIP Key ($5 USD Lifetime)\n"
-            "• `/credits-kyu` (or `-mimi credits` / `credits -mimi`) — Artist & illustration credits\n"
-            "• `/lang-kyu` (or `-mimi lang <en|es>`) — Change language (Admin only)\n"
-            "• `/help-kyu` (or `-mimi help` / `help -mimi`) — Show this guide\n"
-            "*(💡 Use slash commands `/...-kyu` or chat with prefix `-mimi <cmd>` or suffix `<cmd> -mimi`!)*"
+            "• `/play-kyu` — Start a new game lobby\n"
+            "• `/role-kyu` — Re-send your secret role via DM\n"
+            "• `/profile-kyu` — View trainer stats & card\n"
+            "• `/leaderboard-kyu` — Server rankings\n"
+            "• `/stats-kyu` — Server game analytics\n"
+            "• `/setrole-kyu` — Set or create host role (Admin)\n"
+            "• `/vote-kyu` — Top.gg vote (10 free matches)\n"
+            "• `/donate-kyu` — $5 USD Lifetime Pass\n"
+            "• `/redeem-kyu` — Redeem VIP Key\n"
+            "• `/invite-kyu` — Invite Mimikyu to your server\n"
+            "• `/lang-kyu` — Change language (Admin)\n"
+            "• `/help-kyu` — Show this help guide\n"
+            "*(💡 You can also use chat: `-mimi <cmd>` or `<cmd> -mimi`)*"
         ),
         "es": (
-            "• `/play-kyu` (o `-mimi play` / `-mimi jugar` / `play -mimi`) — Abrir nueva sala de espera\n"
-            "• `/role-kyu` (o `-mimi ver` / `ver -mimi` / `rol -mimi`) — Reenviar tu rol secreto por DM\n"
-            "• `/profile-kyu [@usuario]` (o `-mimi perfil` / `perfil -mimi`) — Ver perfil de entrenador\n"
-            "• `/leaderboard-kyu` (o `-mimi ranking` / `ranking -mimi`) — Tablas de clasificación\n"
-            "• `/stats-kyu` (o `-mimi stats` / `stats -mimi`) — Analítica de partidas del servidor\n"
-            "• `/setrole-kyu [@rol] [@usuario]` (o `-mimi setrole`) — Configurar o crear rol de anfitrión (Admin)\n"
-            "• `/vote-kyu` (o `-mimi votar` / `votar -mimi` / `-mimi vote`) — Votar en Top.gg (10 partidas gratis)\n"
-            "• `/donate-kyu` (o `-mimi donar` / `donar -mimi` / `-mimi donate`) — Apoyar y obtener Pase Vitalicio ($5 USD)\n"
-            "• `/invite-kyu` (o `-mimi invite` / `invitar -mimi` / `-mimi invitar`) — Invitar a Mimikyu a otro servidor\n"
-            "• `/license-kyu` (o `-mimi licencia` / `licencia -mimi`) — Consultar estado VIP\n"
-            "• `/redeem-kyu <clave>` (o `-mimi canjear <clave>`) — Canjear clave VIP (Pase Vitalicio $5 USD)\n"
-            "• `/credits-kyu` (o `-mimi creditos` / `creditos -mimi`) — Créditos del artista del bot\n"
-            "• `/lang-kyu` (o `-mimi idioma <es|en>`) — Cambiar idioma (Solo Admin)\n"
-            "• `/help-kyu` (o `-mimi help` / `help -mimi`) — Mostrar esta guía\n"
-            "*(💡 ¡Usa comandos slash `/...-kyu` o escribe en el chat con prefijo `-mimi <comando>` o sufijo `<comando> -mimi`!)*"
+            "• `/play-kyu` — Abrir nueva sala de juego\n"
+            "• `/role-kyu` — Reenviar tu rol secreto por DM\n"
+            "• `/profile-kyu` — Ver perfil y estadísticas\n"
+            "• `/leaderboard-kyu` — Tabla de clasificación\n"
+            "• `/stats-kyu` — Analítica de partidas del servidor\n"
+            "• `/setrole-kyu` — Configurar rol de anfitrión (Admin)\n"
+            "• `/vote-kyu` — Votar en Top.gg (10 partidas gratis)\n"
+            "• `/donate-kyu` — Pase Vitalicio ($5 USD)\n"
+            "• `/redeem-kyu` — Canjear clave VIP\n"
+            "• `/invite-kyu` — Invitar a Mimikyu a tu servidor\n"
+            "• `/lang-kyu` — Cambiar idioma (Admin)\n"
+            "• `/help-kyu` — Mostrar esta guía\n"
+            "*(💡 También en chat: `-mimi <comando>` o `<comando> -mimi`)*"
         ),
     },
     "help_footer": {
@@ -1085,23 +1089,33 @@ STRINGS["caos_jugador_admin_skip"] = {
     "es": "🔒 Ronda saltada por el admin. Sin resultado.",
 }
 
-STRINGS["help_modes_value"] = {
-    "en": (
-        "• **Classic:** 1 secret Impostor, 1 secret Pokémon.\n"
-        "• **Extended:** Multiple accomplice Impostors who know each other.\n"
-        "• **Chaos (Russian Roulette):** Unpredictable rules every round!\n"
-        "   ▫️ *Standard Chaos:* From 0 to (N-1) impostors (can be 0 where all are innocent with the same Pokémon!).\n"
-        "   ▫️ *Chaos Dance:* Zero impostors! Each trainer receives a different secret Pokémon without knowing it.\n"
-        "   ▫️ *Human Target:* One of the players in the server IS the secret target to deduce from hints!"
-    ),
-    "es": (
-        "• **Clásico:** 1 Impostor secreto, 1 Pokémon secreto.\n"
-        "• **Extendido:** Múltiples Impostores cómplices que se conocen entre sí.\n"
-        "• **Caos (Ruleta Rusa):** ¡Reglas impredecibles en cada ronda!\n"
-        "   ▫️ *Caos Estándar:* De 0 a (N-1) impostores (¡incluso 0 donde todos son inocentes con el mismo Pokémon!).\n"
-        "   ▫️ *Danza Caos:* ¡Cero impostores! Cada jugador recibe un Pokémon secreto diferente sin saberlo.\n"
-        "   ▫️ *Objetivo Humano:* ¡Uno de los jugadores del servidor ES el objetivo a descubrir con pistas!"
-    ),
+STRINGS["results_caos_todos_impostores_title"] = {
+    "en": "🎭 PLOT TWIST: EVERYONE WAS AN IMPOSTOR!",
+    "es": "🎭 ¡PLOT TWIST: TODOS ERAN IMPOSTORES!",
+}
+STRINGS["results_caos_todos_impostores_desc"] = {
+    "en": "**{name}** was eliminated... but actually EVERYONE in the room was an impostor! Nobody had the secret Pokémon.",
+    "es": "**{name}** fue eliminado... ¡pero en realidad TODOS en la sala eran impostores! Nadie tenía el Pokémon secreto.",
+}
+STRINGS["final_title_todos_impostores"] = {
+    "en": "🎭 Chaos Mode: Everyone was an Impostor!",
+    "es": "🎭 Modo Caos: ¡Todos eran Impostores!",
+}
+STRINGS["final_desc_todos_impostores"] = {
+    "en": "Nobody had the secret Pokémon! Everyone was an impostor trying to bluff with their own clue.",
+    "es": "¡Nadie tenía el Pokémon secreto! Cada jugador era un impostor intentando fingir con su propia pista.",
+}
+STRINGS["final_todos_impostores_field"] = {
+    "en": "🔪 Player Clues (Everyone was bluffing)",
+    "es": "🔪 Pistas de los Jugadores (Todos estaban fingiendo)",
+}
+STRINGS["final_title_cero_impostores"] = {
+    "en": "🕊️ Total Paranoia: 0 Impostors!",
+    "es": "🕊️ ¡Paranoia Total: 0 Impostores!",
+}
+STRINGS["final_desc_cero_impostores"] = {
+    "en": "There were NO impostors! Everyone shared the same secret Pokémon and suspected each other out of pure paranoia.",
+    "es": "¡No había ningún impostor! Todos compartían el mismo Pokémon secreto y sospecharon entre sí por pura paranoia.",
 }
 
 # ── Variante de CAOS (radio buttons, solo visible al admin en config) ────────

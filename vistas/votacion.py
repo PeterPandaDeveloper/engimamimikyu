@@ -329,6 +329,9 @@ class PanelVotacion(discord.ui.View):
         self.partida.rondas_sin_expulsion = 0  # hubo expulsión: resetear estancamiento
 
         # comprobar victoria tras el empate masivo
+        if getattr(self.partida, "caos_todos_impostores", False):
+            return await self._pantalla_final(canal, victoria_impostores=True)
+
         if not self.partida.caos_sin_impostores and len(self.partida.impostores) == 0:
             return await self._pantalla_final(canal, victoria_impostores=False)
 
@@ -360,6 +363,15 @@ class PanelVotacion(discord.ui.View):
             embed_rev.set_thumbnail(url=expulsado.display_avatar.url)
 
         if es_impostor:
+            if getattr(self.partida, "caos_todos_impostores", False):
+                self.partida.impostores.remove(expulsado)
+                self.partida.jugadores.remove(expulsado)
+                embed_rev.title       = t("results_caos_todos_impostores_title", g)
+                embed_rev.description = t("results_caos_todos_impostores_desc",  g, name=expulsado.display_name)
+                embed_rev.color       = discord.Color.magenta()
+                await canal.send(embed=embed_rev)
+                return await self._pantalla_final(canal, victoria_impostores=True)
+
             self.partida.impostores.remove(expulsado)
             self.partida.jugadores.remove(expulsado)
 

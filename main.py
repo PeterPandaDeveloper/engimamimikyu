@@ -635,8 +635,7 @@ async def idioma_kyu(interaction: discord.Interaction, language: str):
 #  /imphelp
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@bot.tree.command(name="imphelp", description="How to play PokeImpostor / Cómo jugar")
-async def imphelp(interaction: discord.Interaction):
+async def _ejecutar_help(interaction: discord.Interaction):
     gid = interaction.guild_id
     embed = discord.Embed(
         title=t("help_title",  gid),
@@ -654,19 +653,24 @@ async def imphelp(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 
 
+@bot.tree.command(name="imphelp", description="How to play PokeImpostor / Cómo jugar")
+async def imphelp(interaction: discord.Interaction):
+    await _ejecutar_help(interaction)
+
+
 @bot.tree.command(name="help", description="How to play PokeImpostor / Cómo jugar")
 async def help_cmd(interaction: discord.Interaction):
-    await imphelp(interaction)
+    await _ejecutar_help(interaction)
 
 
 @bot.tree.command(name="help-kyu", description="How to play PokeImpostor / Cómo jugar")
 async def help_kyu(interaction: discord.Interaction):
-    await imphelp(interaction)
+    await _ejecutar_help(interaction)
 
 
 @bot.tree.command(name="ayuda-kyu", description="How to play PokeImpostor / Cómo jugar")
 async def ayuda_kyu(interaction: discord.Interaction):
-    await imphelp(interaction)
+    await _ejecutar_help(interaction)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

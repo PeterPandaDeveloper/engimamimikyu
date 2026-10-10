@@ -21,74 +21,118 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
     # (_variante_ronda), NO config.caos_variante (que puede haber cambiado
     # si el admin re-configuró entre rondas)
     variante = partida._variante_ronda
-    es_danza_caos      = (modo == ModoJuego.CAOS and variante == CaosVariante.DANZA_CAOS)
-    es_objetivo_humano = (modo == ModoJuego.CAOS and variante == CaosVariante.OBJETIVO_HUMANO)
+    es_danza_caos       = (modo == ModoJuego.CAOS and (variante in (CaosVariante.AMIGOS_BORRACHOS, CaosVariante.DANZA_CAOS) or bool(partida.pokemons_ebrios)))
+    es_objetivo_humano  = (modo == ModoJuego.CAOS and (variante == CaosVariante.OBJETIVO_HUMANO or partida.objetivo_humano is not None))
+    es_todos_impostores = (modo == ModoJuego.CAOS and (variante == CaosVariante.TODOS_IMPOSTORES or getattr(partida, "caos_todos_impostores", False)))
+    es_cero_impostores  = (modo == ModoJuego.CAOS and (variante == CaosVariante.CERO_IMPOSTORES or getattr(partida, "caos_sin_impostores", False)) and not es_danza_caos and not es_todos_impostores)
 
-    color_final  = discord.Color.from_rgb(50, 0, 0) if victoria_impostores else discord.Color.from_rgb(255, 203, 5)
-    titulo_final = t("final_title_impostors_win", g) if victoria_impostores else t("final_title", g)
-    embed = discord.Embed(title=titulo_final, color=color_final)
+    if es_todos_impostores:
+        color_final  = discord.Color.magenta()
+        titulo_final = t("final_title_todos_impostores", g)
+        embed = discord.Embed(
+            title=titulo_final,
+            description=t("final_desc_todos_impostores", g),
+            color=color_final,
+        )
+        dp = partida.datos_pokemon
+        if dp:
+            if dp.get("sprite"):
+                embed.set_image(url=dp["sprite"])
+            embed.add_field(
+                name=t("final_pokemon_field", g),
+                value=f"**{dp['nombre']}**\n{' / '.join(dp['tipos'])} · {dp['gen']}",
+                inline=False,
+            )
+        lines = []
+        for j in partida.jugadores_iniciales:
+            p = partida.pistas_impostores.get(j.id, "—")
+            lines.append(f"• **{j.display_name}** → 💡 *\"{p}\"*")
+        embed.add_field(name=t("final_todos_impostores_field", g), value="\n".join(lines) or "—", inline=False)
 
-    if es_danza_caos:
+    elif es_cero_impostores:
+        color_final  = discord.Color.gold()
+        titulo_final = t("final_title_cero_impostores", g)
+        embed = discord.Embed(
+            title=titulo_final,
+            description=t("final_desc_cero_impostores", g),
+            color=color_final,
+        )
+        dp = partida.datos_pokemon
+        if dp:
+            if dp.get("sprite"):
+                embed.set_image(url=dp["sprite"])
+            embed.add_field(
+                name=t("final_pokemon_field", g),
+                value=f"**{dp['nombre']}**\n{' / '.join(dp['tipos'])} · {dp['gen']}",
+                inline=False,
+            )
+        lista_trip = "\n".join(f"✅ {j.display_name}" for j in partida.jugadores_iniciales)
+        embed.add_field(name=t("final_impostors_field", g), value=t("final_none_caos", g), inline=True)
+        embed.add_field(name=t("final_crew_field",      g), value=lista_trip or "—",                     inline=True)
+
+    elif es_danza_caos:
+        color_final  = discord.Color.from_rgb(255, 203, 5)
+        titulo_final = t("final_title", g)
+        embed = discord.Embed(title=titulo_final, color=color_final)
         lines = []
         for j in partida.jugadores_iniciales:
             dp = partida.pokemons_ebrios.get(j.id)
             if dp:
                 lines.append(f"• **{j.display_name}** → {dp['nombre']} ({' / '.join(dp['tipos'])})")
         embed.add_field(name=t("final_ebrios_field", g), value="\n".join(lines) or "—", inline=False)
+        lista_trip = "\n".join(f"✅ {j.display_name}" for j in partida.jugadores_iniciales)
+        embed.add_field(name=t("final_impostors_field", g), value=t("final_none_caos", g), inline=True)
+        embed.add_field(name=t("final_crew_field",      g), value=lista_trip or "—",                     inline=True)
 
     elif es_objetivo_humano:
+        color_final  = discord.Color.from_rgb(50, 0, 0) if victoria_impostores else discord.Color.from_rgb(255, 203, 5)
+        titulo_final = t("final_title_impostors_win", g) if victoria_impostores else t("final_title", g)
+        embed = discord.Embed(title=titulo_final, color=color_final)
         objetivo = partida.objetivo_humano
         if objetivo:
             embed.add_field(name=t("final_caos_jugador_field", g), value=f"👤 **{objetivo.display_name}** (`@{objetivo.name}`)", inline=False)
             if getattr(objetivo, "display_avatar", None) and objetivo.display_avatar.url:
                 embed.set_image(url=objetivo.display_avatar.url)
                 embed.set_thumbnail(url=objetivo.display_avatar.url)
-
-    elif victoria_impostores:
-        # Los impostores ganaron, pero igual revelamos el Pokémon —
-        # es más satisfactorio para todos saber qué era.
-        dp = partida.datos_pokemon
-        if dp:
-            if dp.get("sprite"):
-                embed.set_image(url=dp["sprite"])
-            embed.add_field(
-                name=t("final_pokemon_field", g),
-                value=f"**{dp['nombre']}**\n{' / '.join(dp['tipos'])} · {dp['gen']}",
-                inline=False,
-            )
-
-    else:
-        dp = partida.datos_pokemon
-        if dp:
-            if dp.get("sprite"):
-                embed.set_image(url=dp["sprite"])
-            embed.add_field(
-                name=t("final_pokemon_field", g),
-                value=f"**{dp['nombre']}**\n{' / '.join(dp['tipos'])} · {dp['gen']}",
-                inline=False,
-            )
-
-    # ── Listas de impostores/tripulantes, distinguiendo descubiertos vs no ──
-    descubiertos = [j for j in partida.impostores_iniciales if j not in partida.impostores]
-    ocultos      = [j for j in partida.impostores_iniciales if j in partida.impostores]
-
-    if victoria_impostores and ocultos:
-        lineas_imp = []
-        for j in descubiertos:
-            lineas_imp.append(t("final_impostor_caught", g, name=j.display_name))
-        for j in ocultos:
-            lineas_imp.append(t("final_impostor_escaped", g, name=j.display_name))
-        lista_imp = "\n".join(lineas_imp)
-    else:
         lista_imp = "\n".join(f"🔪 {j.display_name}" for j in partida.impostores_iniciales)
+        lista_trip = "\n".join(f"✅ {j.display_name}" for j in partida.jugadores_iniciales if j not in partida.impostores_iniciales)
+        embed.add_field(name=t("final_impostors_field", g), value=lista_imp or t("final_none_caos", g), inline=True)
+        embed.add_field(name=t("final_crew_field",      g), value=lista_trip or "—", inline=True)
 
-    lista_trip = "\n".join(
-        f"✅ {j.display_name}"
-        for j in partida.jugadores_iniciales
-        if j not in partida.impostores_iniciales
-    )
-    embed.add_field(name=t("final_impostors_field", g), value=lista_imp  or t("final_none_caos", g), inline=True)
-    embed.add_field(name=t("final_crew_field",      g), value=lista_trip or "—",                     inline=True)
+    else:
+        # Clásico, Extendido, y Caos estándar (1 impostor, 50%, 75%)
+        color_final  = discord.Color.from_rgb(50, 0, 0) if victoria_impostores else discord.Color.from_rgb(255, 203, 5)
+        titulo_final = t("final_title_impostors_win", g) if victoria_impostores else t("final_title", g)
+        embed = discord.Embed(title=titulo_final, color=color_final)
+        dp = partida.datos_pokemon
+        if dp:
+            if dp.get("sprite"):
+                embed.set_image(url=dp["sprite"])
+            embed.add_field(
+                name=t("final_pokemon_field", g),
+                value=f"**{dp['nombre']}**\n{' / '.join(dp['tipos'])} · {dp['gen']}",
+                inline=False,
+            )
+        descubiertos = [j for j in partida.impostores_iniciales if j not in partida.impostores]
+        ocultos      = [j for j in partida.impostores_iniciales if j in partida.impostores]
+
+        if victoria_impostores and ocultos:
+            lineas_imp = []
+            for j in descubiertos:
+                lineas_imp.append(t("final_impostor_caught", g, name=j.display_name))
+            for j in ocultos:
+                lineas_imp.append(t("final_impostor_escaped", g, name=j.display_name))
+            lista_imp = "\n".join(lineas_imp)
+        else:
+            lista_imp = "\n".join(f"🔪 {j.display_name}" for j in partida.impostores_iniciales)
+
+        lista_trip = "\n".join(
+            f"✅ {j.display_name}"
+            for j in partida.jugadores_iniciales
+            if j not in partida.impostores_iniciales
+        )
+        embed.add_field(name=t("final_impostors_field", g), value=lista_imp  or t("final_none_caos", g), inline=True)
+        embed.add_field(name=t("final_crew_field",      g), value=lista_trip or "—",                     inline=True)
     embed.set_footer(text=t("final_footer", g, n=partida.ronda))
     post_view = PanelPostRonda(partida)
     msg = await canal.send(embed=embed, view=post_view)

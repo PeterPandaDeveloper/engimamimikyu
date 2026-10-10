@@ -27,12 +27,27 @@ class ModoJuego(str, Enum):
 
 class CaosVariante(str, Enum):
     """
-    Sub-modificadores EXCLUSIVOS del modo CAOS (radio buttons: solo uno activo).
-    Nunca se revelan en el embed público — solo el admin los ve al configurar.
+    Sub-modificadores del modo CAOS.
+    En cada ronda de Modo Caos se sortea aleatoriamente una de estas posibilidades:
+      - CERO_IMPOSTORES: 0% impostores, todos comparten el mismo Pokémon (paranoia pura).
+      - UN_IMPOSTOR: 1 solo impostor clásico.
+      - CINCUENTA_PORCIENTO: 50% de la sala impostor.
+      - SETENTA_Y_CINCO: 75% de la sala impostor.
+      - TODOS_IMPOSTORES: 100% de impostores (todos impostores).
+      - AMIGOS_BORRACHOS: 0 impostores, cada jugador recibe un Pokémon diferente.
+      - OBJETIVO_HUMANO: un jugador de la sala es el secreto (foto y nombre).
     """
-    NORMAL          = "normal"            # Caos estándar (impostores 0..N sobre un Pokémon)
-    OBJETIVO_HUMANO = "objetivo_humano"   # un jugador real es el "secreto" en vez de un Pokémon
-    DANZA_CAOS      = "danza_caos"        # cada jugador recibe un Pokémon distinto (sin impostores)
+    CERO_IMPOSTORES      = "cero_impostores"
+    UN_IMPOSTOR          = "un_impostor"
+    CINCUENTA_PORCIENTO  = "cincuenta_pct"
+    SETENTA_Y_CINCO      = "setenta_y_cinco_pct"
+    TODOS_IMPOSTORES     = "todos_impostores"
+    AMIGOS_BORRACHOS     = "amigos_borrachos"
+    OBJETIVO_HUMANO      = "objetivo_humano"
+
+    # Aliases retrocompatibles
+    NORMAL               = "normal"
+    DANZA_CAOS           = "amigos_borrachos"
 
 
 class Ventaja(str, Enum):
@@ -94,7 +109,8 @@ class Partida:
 
         self.ronda:               int         = 1
         self.datos_pokemon:       dict | None = None
-        self.caos_sin_impostores: bool        = False
+        self.caos_sin_impostores:   bool        = False
+        self.caos_todos_impostores: bool        = False
 
         # Anti-estancamiento: si pasan demasiadas rondas sin ninguna
         # expulsión (ej. todos votando nulo), se revela una pista pública
@@ -413,36 +429,54 @@ class Partida:
     # ── sorteo de variante Caos por ronda ─────────────────────────────────
     def _sortear_variante_caos(self) -> CaosVariante:
         """
-        Caos Total: Al elegir Modo Caos, el juego es una ruleta rusa impredecible.
-        Sortea aleatoriamente entre Caos Normal (con 0 o N impostores), Objetivo Humano o Danza Caos.
+        Caos Total: Al elegir Modo Caos, la ronda es una ruleta rusa impredecible.
+        Sortea equitativamente entre las 7 variantes oficiales:
+          1. 0% impostores (todos comparten el mismo Pokémon)
+          2. 1 solo impostor
+          3. 50% de la sala impostor
+          4. 75% de la sala impostor
+          5. 100% de impostores (todos impostores)
+          6. Amigos borrachos / Danza Caos (0 impostores, cada jugador un Pokémon)
+          7. Objetivo humano (un jugador actual al azar es el objetivo con foto y nombre)
         """
-        opciones = [CaosVariante.NORMAL, CaosVariante.OBJETIVO_HUMANO, CaosVariante.DANZA_CAOS]
-        pesos    = [0.45,                0.30,                         0.25]
-        return random.choices(opciones, weights=pesos, k=1)[0]
+        opciones = [
+            CaosVariante.CERO_IMPOSTORES,
+            CaosVariante.UN_IMPOSTOR,
+            CaosVariante.CINCUENTA_PORCIENTO,
+            CaosVariante.SETENTA_Y_CINCO,
+            CaosVariante.TODOS_IMPOSTORES,
+            CaosVariante.AMIGOS_BORRACHOS,
+            CaosVariante.OBJETIVO_HUMANO,
+        ]
+        return random.choice(opciones)
 
     # ── cantidad de impostores ─────────────────────────────────────────────
     def _calcular_impostores(self, total: int) -> int:
         modo = self.config.modo_juego
-        if modo == ModoJuego.CLASICO:   return 1
-        if modo == ModoJuego.EXTENDIDO: return min(max(1, total // 3), total - 1)
+        if modo == ModoJuego.CLASICO:
+            return 1
+        if modo == ModoJuego.EXTENDIDO:
+            return min(max(1, total // 3), total - 1)
         if modo == ModoJuego.CAOS:
-            # Usar la variante efectiva de esta ronda (sorteada, no la config)
-            if self._variante_ronda == CaosVariante.OBJETIVO_HUMANO:
+            var = self._variante_ronda
+            if var == CaosVariante.CERO_IMPOSTORES or var == CaosVariante.AMIGOS_BORRACHOS:
+                return 0
+            if var == CaosVariante.UN_IMPOSTOR or var == CaosVariante.OBJETIVO_HUMANO:
                 return 1
-            return self._roll_caos_impostores(total)
+            if var == CaosVariante.CINCUENTA_PORCIENTO:
+                return max(1, min(total - 1, int(round(total * 0.50))))
+            if var == CaosVariante.SETENTA_Y_CINCO:
+                return max(1, min(total - 1, int(round(total * 0.75))))
+            if var == CaosVariante.TODOS_IMPOSTORES:
+                return total
+            return 1
         return 1
 
     @staticmethod
     def _roll_caos_impostores(total: int) -> int:
-        """
-        Tira el dado del Caos: cuántos impostores habrá.
-        En Modo Caos, puede haber desde 0 hasta (total - 1) impostores.
-        Ejemplo con 5 jugadores: 0, 1, 2, 3 o 4 impostores.
-        """
         if total <= 1:
             return 0
-        opciones = list(range(0, total))  # 0 .. total - 1
-        return random.choice(opciones)
+        return random.randint(0, total - 1)
 
     # ── DM impostor clásico/extendido/caos ───────────────────────────────────
     def _build_dm_impostor(self, jugador: discord.Member) -> discord.Embed:
@@ -531,6 +565,7 @@ class Partida:
         self.pistas_impostores.clear()
         self.pista_generada   = ""
         self.caos_sin_impostores = False
+        self.caos_todos_impostores = False
         self.objetivo_humano  = None
         self.pokemons_ebrios.clear()
         self._variante_ronda = CaosVariante.NORMAL
@@ -539,17 +574,16 @@ class Partida:
 
         modo = self.config.modo_juego
 
-        # Caos: elegir variante aleatoriamente entre las permitidas ─────────
-        # Los radio buttons de configuración indican qué variantes PUEDEN salir
-        # (NORMAL siempre disponible). En cada ronda se sortea cuál aparece.
+        # Caos: elegir variante aleatoriamente entre las 7 permitidas ─────────
         if modo == ModoJuego.CAOS:
             variante_elegida = self._sortear_variante_caos()
             self._variante_ronda = variante_elegida   # usada por _calcular_impostores
-            if variante_elegida == CaosVariante.DANZA_CAOS:
+            if variante_elegida in (CaosVariante.AMIGOS_BORRACHOS, CaosVariante.DANZA_CAOS):
                 return await self._arrancar_amigos_ebrios()
             if variante_elegida == CaosVariante.OBJETIVO_HUMANO:
                 return await self._arrancar_caos_jugador()
-            # Si NORMAL, continúa con el flujo estándar de Caos
+            # Las demás variantes (CERO_IMPOSTORES, UN_IMPOSTOR, CINCUENTA_PORCIENTO,
+            # SETENTA_Y_CINCO, TODOS_IMPOSTORES) continúan con el flujo estándar
 
         # ── Modos normales (Clásico / Extendido / Caos) ───────────────────────
         id_elegido         = self._elegir_id_pokemon()
@@ -565,6 +599,9 @@ class Partida:
         if cant_imp == 0:
             self.caos_sin_impostores = True
             self.impostores          = []
+        elif cant_imp >= total:
+            self.caos_todos_impostores = True
+            self.impostores          = self.jugadores.copy()
         else:
             self.impostores = random.sample(self.jugadores, cant_imp)
 
