@@ -612,7 +612,7 @@ def _canjear_licencia_sync(codigo: str, guild_id: int, user_id: int) -> dict[str
         """, [guild_id]).fetchone()
 
         if tipo == "permanente":
-            motivo = "Membresía VIP Permanente"
+            motivo = "Pase Vitalicio ($5 USD) Permanente"
             con.execute("""
                 INSERT INTO servidores_licencia (guild_id, tipo, motivo, expira_en, partidas_restantes, actualizado_en)
                 VALUES (?, 'vip_permanente', ?, NULL, 0, CURRENT_TIMESTAMP)
@@ -784,7 +784,7 @@ async def registrar_servidor_partner_async(guild_id: int, motivo: str = "Beta Te
     return await asyncio.to_thread(_registrar_servidor_partner_sync, guild_id, motivo)
 
 
-def _sumar_partidas_voto_sync(guild_id: int, cantidad: int = 5) -> int:
+def _sumar_partidas_voto_sync(guild_id: int, cantidad: int = 10) -> int:
     with _DB_LOCK:
         con = _get_connection()
         prev = con.execute("""
@@ -800,7 +800,7 @@ def _sumar_partidas_voto_sync(guild_id: int, cantidad: int = 5) -> int:
         nuevas = cargas_actuales + cantidad
         con.execute("""
             INSERT INTO servidores_licencia (guild_id, tipo, motivo, expira_en, partidas_restantes, actualizado_en)
-            VALUES (?, 'cargas', 'Recompensa Voto Top.gg', NULL, ?, CURRENT_TIMESTAMP)
+            VALUES (?, 'cargas', 'Recompensa Voto Top.gg (10 Partidas)', NULL, ?, CURRENT_TIMESTAMP)
             ON CONFLICT (guild_id) DO UPDATE SET
                 partidas_restantes = EXCLUDED.partidas_restantes,
                 actualizado_en = EXCLUDED.actualizado_en;
@@ -808,7 +808,7 @@ def _sumar_partidas_voto_sync(guild_id: int, cantidad: int = 5) -> int:
         return nuevas
 
 
-async def sumar_partidas_voto_async(guild_id: int, cantidad: int = 5) -> int:
+async def sumar_partidas_voto_async(guild_id: int, cantidad: int = 10) -> int:
     return await asyncio.to_thread(_sumar_partidas_voto_sync, guild_id, cantidad)
 
 

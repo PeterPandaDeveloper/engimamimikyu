@@ -878,16 +878,16 @@ class ModalGenerarKey(discord.ui.Modal):
             style=discord.TextStyle.short,
         )
         self.tipo_input = discord.ui.TextInput(
-            label=t("license_key_modal_type", gid),
-            placeholder="mes / dias / permanente / cargas",
-            default="mes",
+            label="Tipo de Licencia (vitalicio / cargas)",
+            placeholder="vitalicio ($5 USD) o cargas (ej. 10)",
+            default="vitalicio",
             required=True,
             style=discord.TextStyle.short,
         )
         self.valor_input = discord.ui.TextInput(
-            label=t("license_key_modal_val", gid),
-            placeholder="1 (para 1 mes) o 30 (días) o 10 (cargas)",
-            default="1",
+            label="Partidas (solo si eliges cargas)",
+            placeholder="10 (por defecto 10 partidas)",
+            default="10",
             required=False,
             style=discord.TextStyle.short,
         )
@@ -906,40 +906,18 @@ class ModalGenerarKey(discord.ui.Modal):
         tipo_raw = self.tipo_input.value.strip().lower()
         val_str = self.valor_input.value.strip().lower()
 
-        if "perm" in tipo_raw:
-            tipo = "permanente"
-            duracion_dias = 0
-            cargas = 0
-            detalle = "Membresía VIP Permanente de por vida"
-        elif "carg" in tipo_raw or "partid" in tipo_raw:
+        if "carg" in tipo_raw or "partid" in tipo_raw or "voto" in tipo_raw:
             tipo = "cargas"
             import re
             nums = re.findall(r"\d+", val_str)
             cargas = int(nums[0]) if nums else 10
             duracion_dias = 0
-            detalle = f"{cargas} Partidas VIP con todo desbloqueado"
+            detalle = f"{cargas} Partidas VIP con todo desbloqueado (Top.gg / Cargas)"
         else:
-            tipo = "dias"
-            import re
-            nums = re.findall(r"\d+", val_str)
-            raw_num = int(nums[0]) if nums else 1
-
-            # Detección inteligente: meses vs días
-            es_explicito_dias = "dia" in val_str or "day" in val_str or val_str.endswith("d")
-            es_meses = (
-                "mes" in tipo_raw or "month" in tipo_raw or tipo_raw == "m" or
-                "mes" in val_str or "month" in val_str or
-                (raw_num <= 12 and not es_explicito_dias)
-            )
-
-            if es_meses:
-                meses = max(1, raw_num)
-                duracion_dias = 365 if meses == 12 else meses * 30
-                detalle = f"{meses} Mes{'es' if meses > 1 else ''} ({duracion_dias} Días) de Acceso VIP"
-            else:
-                duracion_dias = max(1, raw_num)
-                detalle = f"{duracion_dias} Días de Acceso VIP"
+            tipo = "permanente"
+            duracion_dias = 0
             cargas = 0
+            detalle = "Membresía VIP Vitalicia ($5 USD) Permanente de por vida"
 
         nueva_key = generar_codigo_licencia()
         exito = await crear_licencia_async(nueva_key, tipo, duracion_dias, cargas)
@@ -1027,18 +1005,13 @@ async def _ejecutar_canjear(interaction: discord.Interaction, clave: str):
 
     tipo = res["tipo"]
     if tipo == "permanente":
-        det = "Acceso Ilimitado Permanente (Servidor Fundador/VIP)"
+        det = "Pase Vitalicio ($5 USD) Permanente de por vida"
     elif tipo == "dias":
         exp = res["expira_en"].strftime("%d/%m/%Y") if res.get("expira_en") else "?"
         dias = res.get("duracion_dias", 30)
-        if dias in (28, 29, 30, 31):
-            det = f"1 Mes ({dias} días, hasta {exp})"
-        elif dias > 31 and dias % 30 == 0:
-            det = f"{dias // 30} Meses ({dias} días, hasta {exp})"
-        else:
-            det = f"{dias} días (hasta {exp})"
+        det = f"{dias} días (hasta {exp})"
     else:
-        det = f"{res['cargas_totales']} partidas VIP disponibles"
+        det = f"{res['cargas_totales']} partidas VIP disponibles (Top.gg / Cargas)"
 
     embed = discord.Embed(
         title=t("redeem_success_title", gid),
@@ -1138,6 +1111,41 @@ async def license_kyu(interaction: discord.Interaction):
 @bot.tree.command(name="licencia-kyu", description="Consultar estado de licencia del servidor")
 async def licencia_kyu(interaction: discord.Interaction):
     await _ejecutar_licencia(interaction)
+
+
+async def _ejecutar_voto(interaction: discord.Interaction):
+    gid = interaction.guild_id or 0
+    client_id = bot.user.id if bot.user else 1195913386899296347
+    vote_url = f"https://top.gg/bot/{client_id}/vote"
+    view = discord.ui.View()
+    view.add_item(discord.ui.Button(label=t("vote_btn_label", gid), url=vote_url, style=discord.ButtonStyle.link))
+    embed = discord.Embed(
+        title=t("vote_embed_title", gid),
+        description=t("vote_embed_desc", gid),
+        color=discord.Color.from_rgb(255, 105, 180),
+    )
+    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+    await interaction.response.send_message(embed=embed, view=view)
+
+
+@bot.tree.command(name="vote-kyu", description="Vote on Top.gg for 10 free premium matches / Votar en Top.gg")
+async def vote_kyu(interaction: discord.Interaction):
+    await _ejecutar_voto(interaction)
+
+
+@bot.tree.command(name="votar-kyu", description="Vota en Top.gg para recibir 10 partidas premium gratis")
+async def votar_kyu(interaction: discord.Interaction):
+    await _ejecutar_voto(interaction)
+
+
+@bot.tree.command(name="vote", description="Vote on Top.gg for 10 free premium matches / Votar en Top.gg")
+async def vote(interaction: discord.Interaction):
+    await _ejecutar_voto(interaction)
+
+
+@bot.tree.command(name="votar", description="Vota en Top.gg para recibir 10 partidas premium gratis")
+async def votar(interaction: discord.Interaction):
+    await _ejecutar_voto(interaction)
 
 
 
@@ -1706,18 +1714,13 @@ async def on_message(message: discord.Message):
 
         tipo = res["tipo"]
         if tipo == "permanente":
-            det = "Acceso Ilimitado Permanente (Servidor Fundador/VIP)"
+            det = "Pase Vitalicio ($5 USD) Permanente de por vida"
         elif tipo == "dias":
             exp = res["expira_en"].strftime("%d/%m/%Y") if res.get("expira_en") else "?"
             dias = res.get("duracion_dias", 30)
-            if dias in (28, 29, 30, 31):
-                det = f"1 Mes ({dias} días, hasta {exp})"
-            elif dias > 31 and dias % 30 == 0:
-                det = f"{dias // 30} Meses ({dias} días, hasta {exp})"
-            else:
-                det = f"{dias} días (hasta {exp})"
+            det = f"{dias} días (hasta {exp})"
         else:
-            det = f"{res['cargas_totales']} partidas VIP disponibles"
+            det = f"{res['cargas_totales']} partidas VIP disponibles (Top.gg / Cargas)"
 
         embed = discord.Embed(
             title=t("redeem_success_title", gid),
@@ -1859,6 +1862,21 @@ async def on_message(message: discord.Message):
         )
         embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
         await message.reply(embed=embed, mention_author=False)
+        return
+
+    # 13. vote / votar / voto
+    elif cmd in ("vote", "votar", "voto"):
+        client_id = bot.user.id if bot.user else 1195913386899296347
+        vote_url = f"https://top.gg/bot/{client_id}/vote"
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(label=t("vote_btn_label", gid), url=vote_url, style=discord.ButtonStyle.link))
+        embed = discord.Embed(
+            title=t("vote_embed_title", gid),
+            description=t("vote_embed_desc", gid),
+            color=discord.Color.from_rgb(255, 105, 180),
+        )
+        embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+        await message.reply(embed=embed, view=view, mention_author=False)
         return
 
     await bot.process_commands(message)
