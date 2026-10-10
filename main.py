@@ -321,7 +321,7 @@ async def on_guild_join(guild: discord.Guild):
                 color=discord.Color.from_rgb(255, 203, 5),
             )
             embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
-            client_id = bot.user.id if bot.user else 1195913386899296347
+            client_id = bot.user.id if bot.user else 1135381488775463075
             view = discord.ui.View()
             view.add_item(discord.ui.Button(label=t("vote_btn_label", gid), url=f"https://top.gg/bot/{client_id}/vote?guild={gid}", style=discord.ButtonStyle.link))
             view.add_item(discord.ui.Button(label=t("donate_btn_label", gid), url=BUYMEACOFFEE_URL, style=discord.ButtonStyle.link))
@@ -1228,7 +1228,7 @@ async def _ejecutar_licencia(interaction: discord.Interaction):
         embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
         await interaction.response.send_message(embed=embed)
     else:
-        client_id = bot.user.id if bot.user else 1195913386899296347
+        client_id = bot.user.id if bot.user else 1135381488775463075
         vote_url = f"https://top.gg/bot/{client_id}/vote"
         view = discord.ui.View()
         view.add_item(discord.ui.Button(label=t("vote_btn_label", gid), url=vote_url, style=discord.ButtonStyle.link))
@@ -1274,7 +1274,7 @@ async def licencia_kyu(interaction: discord.Interaction):
 
 async def _ejecutar_voto(interaction: discord.Interaction):
     gid = interaction.guild_id or 0
-    client_id = bot.user.id if bot.user else 1195913386899296347
+    client_id = bot.user.id if bot.user else 1135381488775463075
     vote_url = f"https://top.gg/bot/{client_id}/vote?guild={gid}" if gid else f"https://top.gg/bot/{client_id}/vote"
     view = discord.ui.View()
     view.add_item(discord.ui.Button(label=t("vote_btn_label", gid), url=vote_url, style=discord.ButtonStyle.link))
@@ -1343,7 +1343,7 @@ async def donar(interaction: discord.Interaction):
 
 async def _ejecutar_invitar(interaction: discord.Interaction):
     gid = interaction.guild_id or 0
-    client_id = bot.user.id if bot.user else 1195913386899296347
+    client_id = bot.user.id if bot.user else 1135381488775463075
     invite_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&permissions={INVITE_PERMS_INT}&scope=bot%20applications.commands"
     view = discord.ui.View()
     view.add_item(discord.ui.Button(label=t("invite_btn_label", gid), url=invite_url, style=discord.ButtonStyle.link))
@@ -1913,7 +1913,7 @@ async def on_message(message: discord.Message):
             embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
             await message.reply(embed=embed, mention_author=False)
         else:
-            client_id = bot.user.id if bot.user else 1195913386899296347
+            client_id = bot.user.id if bot.user else 1135381488775463075
             vote_url = f"https://top.gg/bot/{client_id}/vote"
             view = discord.ui.View()
             view.add_item(discord.ui.Button(label=t("vote_btn_label", gid), url=vote_url, style=discord.ButtonStyle.link))
@@ -2101,7 +2101,7 @@ async def on_message(message: discord.Message):
 
     # 13. vote / votar / voto
     elif cmd in ("vote", "votar", "voto"):
-        client_id = bot.user.id if bot.user else 1195913386899296347
+        client_id = bot.user.id if bot.user else 1135381488775463075
         vote_url = f"https://top.gg/bot/{client_id}/vote?guild={gid}"
         view = discord.ui.View()
         view.add_item(discord.ui.Button(label=t("vote_btn_label", gid), url=vote_url, style=discord.ButtonStyle.link))
@@ -2130,7 +2130,7 @@ async def on_message(message: discord.Message):
 
     # 15. invite / invitar
     elif cmd in ("invite", "invitar", "invitacion", "invitacion"):
-        client_id = bot.user.id if bot.user else 1195913386899296347
+        client_id = bot.user.id if bot.user else 1135381488775463075
         invite_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&permissions={INVITE_PERMS_INT}&scope=bot%20applications.commands"
         view = discord.ui.View()
         view.add_item(discord.ui.Button(label=t("invite_btn_label", gid), url=invite_url, style=discord.ButtonStyle.link))

@@ -106,3 +106,26 @@ Trainers receive secret Pokémon clues via Direct Message. One or more players a
 ## Disclaimer
 
 Pokémon and Pokémon character names are trademarks of Nintendo, Creatures Inc., and Game Freak. This project is a non-profit fan-made game for educational and community entertainment purposes.
+
+---
+
+## Terms of Service
+
+By inviting or playing **PokeImpostor (Mimikyu)**, you agree to the following terms:
+1. **Usage**: The bot is provided "as is" for entertainment and community deduction gameplay in Discord servers.
+2. **Fair Play**: Users must not exploit, flood, or abuse the bot's commands, APIs, or infrastructure.
+3. **Purchases & Donations**: Donations made via Buy Me a Coffee or VIP license keys support hosting, development, and server upkeep.
+4. **Modifications**: The developers reserve the right to update features, balance modes, or modify rules to ensure service stability.
+
+---
+
+## Privacy Policy
+
+**PokeImpostor (Mimikyu)** respects your privacy and adheres to strict minimal data collection:
+1. **Data Collected**:
+   - Discord User IDs, Display Names, and Server IDs strictly to record match statistics, leaderboard rankings, and VIP status.
+   - Message content is processed strictly in-memory to execute text-based bot commands (e.g., `-mimi play`). No personal chats, private DMs, or server messages are ever recorded or stored.
+2. **Data Storage**: Match analytics and stats are stored securely in a local DuckDB analytical database and are never sold or shared with any third party.
+3. **Data Removal**: Server owners or players may request the deletion of their match history at any time by contacting the bot developers.
+4. **Third-Party APIs**: Pokémon artwork and metadata are fetched in real time from public PokéAPI endpoints.
+
