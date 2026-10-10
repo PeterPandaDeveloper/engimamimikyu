@@ -43,6 +43,8 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="pkmi!", intents=intents)
 
+BUYMEACOFFEE_URL = "https://buymeacoffee.com/peterpandadeveloperz"
+
 # Servidor central autorizado exclusivamente para generar keys y gestionar partners
 SERVER_ADMIN_CENTRAL_ID = 402155389958881310
 
@@ -1073,14 +1075,21 @@ async def _ejecutar_licencia(interaction: discord.Interaction):
             description=t("license_status_premium", gid, tipo=estado["tipo"].upper(), details=estado["detalle"]),
             color=discord.Color.gold(),
         )
+        embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+        await interaction.response.send_message(embed=embed)
     else:
+        client_id = bot.user.id if bot.user else 1195913386899296347
+        vote_url = f"https://top.gg/bot/{client_id}/vote"
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(label=t("vote_btn_label", gid), url=vote_url, style=discord.ButtonStyle.link))
+        view.add_item(discord.ui.Button(label=t("donate_btn_label", gid), url=BUYMEACOFFEE_URL, style=discord.ButtonStyle.link))
         embed = discord.Embed(
             title=t("license_status_title", gid),
             description=t("license_status_free", gid),
             color=discord.Color.light_grey(),
         )
-    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
-    await interaction.response.send_message(embed=embed)
+        embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+        await interaction.response.send_message(embed=embed, view=view)
 
 
 @bot.tree.command(name="implicense", description="Check this server's license and VIP tier / Consultar estado de licencia")
@@ -1119,6 +1128,7 @@ async def _ejecutar_voto(interaction: discord.Interaction):
     vote_url = f"https://top.gg/bot/{client_id}/vote"
     view = discord.ui.View()
     view.add_item(discord.ui.Button(label=t("vote_btn_label", gid), url=vote_url, style=discord.ButtonStyle.link))
+    view.add_item(discord.ui.Button(label=t("donate_btn_label", gid), url=BUYMEACOFFEE_URL, style=discord.ButtonStyle.link))
     embed = discord.Embed(
         title=t("vote_embed_title", gid),
         description=t("vote_embed_desc", gid),
@@ -1146,6 +1156,39 @@ async def vote(interaction: discord.Interaction):
 @bot.tree.command(name="votar", description="Vota en Top.gg para recibir 10 partidas premium gratis")
 async def votar(interaction: discord.Interaction):
     await _ejecutar_voto(interaction)
+
+
+async def _ejecutar_donar(interaction: discord.Interaction):
+    gid = interaction.guild_id or 0
+    view = discord.ui.View()
+    view.add_item(discord.ui.Button(label=t("donate_btn_label", gid), url=BUYMEACOFFEE_URL, style=discord.ButtonStyle.link))
+    embed = discord.Embed(
+        title=t("donate_embed_title", gid),
+        description=t("donate_embed_desc", gid),
+        color=discord.Color.gold(),
+    )
+    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+    await interaction.response.send_message(embed=embed, view=view)
+
+
+@bot.tree.command(name="donate-kyu", description="Support the bot & get Lifetime VIP ($5 USD) / Donar")
+async def donate_kyu(interaction: discord.Interaction):
+    await _ejecutar_donar(interaction)
+
+
+@bot.tree.command(name="donar-kyu", description="Apoya al bot y obtén el Pase Vitalicio ($5 USD)")
+async def donar_kyu(interaction: discord.Interaction):
+    await _ejecutar_donar(interaction)
+
+
+@bot.tree.command(name="donate", description="Support the bot & get Lifetime VIP ($5 USD) / Donar")
+async def donate(interaction: discord.Interaction):
+    await _ejecutar_donar(interaction)
+
+
+@bot.tree.command(name="donar", description="Apoya al bot y obtén el Pase Vitalicio ($5 USD)")
+async def donar(interaction: discord.Interaction):
+    await _ejecutar_donar(interaction)
 
 
 
@@ -1682,14 +1725,21 @@ async def on_message(message: discord.Message):
                 description=t("license_status_premium", gid, tipo=estado["tipo"].upper(), details=estado["detalle"]),
                 color=discord.Color.gold(),
             )
+            embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+            await message.reply(embed=embed, mention_author=False)
         else:
+            client_id = bot.user.id if bot.user else 1195913386899296347
+            vote_url = f"https://top.gg/bot/{client_id}/vote"
+            view = discord.ui.View()
+            view.add_item(discord.ui.Button(label=t("vote_btn_label", gid), url=vote_url, style=discord.ButtonStyle.link))
+            view.add_item(discord.ui.Button(label=t("donate_btn_label", gid), url=BUYMEACOFFEE_URL, style=discord.ButtonStyle.link))
             embed = discord.Embed(
                 title=t("license_status_title", gid),
                 description=t("license_status_free", gid),
                 color=discord.Color.light_grey(),
             )
-        embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
-        await message.reply(embed=embed, mention_author=False)
+            embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+            await message.reply(embed=embed, view=view, mention_author=False)
         return
 
     # 7. canjear / impcanjear
@@ -1870,10 +1920,24 @@ async def on_message(message: discord.Message):
         vote_url = f"https://top.gg/bot/{client_id}/vote"
         view = discord.ui.View()
         view.add_item(discord.ui.Button(label=t("vote_btn_label", gid), url=vote_url, style=discord.ButtonStyle.link))
+        view.add_item(discord.ui.Button(label=t("donate_btn_label", gid), url=BUYMEACOFFEE_URL, style=discord.ButtonStyle.link))
         embed = discord.Embed(
             title=t("vote_embed_title", gid),
             description=t("vote_embed_desc", gid),
             color=discord.Color.from_rgb(255, 105, 180),
+        )
+        embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+        await message.reply(embed=embed, view=view, mention_author=False)
+        return
+
+    # 14. donar / donate / kofi / buymeacoffee / coffee
+    elif cmd in ("donar", "donate", "dona", "donation", "kofi", "buymeacoffee", "coffee"):
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(label=t("donate_btn_label", gid), url=BUYMEACOFFEE_URL, style=discord.ButtonStyle.link))
+        embed = discord.Embed(
+            title=t("donate_embed_title", gid),
+            description=t("donate_embed_desc", gid),
+            color=discord.Color.gold(),
         )
         embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
         await message.reply(embed=embed, view=view, mention_author=False)

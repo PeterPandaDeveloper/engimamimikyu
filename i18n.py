@@ -793,6 +793,7 @@ STRINGS: dict[str, dict[str, str]] = {
             "• `/stats-kyu` (or `-mimi stats` / `stats -mimi`) — Server match analytics\n"
             "• `/setrole-kyu [@role] [@user]` (or `-mimi setrole`) — Set or create host role (Admin)\n"
             "• `/vote-kyu` (or `-mimi vote` / `vote -mimi`) — Vote on Top.gg for 10 free premium matches\n"
+            "• `/donate-kyu` (or `-mimi donate` / `donate -mimi`) — Support & get $5 USD Lifetime Pass\n"
             "• `/license-kyu` (or `-mimi license` / `license -mimi`) — Check VIP status\n"
             "• `/redeem-kyu <key>` (or `-mimi redeem <key>`) — Redeem VIP Key ($5 USD Lifetime)\n"
             "• `/credits-kyu` (or `-mimi credits` / `credits -mimi`) — Artist & illustration credits\n"
@@ -808,6 +809,7 @@ STRINGS: dict[str, dict[str, str]] = {
             "• `/stats-kyu` (o `-mimi stats` / `stats -mimi`) — Analítica de partidas del servidor\n"
             "• `/setrole-kyu [@rol] [@usuario]` (o `-mimi setrole`) — Configurar o crear rol de anfitrión (Admin)\n"
             "• `/vote-kyu` (o `-mimi votar` / `votar -mimi` / `-mimi vote`) — Votar en Top.gg (10 partidas gratis)\n"
+            "• `/donate-kyu` (o `-mimi donar` / `donar -mimi` / `-mimi donate`) — Apoyar y obtener Pase Vitalicio ($5 USD)\n"
             "• `/license-kyu` (o `-mimi licencia` / `licencia -mimi`) — Consultar estado VIP\n"
             "• `/redeem-kyu <clave>` (o `-mimi canjear <clave>`) — Canjear clave VIP (Pase Vitalicio $5 USD)\n"
             "• `/credits-kyu` (o `-mimi creditos` / `creditos -mimi`) — Créditos del artista del bot\n"
@@ -1382,8 +1384,8 @@ STRINGS["license_status_premium"] = {
     "es": "🌟 **Estado:** PREMIUM ACTIVO\n💎 **Membresía:** {tipo}\n📝 **Detalles:** {details}",
 }
 STRINGS["license_status_free"] = {
-    "en": "🌱 **Status:** Free Base Edition\n\nTo unlock all game modes (Extended, Chaos, Chaos Dance, Human Target, all generations 1-9, and advanced hints):\n1. 🗳️ **Vote on Top.gg**: 1 vote = **10 unlocked matches** for your server! (Use `/vote-kyu`)\n2. 👑 **Lifetime Pass ($5 USD)**: Permanent lifetime access with no limits for this server.",
-    "es": "🌱 **Estado:** Edición Gratuita Base\n\nPara desbloquear todos los modos (Extendido, Caos, Danza, Objetivo Humano, todas las generaciones 1-9 y pistas avanzadas):\n1. 🗳️ **Votar en Top.gg**: ¡1 voto = **10 partidas** con todo desbloqueado para tu servidor! (Usa `/vote-kyu`)\n2. 👑 **Pase Vitalicio ($5 USD)**: Desbloqueo permanente de por vida sin límites para este servidor.",
+    "en": "🌱 **Status:** Free Base Edition\n\nTo unlock all game modes (Extended, Chaos, Chaos Dance, Human Target, all generations 1-9, and advanced hints):\n1. 🗳️ **Vote on Top.gg**: 1 vote = **10 unlocked matches** for your server! (Use `/vote-kyu`)\n2. 👑 **Lifetime Pass ($5 USD)**: Permanent lifetime access with no limits! [Buy Me a Coffee](https://buymeacoffee.com/peterpandadeveloperz)",
+    "es": "🌱 **Estado:** Edición Gratuita Base\n\nPara desbloquear todos los modos (Extendido, Caos, Danza, Objetivo Humano, todas las generaciones 1-9 y pistas avanzadas):\n1. 🗳️ **Votar en Top.gg**: ¡1 voto = **10 partidas** con todo desbloqueado para tu servidor! (Usa `/vote-kyu`)\n2. 👑 **Pase Vitalicio ($5 USD)**: Desbloqueo permanente de por vida sin límites! [Buy Me a Coffee](https://buymeacoffee.com/peterpandadeveloperz)",
 }
 STRINGS["vote_embed_title"] = {
     "en": "🗳️ Vote on Top.gg — Free 10 Premium Matches!",
@@ -1393,19 +1395,45 @@ STRINGS["vote_embed_desc"] = {
     "en": (
         "Support the bot with a quick vote and unlock **10 full matches** with everything unlocked for this server!\n\n"
         "• 🗳️ **1 Vote = 10 Matches** (Vote every 12 hours on Top.gg)\n"
-        "• 👑 **Lifetime Pass ($5 USD)**: Want unlimited access forever? Get the Lifetime VIP Key.\n\n"
-        "Click the button below to cast your vote:"
+        "• 👑 **Lifetime Pass ($5 USD)**: Want unlimited access forever? [Get Lifetime VIP](https://buymeacoffee.com/peterpandadeveloperz)\n\n"
+        "Click the buttons below to vote or get Lifetime access:"
     ),
     "es": (
         "¡Apoya al bot con un voto rápido y desbloquea **10 partidas completas** con todo desbloqueado para este servidor!\n\n"
         "• 🗳️ **1 Voto = 10 Partidas** (Puedes votar cada 12 horas en Top.gg)\n"
-        "• 👑 **Pase Vitalicio ($5 USD)**: ¿Quieres acceso ilimitado para siempre? Obtén la clave VIP Vitalicia.\n\n"
-        "Haz clic en el botón de abajo para emitir tu voto:"
+        "• 👑 **Pase Vitalicio ($5 USD)**: ¿Quieres acceso ilimitado para siempre? [Comprar Pase Vitalicio](https://buymeacoffee.com/peterpandadeveloperz)\n\n"
+        "Haz clic en los botones de abajo para votar u obtener acceso Vitalicio:"
     ),
 }
 STRINGS["vote_btn_label"] = {
     "en": "🗳️ Vote on Top.gg (+10 Matches)",
     "es": "🗳️ Votar en Top.gg (+10 Partidas)",
+}
+STRINGS["donate_btn_label"] = {
+    "en": "☕ Lifetime Pass ($5 USD)",
+    "es": "☕ Pase Vitalicio ($5 USD)",
+}
+STRINGS["donate_embed_title"] = {
+    "en": "☕ Support the Bot — Lifetime VIP Pass ($5 USD)",
+    "es": "☕ Apoya al Bot — Pase Vitalicio VIP ($5 USD)",
+}
+STRINGS["donate_embed_desc"] = {
+    "en": (
+        "Get **permanent, unlimited access** to all game modes and expansions of PokeImpostor for your server!\n\n"
+        "• 👑 **Lifetime VIP ($5 USD)**: No expiration, no limits, no renewals.\n"
+        "• 🔓 **Everything Unlocked**: Extended, Chaos, Chaos Dance, Human Target, all Gens 1-9 & future modes.\n\n"
+        "👉 **Donate on Buy Me a Coffee:**\n"
+        "https://buymeacoffee.com/peterpandadeveloperz\n\n"
+        "*After donating, you will receive your VIP Key to redeem with `/redeem-kyu <KEY>`.*"
+    ),
+    "es": (
+        "¡Consigue **acceso permanente e ilimitado** a todos los modos de juego y expansiones de PokeImpostor para tu servidor!\n\n"
+        "• 👑 **Pase Vitalicio ($5 USD)**: Sin vencimiento, sin límite de partidas ni renovaciones.\n"
+        "• 🔓 **Todo Desbloqueado**: Modos Extendido, Caos, Danza Caos, Objetivo Humano, todas las Gens 1-9 y futuras expansiones.\n\n"
+        "👉 **Dona en Buy Me a Coffee:**\n"
+        "https://buymeacoffee.com/peterpandadeveloperz\n\n"
+        "*Tras realizar tu donación, recibirás tu clave VIP para canjear con `/redeem-kyu <CLAVE>`.*"
+    ),
 }
 STRINGS["partner_register_success"] = {
     "en": "👑 Server **{guild_id}** successfully registered as a permanent **Beta Partner**!",
