@@ -473,18 +473,16 @@ async def impver(interaction: discord.Interaction):
                 await interaction.user.send(embed=partida._build_dm_caos_jugador_tripulante(partida.objetivo_humano))
 
         elif es_ebrios:
-            # Variante Danza Caos — usar el mismo título/color que tripulante normal
-            # para no revelar el sub-modo activo.
+            # Variante Danza Caos — 100% idéntico a tripulante normal
             dp = partida.pokemons_ebrios.get(interaction.user.id)
             if dp:
                 emb = discord.Embed(
-                    title=t("dm_crew_title", gid),
-                    description=t("dm_ebrios_desc", gid, name=dp.get("nombre", "?"), types=" / ".join(dp.get("tipos", ["?"]))),
+                    title=t("impver_crew_title", gid),
+                    description=t("dm_crew_desc", gid, name=dp.get("nombre", "?"), types=" / ".join(dp.get("tipos", ["?"]))),
                     color=discord.Color.from_rgb(30, 160, 80),
                 )
                 if dp.get("sprite"):
                     emb.set_image(url=dp["sprite"])
-                emb.set_footer(text=t("dm_ebrios_footer", gid))
                 await interaction.user.send(embed=emb)
 
         elif es_impostor:
@@ -1726,16 +1724,16 @@ async def on_message(message: discord.Message):
                     await message.author.send(embed=partida._build_dm_caos_jugador_tripulante(partida.objetivo_humano))
 
             elif es_ebrios:
+                # Variante Danza Caos — 100% idéntico a tripulante normal
                 dp = partida.pokemons_ebrios.get(message.author.id)
                 if dp:
                     emb = discord.Embed(
-                        title=t("dm_crew_title", gid),
-                        description=t("dm_ebrios_desc", gid, name=dp.get("nombre", "?"), types=" / ".join(dp.get("tipos", ["?"]))),
+                        title=t("impver_crew_title", gid),
+                        description=t("dm_crew_desc", gid, name=dp.get("nombre", "?"), types=" / ".join(dp.get("tipos", ["?"]))),
                         color=discord.Color.from_rgb(30, 160, 80),
                     )
                     if dp.get("sprite"):
                         emb.set_image(url=dp["sprite"])
-                    emb.set_footer(text=t("dm_ebrios_footer", gid))
                     await message.author.send(embed=emb)
 
             elif es_impostor:

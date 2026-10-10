@@ -436,29 +436,13 @@ class Partida:
     def _roll_caos_impostores(total: int) -> int:
         """
         Tira el dado del Caos: cuántos impostores habrá.
-
-        Reglas de diseño para que el Caos se sienta "dominado" y no un
-        sorteo sin sentido:
-        - Nunca TODOS son impostores (eso mata la partida en la ronda 1
-          sin debate posible).
-        - 0 impostores sigue siendo posible (es la sorpresa icónica del
-          Caos: "esta ronda no hay traidores"), pero es poco frecuente.
-        - El resto de la probabilidad se concentra en valores "jugables":
-          de 1 hasta la mitad de los jugadores (redondeando hacia abajo,
-          mínimo 1), que es donde el debate y la votación tienen sentido.
+        En Modo Caos, puede haber desde 0 hasta (total - 1) impostores.
+        Ejemplo con 5 jugadores: 0, 1, 2, 3 o 4 impostores.
         """
-        maximo_jugable = max(1, total // 2)  # ej. 6 jugadores → hasta 3 impostores
-        # Pesos: 0 impostores tiene peso fijo bajo; el resto se reparte
-        # uniformemente entre 1..maximo_jugable. Para grupos pequeños
-        # (pocas opciones jugables), el peso de 0 se reduce más para que
-        # no domine la distribución.
-        opciones = [0] + list(range(1, maximo_jugable + 1))
-        peso_cero = 1 if maximo_jugable >= 2 else 0.5
-        pesos     = [peso_cero] + [3] * maximo_jugable
-        elegido   = random.choices(opciones, weights=pesos, k=1)[0]
-        # Salvaguarda final: jamás todos los jugadores (se necesita al
-        # menos 1 tripulante para que haya partida).
-        return min(elegido, total - 1)
+        if total <= 1:
+            return 0
+        opciones = list(range(0, total))  # 0 .. total - 1
+        return random.choice(opciones)
 
     # ── DM impostor clásico/extendido/caos ───────────────────────────────────
     def _build_dm_impostor(self, jugador: discord.Member) -> discord.Embed:
@@ -528,25 +512,12 @@ class Partida:
     def _build_dm_caos_jugador_objetivo(self) -> discord.Embed:
         return self._build_dm_caos_jugador_impostor()
 
-    # ── DM variante Danza Caos — NO revela sub-modo NI nombre del Pokémon ──
+    # ── DM variante Danza Caos — 100% idéntico a tripulante normal ───────────
     def _build_dm_amigos_ebrios(self, jugador: discord.Member) -> discord.Embed:
-        gid = self.canal.guild.id
-        dp  = self.pokemons_ebrios.get(jugador.id)
+        dp = self.pokemons_ebrios.get(jugador.id)
         if not dp:
             return discord.Embed(title="Error", description="No se asignó Pokémon.")
-        # Título y color IGUALES al tripulante normal → no delata el sub-modo.
-        # NO se revela el nombre — solo el tipo y el sprite para que el jugador
-        # sepa qué describir sin que sea trivialmente obvio para los demás.
-        tipos_str = " / ".join(dp.get("tipos", ["?"]))
-        embed = discord.Embed(
-            title=t("dm_crew_title", gid),
-            description=t("dm_ebrios_desc", gid, types=tipos_str),
-            color=discord.Color.from_rgb(30, 160, 80),
-        )
-        if dp.get("sprite"):
-            embed.set_image(url=dp["sprite"])
-        embed.set_footer(text=t("dm_ebrios_footer", gid))
-        return embed
+        return self._build_dm_tripulante(dp)
 
     # ─────────────────────────────────────────────────────────────────────────
     #  ARRANCAR RONDA — punto de entrada principal

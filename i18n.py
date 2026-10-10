@@ -373,8 +373,8 @@ STRINGS: dict[str, dict[str, str]] = {
         ),
     },
     "dm_crew_footer": {
-        "en": "Use /impver to see again · 🎨 Art: @xeechithecat.bsky.social",
-        "es": "Usa /impver si necesitas volver a verlo · 🎨 Arte: @xeechithecat.bsky.social",
+        "en": "Use /role-kyu to see again · 🎨 Art: @xeechithecat.bsky.social",
+        "es": "Usa /role-kyu si necesitas volver a verlo · 🎨 Arte: @xeechithecat.bsky.social",
     },
 
     # ── Pistas generadas ──────────────────────────────────────────────────────
@@ -773,13 +773,19 @@ STRINGS: dict[str, dict[str, str]] = {
     "help_modes_value": {
         "en": (
             "• **Classic:** 1 secret Impostor, 1 secret Pokémon.\n"
-            "• **Extended:** Multiple Impostors who know each other.\n"
-            "• **Chaos:** Unpredictable rules (0 to N Impostors, Human Target, or Chaos Dance)."
+            "• **Extended:** Multiple accomplice Impostors who know each other.\n"
+            "• **Chaos (Russian Roulette):** Unpredictable rules every round!\n"
+            "   ▫️ *Standard Chaos:* From 0 to (N-1) impostors (can be 0 where all are innocent with the same Pokémon!).\n"
+            "   ▫️ *Chaos Dance:* Zero impostors! Each trainer receives a different secret Pokémon without knowing it.\n"
+            "   ▫️ *Human Target:* One of the players in the server IS the secret target to deduce from hints!"
         ),
         "es": (
             "• **Clásico:** 1 Impostor secreto, 1 Pokémon secreto.\n"
-            "• **Extendido:** Múltiples Impostores cómplices que se conocen.\n"
-            "• **Caos:** Reglas impredecibles (0 a N Impostores, Objetivo Humano o Danza Caos)."
+            "• **Extendido:** Múltiples Impostores cómplices que se conocen entre sí.\n"
+            "• **Caos (Ruleta Rusa):** ¡Reglas impredecibles en cada ronda!\n"
+            "   ▫️ *Caos Estándar:* De 0 a (N-1) impostores (¡incluso 0 donde todos son inocentes con el mismo Pokémon!).\n"
+            "   ▫️ *Danza Caos:* ¡Cero impostores! Cada jugador recibe un Pokémon secreto diferente sin saberlo.\n"
+            "   ▫️ *Objetivo Humano:* ¡Uno de los jugadores del servidor ES el objetivo a descubrir con pistas!"
         ),
     },
     "help_commands_name": {
@@ -959,24 +965,26 @@ STRINGS["caos_jugador_hint_join"] = {
     "es": "El objetivo es miembro de este servidor.",
 }
 STRINGS["dm_ebrios_title"] = {
-    "en": "🍻 YOUR POKÉMON (Drunk Friends Mode)",
-    "es": "🍻 TU POKÉMON (Modo Amigos Ebrios)",
+    "en": "✅ YOU ARE A CREWMATE",
+    "es": "✅ ERES TRIPULANTE",
 }
 STRINGS["dm_ebrios_desc"] = {
     "en": (
-        "Type: **{types}**\n\n"
-        "Describe your Pokémon without saying its name.\n"
-        "Everyone has a DIFFERENT one — try to blend in!"
+        "The secret Pokémon is: **{name}**\n"
+        "Type: {types}\n\n"
+        "Talk about it without saying its name directly.\n"
+        "Find out who doesn't seem to know what everyone's talking about!"
     ),
     "es": (
-        "Tipo: **{types}**\n\n"
-        "Describe tu Pokémon sin decir su nombre.\n"
-        "¡Todos tienen uno DIFERENTE — intenta pasar desapercibido!"
+        "El Pokémon secreto es: **{name}**\n"
+        "Tipo: {types}\n\n"
+        "Habla de él sin decir su nombre directamente.\n"
+        "¡Descubre quién no sabe de qué están hablando!"
     ),
 }
 STRINGS["dm_ebrios_footer"] = {
-    "en": "The sprite is your clue · 🎨 Art: @xeechithecat.bsky.social",
-    "es": "El sprite es tu pista · 🎨 Arte: @xeechithecat.bsky.social",
+    "en": "Use /role-kyu to see again · 🎨 Art: @xeechithecat.bsky.social",
+    "es": "Usa /role-kyu si necesitas volver a verlo · 🎨 Arte: @xeechithecat.bsky.social",
 }
 
 # ── Pantalla final nuevos modos ───────────────────────────────────────────────
@@ -1077,21 +1085,22 @@ STRINGS["caos_jugador_admin_skip"] = {
     "es": "🔒 Ronda saltada por el admin. Sin resultado.",
 }
 
-# ── /imphelp modos actualizados ───────────────────────────────────────────────
 STRINGS["help_modes_value"] = {
     "en": (
-        "**Classic** — Always 1 impostor.\n"
-        "**Extended** — 1 impostor per 3 players.\n"
-        "**Chaos** — Random amount, can be 0!\n"
-        "**Chaos: Human Target** — A real player is the secret, not a Pokémon.\n"
-        "*(Chaos + 💃 Teeter Dance — everyone gets a different Pokémon)*"
+        "• **Classic:** 1 secret Impostor, 1 secret Pokémon.\n"
+        "• **Extended:** Multiple accomplice Impostors who know each other.\n"
+        "• **Chaos (Russian Roulette):** Unpredictable rules every round!\n"
+        "   ▫️ *Standard Chaos:* From 0 to (N-1) impostors (can be 0 where all are innocent with the same Pokémon!).\n"
+        "   ▫️ *Chaos Dance:* Zero impostors! Each trainer receives a different secret Pokémon without knowing it.\n"
+        "   ▫️ *Human Target:* One of the players in the server IS the secret target to deduce from hints!"
     ),
     "es": (
-        "**Clásico** — Siempre 1 impostor.\n"
-        "**Extendido** — 1 impostor por cada 3 jugadores.\n"
-        "**Caos** — Cantidad aleatoria. ¡Puede haber 0!\n"
-        "**Caos: Objetivo Humano** — Un jugador real es el secreto, no un Pokémon.\n"
-        "*(Caos + 💃 Danza Caos — cada uno recibe un Pokémon diferente)*"
+        "• **Clásico:** 1 Impostor secreto, 1 Pokémon secreto.\n"
+        "• **Extendido:** Múltiples Impostores cómplices que se conocen entre sí.\n"
+        "• **Caos (Ruleta Rusa):** ¡Reglas impredecibles en cada ronda!\n"
+        "   ▫️ *Caos Estándar:* De 0 a (N-1) impostores (¡incluso 0 donde todos son inocentes con el mismo Pokémon!).\n"
+        "   ▫️ *Danza Caos:* ¡Cero impostores! Cada jugador recibe un Pokémon secreto diferente sin saberlo.\n"
+        "   ▫️ *Objetivo Humano:* ¡Uno de los jugadores del servidor ES el objetivo a descubrir con pistas!"
     ),
 }
 
