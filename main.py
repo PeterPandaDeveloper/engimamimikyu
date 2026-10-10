@@ -6,6 +6,8 @@ from discord.ext import commands
 from discord import app_commands
 import os
 import json
+import urllib.parse
+import aiohttp.web
 from dotenv import load_dotenv
 
 from motor_juego import Partida
@@ -44,6 +46,7 @@ intents.members = True
 bot = commands.Bot(command_prefix="pkmi!", intents=intents)
 
 BUYMEACOFFEE_URL = "https://buymeacoffee.com/peterpandadeveloperz"
+INVITE_PERMS_INT = 268817624
 
 # Servidor central autorizado exclusivamente para generar keys y gestionar partners
 SERVER_ADMIN_CENTRAL_ID = 402155389958881310
@@ -137,6 +140,121 @@ async def asegurar_rol_pokehost(guild: discord.Guild) -> discord.Role | None:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+#  WEBHOOK TOP.GG (ACREDITACIÓN AUTOMÁTICA DE VOTOS)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_webhook_runner: aiohttp.web.AppRunner | None = None
+
+async def handle_topgg_webhook(request: aiohttp.web.Request) -> aiohttp.web.Response:
+    # 1. Validación de seguridad opcional (si se configura TOPGG_WEBHOOK_SECRET en .env)
+    expected_auth = os.getenv("TOPGG_WEBHOOK_SECRET", "").strip()
+    if expected_auth:
+        auth_header = request.headers.get("Authorization", "").strip()
+        if auth_header != expected_auth:
+            print("[Top.gg Webhook] ⛔ Intento de acceso con Authorization inválido.")
+            return aiohttp.web.Response(status=401, text="Unauthorized")
+
+    try:
+        data = await request.json()
+    except Exception as e:
+        print(f"[Top.gg Webhook] ❌ Error leyendo cuerpo JSON: {e}")
+        return aiohttp.web.Response(status=400, text="Bad Request")
+
+    user_raw = data.get("user")
+    if not user_raw:
+        return aiohttp.web.Response(status=400, text="Missing user field")
+
+    try:
+        user_id = int(user_raw)
+    except ValueError:
+        return aiohttp.web.Response(status=400, text="Invalid user ID")
+
+    # 2. Detección del servidor objetivo:
+    # Prioridad A: query string (?guild=12345)
+    guild_id = None
+    query_str = data.get("query", "")
+    if query_str:
+        params = urllib.parse.parse_qs(query_str.lstrip("?"))
+        if "guild" in params and params["guild"][0].isdigit():
+            guild_id = int(params["guild"][0])
+
+    # Prioridad B: servidor con más partidas del usuario en DuckDB
+    if guild_id is None:
+        try:
+            from db import _get_connection, _DB_LOCK
+            with _DB_LOCK:
+                con = _get_connection()
+                row = con.execute(
+                    "SELECT guild_id FROM perfiles_jugadores WHERE user_id = ? ORDER BY total_partidas DESC, victorias DESC LIMIT 1;",
+                    [user_id]
+                ).fetchone()
+                if row:
+                    guild_id = row[0]
+        except Exception as e:
+            print(f"[Top.gg Webhook] Error consultando perfil: {e}")
+
+    # Prioridad C: primer servidor compartido entre el bot y el usuario
+    if guild_id is None:
+        for g in bot.guilds:
+            if g.get_member(user_id):
+                guild_id = g.id
+                break
+
+    if guild_id is None:
+        print(f"[Top.gg Webhook] ⚠️ Voto recibido de usuario {user_id}, pero no se encontró servidor asociado.")
+        return aiohttp.web.json_response({"status": "received_no_guild", "user_id": user_id})
+
+    # 3. Sumar 10 partidas premium
+    nuevas = await sumar_partidas_voto_async(guild_id, 10)
+    print(f"🗳️ [Top.gg Webhook] ¡Voto exitoso! Usuario {user_id} -> Servidor {guild_id}. Partidas totales: {nuevas}")
+
+    # 4. Enviar anuncio en el canal del servidor
+    guild = bot.get_guild(guild_id)
+    if guild:
+        target_ch = guild.system_channel
+        if not (target_ch and target_ch.permissions_for(guild.me).send_messages):
+            for ch in guild.text_channels:
+                if ch.permissions_for(guild.me).send_messages:
+                    target_ch = ch
+                    break
+        if target_ch:
+            try:
+                embed = discord.Embed(
+                    title=t("vote_announced_title", guild_id),
+                    description=t("vote_announced_desc", guild_id, user=f"<@{user_id}>", count=nuevas),
+                    color=discord.Color.from_rgb(255, 105, 180),
+                )
+                embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+                await target_ch.send(embed=embed)
+            except Exception as e:
+                print(f"[Top.gg Webhook] No se pudo enviar anuncio en {guild.name}: {e}")
+
+    return aiohttp.web.json_response({
+        "status": "success",
+        "user_id": user_id,
+        "guild_id": guild_id,
+        "partidas_totales": nuevas,
+    })
+
+
+async def iniciar_webhook_topgg():
+    global _webhook_runner
+    port = int(os.getenv("TOPGG_WEBHOOK_PORT", "5000"))
+    app = aiohttp.web.Application()
+    app.router.add_post("/topgg-webhook", handle_topgg_webhook)
+    app.router.add_post("/dblwebhook", handle_topgg_webhook)
+    app.router.add_get("/", lambda req: aiohttp.web.Response(text="PokeImpostor Top.gg Webhook Active ⚡"))
+    _webhook_runner = aiohttp.web.AppRunner(app)
+    await _webhook_runner.setup()
+    site = aiohttp.web.TCPSite(_webhook_runner, "0.0.0.0", port)
+    try:
+        await site.start()
+        print(f"🗳️ [Top.gg Webhook] Servidor escuchando en http://0.0.0.0:{port}/topgg-webhook")
+    except Exception as e:
+        print(f"⚠️ [Top.gg Webhook] No se pudo iniciar en el puerto {port}: {e}")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 #  EVENTOS
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -162,12 +280,10 @@ async def on_ready():
         except Exception as e:
             print(f"[on_ready] Error asegurando rol en {g.name}: {e}")
 
+    # Iniciar listener de webhook Top.gg
+    bot.loop.create_task(iniciar_webhook_topgg())
+
     # ── Recuperación tras reinicio ───────────────────────────────────────────
-    # Si el bot se cayó/reinició a mitad de una partida, los botones de esos
-    # mensajes quedan "muertos" (la View vivía solo en memoria del proceso
-    # anterior). Avisamos en cada canal afectado para que el grupo sepa que
-    # debe abrir un lobby nuevo, en lugar de quedarse pulsando botones sin
-    # respuesta sin entender por qué.
     canales_previos = _cargar_sesiones_previas()
     for channel_id in canales_previos:
         try:
@@ -179,8 +295,6 @@ async def on_ready():
         except Exception as e:
             print(f"[on_ready] No se pudo avisar en canal {channel_id}: {e}")
 
-    # Limpiar el registro: estas sesiones ya no son válidas y no deben
-    # volver a generar avisos en el siguiente reinicio.
     partidas_activas.clear()
     _guardar_sesiones_activas()
 
@@ -190,8 +304,42 @@ async def on_guild_join(guild: discord.Guild):
     print(f"📥 Bot añadido al servidor: {guild.name} ({guild.id})")
     await asegurar_rol_pokehost(guild)
 
+    # Buscar canal adecuado para el mensaje de bienvenida
+    target_channel = guild.system_channel
+    if not (target_channel and target_channel.permissions_for(guild.me).send_messages):
+        for ch in guild.text_channels:
+            if ch.permissions_for(guild.me).send_messages:
+                target_channel = ch
+                break
+
+    if target_channel:
+        try:
+            gid = guild.id
+            embed = discord.Embed(
+                title=t("welcome_title", gid),
+                description=t("welcome_desc", gid),
+                color=discord.Color.from_rgb(255, 203, 5),
+            )
+            embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+            client_id = bot.user.id if bot.user else 1195913386899296347
+            view = discord.ui.View()
+            view.add_item(discord.ui.Button(label=t("vote_btn_label", gid), url=f"https://top.gg/bot/{client_id}/vote?guild={gid}", style=discord.ButtonStyle.link))
+            view.add_item(discord.ui.Button(label=t("donate_btn_label", gid), url=BUYMEACOFFEE_URL, style=discord.ButtonStyle.link))
+            await target_channel.send(embed=embed, view=view)
+        except Exception as e:
+            print(f"[on_guild_join] Error enviando bienvenida en {guild.name}: {e}")
+
+
 @bot.event
 async def on_close():
+    global _webhook_runner
+    if _webhook_runner:
+        try:
+            await _webhook_runner.cleanup()
+            print("🔌 Top.gg Webhook runner stopped.")
+        except Exception as e:
+            print(f"Error deteniendo webhook runner: {e}")
+
     await cerrar_session()
     print("🔌 HTTP session closed.")
     try:
@@ -1125,7 +1273,7 @@ async def licencia_kyu(interaction: discord.Interaction):
 async def _ejecutar_voto(interaction: discord.Interaction):
     gid = interaction.guild_id or 0
     client_id = bot.user.id if bot.user else 1195913386899296347
-    vote_url = f"https://top.gg/bot/{client_id}/vote"
+    vote_url = f"https://top.gg/bot/{client_id}/vote?guild={gid}" if gid else f"https://top.gg/bot/{client_id}/vote"
     view = discord.ui.View()
     view.add_item(discord.ui.Button(label=t("vote_btn_label", gid), url=vote_url, style=discord.ButtonStyle.link))
     view.add_item(discord.ui.Button(label=t("donate_btn_label", gid), url=BUYMEACOFFEE_URL, style=discord.ButtonStyle.link))
@@ -1189,6 +1337,41 @@ async def donate(interaction: discord.Interaction):
 @bot.tree.command(name="donar", description="Apoya al bot y obtén el Pase Vitalicio ($5 USD)")
 async def donar(interaction: discord.Interaction):
     await _ejecutar_donar(interaction)
+
+
+async def _ejecutar_invitar(interaction: discord.Interaction):
+    gid = interaction.guild_id or 0
+    client_id = bot.user.id if bot.user else 1195913386899296347
+    invite_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&permissions={INVITE_PERMS_INT}&scope=bot%20applications.commands"
+    view = discord.ui.View()
+    view.add_item(discord.ui.Button(label=t("invite_btn_label", gid), url=invite_url, style=discord.ButtonStyle.link))
+    embed = discord.Embed(
+        title=t("invite_embed_title", gid),
+        description=t("invite_embed_desc", gid),
+        color=discord.Color.from_rgb(255, 203, 5),
+    )
+    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+    await interaction.response.send_message(embed=embed, view=view)
+
+
+@bot.tree.command(name="invite-kyu", description="Invite Mimikyu to another server / Invitar a Mimikyu")
+async def invite_kyu(interaction: discord.Interaction):
+    await _ejecutar_invitar(interaction)
+
+
+@bot.tree.command(name="invitar-kyu", description="Invita a Mimikyu a tu servidor")
+async def invitar_kyu(interaction: discord.Interaction):
+    await _ejecutar_invitar(interaction)
+
+
+@bot.tree.command(name="invite", description="Invite Mimikyu to another server / Invitar a Mimikyu")
+async def invite(interaction: discord.Interaction):
+    await _ejecutar_invitar(interaction)
+
+
+@bot.tree.command(name="invitar", description="Invita a Mimikyu a tu servidor")
+async def invitar(interaction: discord.Interaction):
+    await _ejecutar_invitar(interaction)
 
 
 
@@ -1917,7 +2100,7 @@ async def on_message(message: discord.Message):
     # 13. vote / votar / voto
     elif cmd in ("vote", "votar", "voto"):
         client_id = bot.user.id if bot.user else 1195913386899296347
-        vote_url = f"https://top.gg/bot/{client_id}/vote"
+        vote_url = f"https://top.gg/bot/{client_id}/vote?guild={gid}"
         view = discord.ui.View()
         view.add_item(discord.ui.Button(label=t("vote_btn_label", gid), url=vote_url, style=discord.ButtonStyle.link))
         view.add_item(discord.ui.Button(label=t("donate_btn_label", gid), url=BUYMEACOFFEE_URL, style=discord.ButtonStyle.link))
@@ -1938,6 +2121,21 @@ async def on_message(message: discord.Message):
             title=t("donate_embed_title", gid),
             description=t("donate_embed_desc", gid),
             color=discord.Color.gold(),
+        )
+        embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+        await message.reply(embed=embed, view=view, mention_author=False)
+        return
+
+    # 15. invite / invitar
+    elif cmd in ("invite", "invitar", "invitacion", "invitacion"):
+        client_id = bot.user.id if bot.user else 1195913386899296347
+        invite_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&permissions={INVITE_PERMS_INT}&scope=bot%20applications.commands"
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(label=t("invite_btn_label", gid), url=invite_url, style=discord.ButtonStyle.link))
+        embed = discord.Embed(
+            title=t("invite_embed_title", gid),
+            description=t("invite_embed_desc", gid),
+            color=discord.Color.from_rgb(255, 203, 5),
         )
         embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
         await message.reply(embed=embed, view=view, mention_author=False)

@@ -48,12 +48,14 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": (
             "Who knows Pokémon best?\n"
             "The impostor will try to blend in... can you catch them?\n\n"
-            "Join below and wait for an admin to start."
+            "Join below and wait for an admin to start.\n"
+            "💡 *Make sure your DMs are open so Mimikyu can send you your secret role.*"
         ),
         "es": (
             "¿Quién conoce mejor a los Pokémon?\n"
             "El impostor intentará pasar desapercibido... ¿puedes descubrirlo?\n\n"
-            "Únete abajo y espera a que el admin inicie la partida."
+            "Únete abajo y espera a que el admin inicie la partida.\n"
+            "💡 *Asegúrate de tener los DMs abiertos para que Mimikyu pueda enviarte tu rol secreto.*"
         ),
     },
     "lobby_players_field": {
@@ -794,6 +796,7 @@ STRINGS: dict[str, dict[str, str]] = {
             "• `/setrole-kyu [@role] [@user]` (or `-mimi setrole`) — Set or create host role (Admin)\n"
             "• `/vote-kyu` (or `-mimi vote` / `vote -mimi`) — Vote on Top.gg for 10 free premium matches\n"
             "• `/donate-kyu` (or `-mimi donate` / `donate -mimi`) — Support & get $5 USD Lifetime Pass\n"
+            "• `/invite-kyu` (or `-mimi invite` / `invite -mimi`) — Invite Mimikyu to another server\n"
             "• `/license-kyu` (or `-mimi license` / `license -mimi`) — Check VIP status\n"
             "• `/redeem-kyu <key>` (or `-mimi redeem <key>`) — Redeem VIP Key ($5 USD Lifetime)\n"
             "• `/credits-kyu` (or `-mimi credits` / `credits -mimi`) — Artist & illustration credits\n"
@@ -810,6 +813,7 @@ STRINGS: dict[str, dict[str, str]] = {
             "• `/setrole-kyu [@rol] [@usuario]` (o `-mimi setrole`) — Configurar o crear rol de anfitrión (Admin)\n"
             "• `/vote-kyu` (o `-mimi votar` / `votar -mimi` / `-mimi vote`) — Votar en Top.gg (10 partidas gratis)\n"
             "• `/donate-kyu` (o `-mimi donar` / `donar -mimi` / `-mimi donate`) — Apoyar y obtener Pase Vitalicio ($5 USD)\n"
+            "• `/invite-kyu` (o `-mimi invite` / `invitar -mimi` / `-mimi invitar`) — Invitar a Mimikyu a otro servidor\n"
             "• `/license-kyu` (o `-mimi licencia` / `licencia -mimi`) — Consultar estado VIP\n"
             "• `/redeem-kyu <clave>` (o `-mimi canjear <clave>`) — Canjear clave VIP (Pase Vitalicio $5 USD)\n"
             "• `/credits-kyu` (o `-mimi creditos` / `creditos -mimi`) — Créditos del artista del bot\n"
@@ -1424,7 +1428,7 @@ STRINGS["donate_embed_desc"] = {
         "• 🔓 **Everything Unlocked**: Extended, Chaos, Chaos Dance, Human Target, all Gens 1-9 & future modes.\n\n"
         "👉 **Donate on Buy Me a Coffee:**\n"
         "https://buymeacoffee.com/peterpandadeveloperz\n\n"
-        "*After donating, you will receive your VIP Key to redeem with `/redeem-kyu <KEY>`.*"
+        "⚠️ **Important:** In the Buy Me a Coffee message box, write your Discord username to receive your VIP Key to redeem with `/redeem-kyu <KEY>`."
     ),
     "es": (
         "¡Consigue **acceso permanente e ilimitado** a todos los modos de juego y expansiones de PokeImpostor para tu servidor!\n\n"
@@ -1432,8 +1436,76 @@ STRINGS["donate_embed_desc"] = {
         "• 🔓 **Todo Desbloqueado**: Modos Extendido, Caos, Danza Caos, Objetivo Humano, todas las Gens 1-9 y futuras expansiones.\n\n"
         "👉 **Dona en Buy Me a Coffee:**\n"
         "https://buymeacoffee.com/peterpandadeveloperz\n\n"
-        "*Tras realizar tu donación, recibirás tu clave VIP para canjear con `/redeem-kyu <CLAVE>`.*"
+        "⚠️ **Importante:** En la casilla de mensaje de Buy Me a Coffee, escribe tu usuario de Discord para recibir tu clave VIP y canjearla con `/redeem-kyu <CLAVE>`."
     ),
+}
+STRINGS["welcome_title"] = {
+    "en": "👻 Mimikyu has joined the server! — PokeImpostor",
+    "es": "👻 ¡Mimikyu se ha unido al servidor! — PokeImpostor",
+}
+STRINGS["welcome_desc"] = {
+    "en": (
+        "Hello trainers! 👻 I'm **Mimikyu**, and I've arrived to play **PokeImpostor** with your community!\n\n"
+        "**Quick Start Guide:**\n"
+        "• 🎮 `/play-kyu` (or `-mimi play`) — Open a waiting lobby and start playing!\n"
+        "• 👑 `/setrole-kyu` (or `-mimi setrole`) — Setup or assign the official host role (`PokeHost`).\n"
+        "• 🗳️ `/vote-kyu` (or `-mimi vote`) — Vote on Top.gg to unlock **10 free matches** with everything unlocked!\n"
+        "• ☕ `/donate-kyu` (or `-mimi donate`) — Get permanent Lifetime VIP access for $5 USD.\n"
+        "• 📜 `/help-kyu` (or `-mimi help`) — View all commands and gameplay guide.\n\n"
+        "💡 *Tip: Remember to keep your DMs open so Mimikyu can send you your secret role!*"
+    ),
+    "es": (
+        "¡Hola entrenadores! 👻 Soy **Mimikyu**, ¡y he llegado para jugar a **PokeImpostor** en tu servidor!\n\n"
+        "**Guía Rápida para Empezar:**\n"
+        "• 🎮 `/play-kyu` (o `-mimi play`) — ¡Abre una sala de espera y empieza a jugar!\n"
+        "• 👑 `/setrole-kyu` (o `-mimi setrole`) — Configura o asigna el rol de anfitrión (`PokeHost`).\n"
+        "• 🗳️ `/vote-kyu` (o `-mimi vote`) — Vota en Top.gg para recibir **10 partidas gratis** con todo desbloqueado.\n"
+        "• ☕ `/donate-kyu` (o `-mimi donar`) — Obtén el Pase Vitalicio permanente por $5 USD.\n"
+        "• 📜 `/help-kyu` (o `-mimi help`) — Consulta todos los comandos y la guía de juego.\n\n"
+        "💡 *Consejo: Recuerda tener los DMs abiertos para que Mimikyu pueda enviarte tu rol secreto.*"
+    ),
+}
+STRINGS["vote_announced_title"] = {
+    "en": "🎉 Top.gg Vote Received — 10 Free Matches Unlocked!",
+    "es": "🎉 ¡Voto de Top.gg Recibido — 10 Partidas Desbloqueadas!",
+}
+STRINGS["vote_announced_desc"] = {
+    "en": (
+        "Trainer {user} just voted for Mimikyu on Top.gg!\n\n"
+        "🎁 **Reward:** **+10 Premium Matches** with all modes and generations unlocked for this server!\n"
+        "📊 **Total Available Matches:** **{count}**\n\n"
+        "Thank you for supporting the bot! Start a game with `/play-kyu`."
+    ),
+    "es": (
+        "¡El entrenador {user} acaba de votar por Mimikyu en Top.gg!\n\n"
+        "🎁 **Recompensa:** **+10 Partidas Premium** con todos los modos y generaciones desbloqueados para este servidor.\n"
+        "📊 **Partidas Disponibles:** **{count}**\n\n"
+        "¡Muchas gracias por apoyar al bot! Inicien una partida con `/play-kyu`."
+    ),
+}
+STRINGS["invite_embed_title"] = {
+    "en": "💌 Invite Mimikyu to Your Server!",
+    "es": "💌 ¡Invita a Mimikyu a tu Servidor!",
+}
+STRINGS["invite_embed_desc"] = {
+    "en": (
+        "Bring the mystery and fun of **PokeImpostor** to your own Discord community!\n\n"
+        "• 🛡️ **Clean & Secure Permissions**: No Administrator access needed.\n"
+        "• 👥 **Up to 24 Players**: Secret Pokémon, impostors, clues, and custom modes.\n"
+        "• 🎨 **Unique Artwork**: Hand-drawn with love by @xeechithecat.bsky.social.\n\n"
+        "Click the button below to invite Mimikyu:"
+    ),
+    "es": (
+        "¡Lleva todo el misterio y la diversión de **PokeImpostor** a tu propia comunidad de Discord!\n\n"
+        "• 🛡️ **Permisos Seguros y Limpios**: No requiere permisos de Administrador.\n"
+        "• 👥 **Hasta 24 Jugadores**: Pokémon secretos, impostores, pistas y modos locos.\n"
+        "• 🎨 **Arte Exclusivo**: Ilustrado a mano con cariño por @xeechithecat.bsky.social.\n\n"
+        "Haz clic en el botón de abajo para invitar a Mimikyu:"
+    ),
+}
+STRINGS["invite_btn_label"] = {
+    "en": "➕ Invite Mimikyu",
+    "es": "➕ Invitar a Mimikyu",
 }
 STRINGS["partner_register_success"] = {
     "en": "👑 Server **{guild_id}** successfully registered as a permanent **Beta Partner**!",
