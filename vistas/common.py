@@ -113,6 +113,10 @@ def build_embed_config(partida: Partida) -> discord.Embed:
     embed.add_field(name=t("config_hint_label",    g), value=ventaja_display.get(cfg.ventaja, cfg.ventaja.value),    inline=True)
     embed.add_field(name=t("config_regions_label", g), value=regiones_str,                                           inline=True)
     embed.add_field(name=t("config_rounds_label",  g), value=f"⏳ **{cfg.max_rondas}**",                             inline=True)
+    if cfg.modo_juego == ModoJuego.EXTENDIDO:
+        activo = getattr(cfg, "conocer_complices", True)
+        val_complices = t("config_complices_enabled", g) if activo else t("config_complices_disabled", g)
+        embed.add_field(name=t("config_complices_label", g), value=val_complices, inline=False)
     return embed
 
 

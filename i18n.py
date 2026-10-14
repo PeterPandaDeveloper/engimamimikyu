@@ -112,6 +112,14 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "🚀 START ROUND",
         "es": "🚀 INICIAR RONDA",
     },
+    "btn_complices_enabled": {
+        "en": "Know impostors: YES",
+        "es": "Saber quién es impostor: SÍ",
+    },
+    "btn_complices_disabled": {
+        "en": "Know impostors: NO",
+        "es": "Saber quién es impostor: NO",
+    },
     "btn_open_vote": {
         "en": "🗳️ Open Voting",
         "es": "🗳️ Abrir Votación",
@@ -249,6 +257,18 @@ STRINGS: dict[str, dict[str, str]] = {
     "mode_caos_display": {
         "en": "⚠️ Chaos (random, even 0)",
         "es": "⚠️ Caos (aleatorio, incluso 0)",
+    },
+    "config_complices_label": {
+        "en": "👥 Know other impostors",
+        "es": "👥 Saber quién es impostor",
+    },
+    "config_complices_enabled": {
+        "en": "✅ **Allowed** — Impostors know who their fellow impostors are.",
+        "es": "✅ **Permitido** — Los impostores saben quién es el otro impostor.",
+    },
+    "config_complices_disabled": {
+        "en": "❌ **Disabled** — Impostors play blind (without knowing who the other is).",
+        "es": "❌ **Desactivado** — Los impostores juegan a ciegas (no saben quién es el otro).",
     },
 
     # Opciones de pista

@@ -486,13 +486,8 @@ async def impver(interaction: discord.Interaction):
                 await interaction.user.send(embed=emb)
 
         elif es_impostor:
-            # Impostor normal
-            pista = partida.pistas_impostores.get(interaction.user.id, partida.pista_generada)
-            await interaction.user.send(embed=discord.Embed(
-                title=t("impver_impostor_title", gid),
-                description=t("dm_impostor_desc", gid, hint=pista),
-                color=discord.Color.from_rgb(180, 30, 30),
-            ))
+            # Impostor normal (incluye cómplices si están configurados)
+            await interaction.user.send(embed=partida._build_dm_impostor(interaction.user))
         else:
             # Tripulante normal
             dp = partida.datos_pokemon
@@ -1741,12 +1736,8 @@ async def on_message(message: discord.Message):
                     await message.author.send(embed=emb)
 
             elif es_impostor:
-                pista = partida.pistas_impostores.get(message.author.id, partida.pista_generada)
-                await message.author.send(embed=discord.Embed(
-                    title=t("impver_impostor_title", gid),
-                    description=t("dm_impostor_desc", gid, hint=pista),
-                    color=discord.Color.from_rgb(180, 30, 30),
-                ))
+                # Impostor normal (incluye cómplices si están configurados)
+                await message.author.send(embed=partida._build_dm_impostor(message.author))
             else:
                 dp = partida.datos_pokemon
                 if dp:

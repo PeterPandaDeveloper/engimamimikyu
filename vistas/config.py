@@ -33,7 +33,7 @@ class PanelConfiguracion(discord.ui.View):
         self._add_select_pista(g)
         self._add_select_region(g)
         self._add_select_rondas(g)
-        self._add_btn_iniciar(g)
+        self._add_botones(g)
 
     # ── Select: modo de juego ────────────────────────────────────────────────
     def _add_select_modo(self, g: int):
@@ -126,10 +126,29 @@ class PanelConfiguracion(discord.ui.View):
         self._sel_rondas.callback = self._set_rondas
         self.add_item(self._sel_rondas)
 
-    def _add_btn_iniciar(self, g: int):
-        btn = discord.ui.Button(label=t("btn_start_round", g), style=discord.ButtonStyle.primary, row=4)
-        btn.callback = self._iniciar
-        self.add_item(btn)
+    def _add_botones(self, g: int):
+        self._btn_iniciar = discord.ui.Button(label=t("btn_start_round", g), style=discord.ButtonStyle.primary, row=4)
+        self._btn_iniciar.callback = self._iniciar
+        self.add_item(self._btn_iniciar)
+
+        if self.partida.config.modo_juego == ModoJuego.EXTENDIDO:
+            self._crear_btn_complices(g)
+            self.add_item(self._btn_complices)
+
+    def _crear_btn_complices(self, g: int):
+        activo = getattr(self.partida.config, "conocer_complices", True)
+        label = t("btn_complices_enabled", g) if activo else t("btn_complices_disabled", g)
+        style = discord.ButtonStyle.success if activo else discord.ButtonStyle.danger
+        self._btn_complices = discord.ui.Button(label=label, style=style, emoji="👥", row=4)
+        self._btn_complices.callback = self._toggle_complices
+
+    async def _toggle_complices(self, inter: discord.Interaction):
+        g = gid(self.partida)
+        self.partida.config.conocer_complices = not getattr(self.partida.config, "conocer_complices", True)
+        activo = self.partida.config.conocer_complices
+        self._btn_complices.label = t("btn_complices_enabled", g) if activo else t("btn_complices_disabled", g)
+        self._btn_complices.style = discord.ButtonStyle.success if activo else discord.ButtonStyle.danger
+        await inter.response.edit_message(embed=build_embed_config(self.partida), view=self)
 
     async def _set_rondas(self, inter: discord.Interaction):
         self.partida.config.max_rondas = int(inter.data["values"][0])
@@ -139,10 +158,20 @@ class PanelConfiguracion(discord.ui.View):
 
     # ── Callbacks de los selects ─────────────────────────────────────────────
     async def _set_modo(self, inter: discord.Interaction):
+        g = gid(self.partida)
         nuevo_modo = ModoJuego(inter.data["values"][0])
         self.partida.config.modo_juego = nuevo_modo
         for opt in self._sel_modo.options:
             opt.default = (opt.value == nuevo_modo.value)
+
+        if nuevo_modo == ModoJuego.EXTENDIDO:
+            if not hasattr(self, "_btn_complices") or self._btn_complices not in self.children:
+                self._crear_btn_complices(g)
+                self.add_item(self._btn_complices)
+        else:
+            if hasattr(self, "_btn_complices") and self._btn_complices in self.children:
+                self.remove_item(self._btn_complices)
+
         await inter.response.edit_message(embed=build_embed_config(self.partida), view=self)
 
     async def _set_pista(self, inter: discord.Interaction):

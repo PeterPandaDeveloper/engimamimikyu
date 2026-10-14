@@ -71,8 +71,9 @@ class ConfigPartida:
     regiones:      list[str]    = field(default_factory=lambda: ["todas"])
     modo_juego:    ModoJuego    = ModoJuego.CLASICO
     ventaja:       Ventaja      = Ventaja.ALEATORIO
-    max_rondas:    int          = 3  # Límite de rondas del juego (1 a 9)
-    caos_variante: CaosVariante = CaosVariante.NORMAL
+    max_rondas:        int          = 3  # Límite de rondas del juego (1 a 9)
+    caos_variante:     CaosVariante = CaosVariante.NORMAL
+    conocer_complices: bool         = True  # Modo extendido: permitir que los impostores sepan quién es impostor
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -491,7 +492,11 @@ class Partida:
             description=t("dm_impostor_desc", gid, hint=pista),
             color=discord.Color.from_rgb(180, 30, 30),
         )
-        if modo == ModoJuego.EXTENDIDO and total_imp > 1:
+        if (
+            modo == ModoJuego.EXTENDIDO
+            and total_imp > 1
+            and getattr(self.config, "conocer_complices", True)
+        ):
             nombres = ", ".join(f"**{c.display_name}**" for c in complices)
             embed.add_field(
                 name=t("dm_impostor_accomplices_title_hidden", gid),
