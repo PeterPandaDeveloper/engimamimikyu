@@ -31,6 +31,7 @@ from db import (
     verificar_estado_premium_async,
     registrar_servidor_partner_async,
     sumar_partidas_voto_async,
+    obtener_guild_mas_activa_usuario_async,
     get_guild_rol_host,
     set_guild_rol_host_async,
 )
@@ -43,7 +44,40 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-bot = commands.Bot(command_prefix="pkmi!", intents=intents)
+_webhook_runner: aiohttp.web.AppRunner | None = None
+
+
+class PokeImpostorBot(commands.Bot):
+    """
+    Subclase especializada de commands.Bot para PokeImpostor.
+    - Maneja el ciclo de vida y apagado limpio de recursos (DuckDB, aiohttp, runner de Top.gg).
+    - Mantiene una bandera de inicialización para evitar borrado de partidas activas en reconexiones.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._ya_iniciado: bool = False
+
+    async def close(self):
+        global _webhook_runner
+        if _webhook_runner:
+            try:
+                await _webhook_runner.cleanup()
+                print("🔌 Top.gg Webhook runner stopped.")
+            except Exception as e:
+                print(f"Error deteniendo webhook runner: {e}")
+
+        await cerrar_session()
+        print("🔌 HTTP session closed.")
+        try:
+            await close_db()
+            print("[DuckDB] Connection closed cleanly.")
+        except Exception as e:
+            print(f"[DuckDB] Error closing database: {e}")
+
+        await super().close()
+
+
+bot = PokeImpostorBot(command_prefix="pkmi!", intents=intents)
 
 BUYMEACOFFEE_URL = "https://buymeacoffee.com/peterpandadeveloperz"
 INVITE_PERMS_INT = 268817624
@@ -181,17 +215,9 @@ async def handle_topgg_webhook(request: aiohttp.web.Request) -> aiohttp.web.Resp
     # Prioridad B: servidor con más partidas del usuario en DuckDB
     if guild_id is None:
         try:
-            from db import _get_connection, _DB_LOCK
-            with _DB_LOCK:
-                con = _get_connection()
-                row = con.execute(
-                    "SELECT guild_id FROM perfiles_jugadores WHERE user_id = ? ORDER BY total_partidas DESC, victorias DESC LIMIT 1;",
-                    [user_id]
-                ).fetchone()
-                if row:
-                    guild_id = row[0]
+            guild_id = await obtener_guild_mas_activa_usuario_async(user_id)
         except Exception as e:
-            print(f"[Top.gg Webhook] Error consultando perfil: {e}")
+            print(f"[Top.gg Webhook] Error consultando servidor más activo: {e}")
 
     # Prioridad C: primer servidor compartido entre el bot y el usuario
     if guild_id is None:
@@ -261,6 +287,13 @@ async def iniciar_webhook_topgg():
 @bot.event
 async def on_ready():
     print(f"⚡ {bot.user} online. Waiting for trainers...")
+
+    # Si es una reconexión automática de Gateway, NO reinicializamos ni borramos partidas activas
+    if getattr(bot, "_ya_iniciado", False):
+        print("🔄 [on_ready] Reconexión exitosa de Gateway. Partidas activas y webhook preservados.")
+        return
+    bot._ya_iniciado = True
+
     try:
         await init_db()
         print("[DuckDB] DuckDB initialized.")
@@ -328,25 +361,6 @@ async def on_guild_join(guild: discord.Guild):
             await target_channel.send(embed=embed, view=view)
         except Exception as e:
             print(f"[on_guild_join] Error enviando bienvenida en {guild.name}: {e}")
-
-
-@bot.event
-async def on_close():
-    global _webhook_runner
-    if _webhook_runner:
-        try:
-            await _webhook_runner.cleanup()
-            print("🔌 Top.gg Webhook runner stopped.")
-        except Exception as e:
-            print(f"Error deteniendo webhook runner: {e}")
-
-    await cerrar_session()
-    print("🔌 HTTP session closed.")
-    try:
-        await close_db()
-        print("[DuckDB] Connection closed cleanly.")
-    except Exception as e:
-        print(f"[DuckDB] Error closing database: {e}")
 
 
 @bot.tree.error
@@ -2120,7 +2134,7 @@ async def on_message(message: discord.Message):
         return
 
     # 15. invite / invitar
-    elif cmd in ("invite", "invitar", "invitacion", "invitacion"):
+    elif cmd in ("invite", "invitar", "invitacion", "invitación"):
         client_id = bot.user.id if bot.user else 1135381488775463075
         invite_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&permissions={INVITE_PERMS_INT}&scope=bot%20applications.commands"
         view = discord.ui.View()

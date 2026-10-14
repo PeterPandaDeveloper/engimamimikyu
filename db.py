@@ -833,6 +833,30 @@ async def consumir_partida_premium_async(guild_id: int) -> None:
     await asyncio.to_thread(_consumir_partida_premium_sync, guild_id)
 
 
+def _obtener_guild_mas_activa_usuario_sync(user_id: int) -> int | None:
+    """
+    Busca el servidor donde el usuario ha tenido mayor actividad (más partidas jugadas).
+    Útil para asignar recompensas (ej. votos de Top.gg) cuando no se especifica el servidor en la URL.
+    """
+    with _DB_LOCK:
+        con = _get_connection()
+        row = con.execute("""
+            SELECT p.guild_id
+            FROM participaciones pt
+            JOIN partidas p ON pt.partida_id = p.id
+            WHERE pt.user_id = ?
+            GROUP BY p.guild_id
+            ORDER BY COUNT(*) DESC, SUM(CASE WHEN pt.gano THEN 1 ELSE 0 END) DESC
+            LIMIT 1;
+        """, [user_id]).fetchone()
+        return int(row[0]) if row else None
+
+
+async def obtener_guild_mas_activa_usuario_async(user_id: int) -> int | None:
+    """Versión asíncrona no bloqueante de _obtener_guild_mas_activa_usuario_sync."""
+    return await asyncio.to_thread(_obtener_guild_mas_activa_usuario_sync, user_id)
+
+
 def _close_db_sync() -> None:
     global _con
     with _DB_LOCK:

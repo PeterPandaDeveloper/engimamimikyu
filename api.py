@@ -104,16 +104,18 @@ async def obtener_datos_completos_pokemon(
     - Si se descarga: realiza llamadas paralelas a base y species con timeout ajustado.
     - Guarda en caché en memoria y disco automáticamente.
     """
-    cache_key = (id_pokemon, lang)
-    if cache_key in _CACHE_POKEMON:
-        return _CACHE_POKEMON[cache_key]
-
     session = await get_session()
+    current_id = id_pokemon
 
     for intento in range(intentos):
+        # Clave de caché sincronizada siempre con el ID actual a consultar
+        cache_key = (current_id, lang)
+        if cache_key in _CACHE_POKEMON:
+            return _CACHE_POKEMON[cache_key]
+
         try:
-            url_base    = f"https://pokeapi.co/api/v2/pokemon/{id_pokemon}"
-            url_species = f"https://pokeapi.co/api/v2/pokemon-species/{id_pokemon}"
+            url_base    = f"https://pokeapi.co/api/v2/pokemon/{current_id}"
+            url_species = f"https://pokeapi.co/api/v2/pokemon-species/{current_id}"
 
             # Peticiones paralelas ultrarrápidas
             async def _fetch(url: str) -> dict:
@@ -175,7 +177,7 @@ async def obtener_datos_completos_pokemon(
             )
 
             res = {
-                "id": id_pokemon,
+                "id": current_id,
                 "nombre": nombre, "sprite": sprite, "tipos": tipos,
                 "habilidades": habilidades, "stat_mayor": stat_mayor,
                 "stat_menor": stat_menor, "stats": stats,
@@ -184,15 +186,15 @@ async def obtener_datos_completos_pokemon(
                 "especie": especie, "pokedex_entry": pokedex_entry,
             }
 
-            # Guardar en memoria y disco
+            # Guardar en memoria y disco con el ID real y su clave correspondiente
             _CACHE_POKEMON[cache_key] = res
-            asyncio.create_task(asyncio.to_thread(_guardar_en_cache_disco, id_pokemon, lang, res))
+            asyncio.create_task(asyncio.to_thread(_guardar_en_cache_disco, current_id, lang, res))
 
             return res
 
         except Exception as e:
-            print(f"[API] Intento {intento + 1}/{intentos} fallido para ID {id_pokemon}: {e}")
-            id_pokemon = random.randint(1, 151)  # Fallback a Kanto más confiable y rápido
+            print(f"[API] Intento {intento + 1}/{intentos} fallido para ID {current_id}: {e}")
+            current_id = random.randint(1, 151)  # Fallback a Kanto más confiable y rápido
 
     print("[API] Se agotaron los intentos. No se pudo obtener un Pokemon.")
     return None

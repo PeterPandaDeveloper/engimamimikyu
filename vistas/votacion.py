@@ -38,6 +38,20 @@ class PanelVotacion(discord.ui.View):
         modo  = partida.config.modo_juego
         total = len(partida.jugadores)
 
+        # ── Caso Especial: Objetivo Humano (Caos Jugador) ─────────────────────────
+        # En esta variante, solo el detective (impostor) vota quién cree que
+        # es el objetivo secreto humano. Los tripulantes no votan.
+        es_objetivo_humano = (
+            modo == ModoJuego.CAOS
+            and (
+                getattr(partida, "_variante_ronda", None) == CaosVariante.OBJETIVO_HUMANO
+                or partida.objetivo_humano is not None
+            )
+        )
+        if es_objetivo_humano:
+            self._init_votacion_objetivo_humano(g)
+            return
+
         # ── Modos (Clásico / Extendido / Caos con todas sus variantes) ──────────────
         es_clasico = (modo == ModoJuego.CLASICO)
         max_v      = 1 if es_clasico else total
@@ -137,7 +151,7 @@ class PanelVotacion(discord.ui.View):
             ))
         else:
             adivinado = discord.utils.get(self.partida.jugadores, id=int(valor))
-            acerto    = (adivinado == objetivo)
+            acerto    = (adivinado is not None and objetivo is not None and adivinado.id == objetivo.id)
             if acerto:
                 emb = discord.Embed(
                     title=t("caos_jugador_correct_title", g),
