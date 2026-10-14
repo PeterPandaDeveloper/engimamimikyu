@@ -17,6 +17,7 @@ from db import (
     set_guild_rol_host_async,
 )
 
+NOMBRE_ROL_HOST = "PokeHost"
 BUYMEACOFFEE_URL = "https://buymeacoffee.com/peterpandadeveloperz"
 INVITE_PERMS_INT = 268817624
 
