@@ -238,6 +238,15 @@ class PanelConfiguracion(discord.ui.View):
 
             await inter.response.edit_message(content=t("config_saved", g), view=None, embed=None)
 
+            for attr_msg in ("mensaje_lobby", "mensaje_post_ronda"):
+                msg_viejo = getattr(self.partida, attr_msg, None)
+                if msg_viejo:
+                    try:
+                        await msg_viejo.edit(view=None)
+                    except Exception:
+                        pass
+                    setattr(self.partida, attr_msg, None)
+
             try:
                 exito = await self.partida.arrancar_ronda()
             finally:

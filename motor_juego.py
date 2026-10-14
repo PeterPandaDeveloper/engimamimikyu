@@ -164,6 +164,7 @@ class Partida:
         # para presionar al grupo a decidirse.
         self.rondas_sin_expulsion: int  = 0
         self.pista_publica_revelada: bool = False
+        self.empates_consecutivos: int = 0
 
         # fix: cada impostor tiene su propia pista
         # { jugador.id: texto_de_pista }
@@ -415,6 +416,7 @@ class Partida:
         self._variante_ronda = CaosVariante.NORMAL
         self.rondas_sin_expulsion   = 0
         self.pista_publica_revelada = False
+        self.empates_consecutivos   = 0
 
         modo = self.config.modo_juego
 
@@ -540,14 +542,15 @@ class Partida:
         self.impostores_iniciales = self.impostores.copy()
 
         gid = self.canal.guild.id
-        # Extraer letra inicial y letra final de forma segura
-        nombre_limpio = [c.upper() for c in self.objetivo_humano.display_name if c.isalnum()]
+        # Extraer letra inicial y letra final de forma segura (solo letras A-Z, sin números ni emojis)
+        base_name = getattr(self.objetivo_humano, "global_name", None) or self.objetivo_humano.display_name
+        nombre_limpio = [c.upper() for c in base_name if c.isalpha() and c.isascii()]
         if nombre_limpio:
             primera_letra = nombre_limpio[0]
             ultima_letra = nombre_limpio[-1]
         else:
-            primera_letra = self.objetivo_humano.display_name[0].upper()
-            ultima_letra = self.objetivo_humano.display_name[-1].upper()
+            primera_letra = "A"
+            ultima_letra = "Z"
 
         # Generar pista ambigua (empieza con / termina con) para camuflar al impostor
         for imp in self.impostores:

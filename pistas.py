@@ -212,7 +212,7 @@ def pista_pokedex(dp: dict, gid: int) -> str:
     if nombre:
         nom_lower = nombre.lower()
         terminos.add(nom_lower)
-        if len(nom_lower) >= 4:
+        if len(nom_lower) >= 5 and nom_lower[:4] not in {"para", "como", "este", "esta", "todo", "toda", "gran", "star", "sand", "slow"}:
             terminos.add(nom_lower[:4])
 
     for termino in sorted(terminos, key=len, reverse=True):

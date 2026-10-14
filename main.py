@@ -719,12 +719,10 @@ def _extraer_comando_imp(texto: str) -> tuple[bool, str, list[str]]:
     cmd_str = None
     low = s.lower()
 
-    # Sufijos (-mimi, mimi, -imp)
+    # Sufijos (-mimi, -imp)
     if low.endswith(" -mimi"):
         cmd_str = s[:-6].strip()
     elif low.endswith("-mimi"):
-        cmd_str = s[:-5].strip()
-    elif low.endswith(" mimi"):
         cmd_str = s[:-5].strip()
     elif low.endswith(" -imp"):
         cmd_str = s[:-5].strip()
@@ -976,18 +974,19 @@ async def on_message(message: discord.Message):
 
         cantidad = max(1, min(10, cantidad))
 
-        if not any(j.id == message.author.id for j in partida.jugadores):
-            partida.jugadores.append(message.author)
-
-        nombres_bots = ["Ash", "Misty", "Brock", "Gary", "Cynthia", "Red", "Dawn", "Serena", "N", "Lance"]
         agregados = 0
-        for idx, nom in enumerate(nombres_bots):
-            if agregados >= cantidad or len(partida.jugadores) >= 24:
-                break
-            fake_id = 900000 + idx
-            if not any(j.id == fake_id for j in partida.jugadores):
-                partida.jugadores.append(DummyMember(fake_id, nom, message.author))
-                agregados += 1
+        async with partida.lock:
+            if not any(j.id == message.author.id for j in partida.jugadores):
+                partida.jugadores.append(message.author)
+
+            nombres_bots = ["Ash", "Misty", "Brock", "Gary", "Cynthia", "Red", "Dawn", "Serena", "N", "Lance"]
+            for idx, nom in enumerate(nombres_bots):
+                if agregados >= cantidad or len(partida.jugadores) >= 24:
+                    break
+                fake_id = 900000 + idx
+                if not any(j.id == fake_id for j in partida.jugadores):
+                    partida.jugadores.append(DummyMember(fake_id, nom, message.author))
+                    agregados += 1
 
         variante_nombre = None
         if var_arg:

@@ -140,6 +140,7 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
     post_view = PanelPostRonda(partida)
     msg = await canal.send(embed=embed, view=post_view)
     post_view.message = msg
+    partida.mensaje_post_ronda = msg
 
     # ── Guardar datos de la partida en DuckDB (asíncrono en segundo plano) ──
     # Si la partida contenía bots fantasma (DummyMember de depuración), no ensuciamos
@@ -288,7 +289,6 @@ class PanelPostRonda(discord.ui.View):
                 t("only_host_or_admin", g, role=obtener_nombre_rol_host(inter.guild)), ephemeral=True
             )
 
-        self.partida.terminada = False
         # Restaurar jugadores desde jugadores_iniciales antes de abrir config
         # para que el botón "Iniciar Ronda" encuentre a los jugadores disponibles
         if self.partida.jugadores_iniciales:
