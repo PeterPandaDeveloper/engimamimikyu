@@ -1,41 +1,51 @@
 """
 main.py — Entry point de PokeImpostor
+Inicialización del bot de Discord, sincronización de comandos Slash,
+despachador de comandos de texto y ciclo de vida de la aplicación.
 """
+from __future__ import annotations
+
+import os
+import json
 import discord
 from discord.ext import commands
 from discord import app_commands
-import os
-import json
-import urllib.parse
-import aiohttp.web
 from dotenv import load_dotenv
 
 from motor_juego import Partida
 from vistas import (
     PanelInscripcion,
     _build_embed_lobby,
-    NOMBRE_ROL_HOST,
     es_anfitrion_o_admin,
     obtener_nombre_rol_host,
 )
 from api import cerrar_session
-from i18n import t, set_lang, get_lang
+from i18n import t, set_lang
 from db import (
     init_db,
     close_db,
-    obtener_perfil_jugador_async,
-    obtener_ranking_async,
-    obtener_stats_servidor_async,
     crear_licencia_async,
-    canjear_licencia_async,
-    verificar_estado_premium_async,
     registrar_servidor_partner_async,
-    sumar_partidas_voto_async,
-    obtener_guild_mas_activa_usuario_async,
-    get_guild_rol_host,
-    set_guild_rol_host_async,
 )
 from security import verificar_master_password, generar_codigo_licencia
+from webhook_topgg import iniciar_webhook_topgg, detener_webhook_topgg
+from comandos_comunes import (
+    BUYMEACOFFEE_URL,
+    INVITE_PERMS_INT,
+    asegurar_rol_pokehost,
+    reenviar_rol_secreto,
+    construir_embed_perfil,
+    construir_embed_ranking,
+    construir_embed_stats,
+    construir_payload_licencia,
+    canjear_clave_licencia,
+    construir_payload_voto,
+    construir_payload_donar,
+    construir_payload_invitar,
+    construir_embed_ayuda,
+    construir_embed_creditos,
+    ejecutar_setrole_comun,
+)
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -43,8 +53,6 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
-
-_webhook_runner: aiohttp.web.AppRunner | None = None
 
 
 class PokeImpostorBot(commands.Bot):
@@ -58,14 +66,7 @@ class PokeImpostorBot(commands.Bot):
         self._ya_iniciado: bool = False
 
     async def close(self):
-        global _webhook_runner
-        if _webhook_runner:
-            try:
-                await _webhook_runner.cleanup()
-                print("🔌 Top.gg Webhook runner stopped.")
-            except Exception as e:
-                print(f"Error deteniendo webhook runner: {e}")
-
+        await detener_webhook_topgg()
         await cerrar_session()
         print("🔌 HTTP session closed.")
         try:
@@ -79,46 +80,18 @@ class PokeImpostorBot(commands.Bot):
 
 bot = PokeImpostorBot(command_prefix="pkmi!", intents=intents)
 
-BUYMEACOFFEE_URL = "https://buymeacoffee.com/peterpandadeveloperz"
-INVITE_PERMS_INT = 268817624
-
 # Servidor central autorizado exclusivamente para generar keys y gestionar partners
 SERVER_ADMIN_CENTRAL_ID = 402155389958881310
 
 # ── Persistencia ligera de sesiones activas ──────────────────────────────────
-# No persistimos el ESTADO completo de cada Partida (contiene objetos
-# discord.Member que no son serializables y que habría que re-resolver vía
-# API tras un reinicio). En su lugar, guardamos solo QUÉ canales tenían una
-# partida activa. Si el bot se reinicia a mitad de una partida, al arrancar
-# avisamos en esos canales que la sesión se perdió y hay que abrir un lobby
-# nuevo — mejor que dejar botones "muertos" sin explicación.
 _DATA_DIR      = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 _SESSIONS_FILE = os.path.join(_DATA_DIR, "sesiones_activas.json")
-
-
-def _guardar_sesiones_activas() -> None:
-    try:
-        os.makedirs(_DATA_DIR, exist_ok=True)
-        with open(_SESSIONS_FILE, "w", encoding="utf-8") as f:
-            json.dump(list(partidas_activas.keys()), f)
-    except OSError as e:
-        print(f"[main] No se pudo guardar sesiones_activas.json: {e}")
-
-
-def _cargar_sesiones_previas() -> list[int]:
-    try:
-        with open(_SESSIONS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError, ValueError):
-        return []
 
 
 class _PartidasActivasDict(dict):
     """
     dict { channel_id: Partida } que persiste automáticamente en disco
-    (solo las claves, ver _guardar_sesiones_activas) cada vez que se
-    añade o elimina una partida — sin que el resto del código tenga que
-    acordarse de llamar a una función extra.
+    (solo las claves) cada vez que se añade o elimina una partida.
     """
     def __setitem__(self, key, value):
         super().__setitem__(key, value)
@@ -138,146 +111,25 @@ class _PartidasActivasDict(dict):
         _guardar_sesiones_activas()
 
 
+def _guardar_sesiones_activas() -> None:
+    try:
+        os.makedirs(_DATA_DIR, exist_ok=True)
+        with open(_SESSIONS_FILE, "w", encoding="utf-8") as f:
+            json.dump(list(partidas_activas.keys()), f)
+    except OSError as e:
+        print(f"[main] No se pudo guardar sesiones_activas.json: {e}")
+
+
+def _cargar_sesiones_previas() -> list[int]:
+    try:
+        with open(_SESSIONS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, ValueError):
+        return []
+
+
 # Registro central: { channel_id: Partida }
 partidas_activas: dict[int, Partida] = _PartidasActivasDict()
-
-
-async def asegurar_rol_pokehost(guild: discord.Guild) -> discord.Role | None:
-    """
-    Busca el rol configurado o PokeHost en el servidor, o lo crea automáticamente
-    con color distintivo si no existe.
-    """
-    if guild is None:
-        return None
-
-    cfg_id = get_guild_rol_host(guild.id)
-    if cfg_id:
-        r_cfg = guild.get_role(cfg_id)
-        if r_cfg is not None:
-            return r_cfg
-
-    rol = discord.utils.get(guild.roles, name=NOMBRE_ROL_HOST)
-    if rol is None:
-        try:
-            rol = await guild.create_role(
-                name=NOMBRE_ROL_HOST,
-                color=discord.Color.from_rgb(255, 203, 5),  # Amarillo insignia Pokémon
-                mentionable=True,
-                reason="Rol para anfitriones de PokeImpostor (crear y gestionar salas)",
-            )
-            print(f"[Roles] ✅ Rol '{NOMBRE_ROL_HOST}' creado exitosamente en {guild.name} ({guild.id})")
-        except discord.Forbidden:
-            print(f"[Roles] ⚠️ Sin permisos suficientes para crear el rol '{NOMBRE_ROL_HOST}' en {guild.name}")
-        except Exception as e:
-            print(f"[Roles] ❌ Error al crear rol '{NOMBRE_ROL_HOST}' en {guild.name}: {e}")
-    return rol
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  WEBHOOK TOP.GG (ACREDITACIÓN AUTOMÁTICA DE VOTOS)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-_webhook_runner: aiohttp.web.AppRunner | None = None
-
-async def handle_topgg_webhook(request: aiohttp.web.Request) -> aiohttp.web.Response:
-    # 1. Validación de seguridad opcional (si se configura TOPGG_WEBHOOK_SECRET en .env)
-    expected_auth = os.getenv("TOPGG_WEBHOOK_SECRET", "").strip()
-    if expected_auth:
-        auth_header = request.headers.get("Authorization", "").strip()
-        if auth_header != expected_auth:
-            print("[Top.gg Webhook] ⛔ Intento de acceso con Authorization inválido.")
-            return aiohttp.web.Response(status=401, text="Unauthorized")
-
-    try:
-        data = await request.json()
-    except Exception as e:
-        print(f"[Top.gg Webhook] ❌ Error leyendo cuerpo JSON: {e}")
-        return aiohttp.web.Response(status=400, text="Bad Request")
-
-    user_raw = data.get("user")
-    if not user_raw:
-        return aiohttp.web.Response(status=400, text="Missing user field")
-
-    try:
-        user_id = int(user_raw)
-    except ValueError:
-        return aiohttp.web.Response(status=400, text="Invalid user ID")
-
-    # 2. Detección del servidor objetivo:
-    # Prioridad A: query string (?guild=12345)
-    guild_id = None
-    query_str = data.get("query", "")
-    if query_str:
-        params = urllib.parse.parse_qs(query_str.lstrip("?"))
-        if "guild" in params and params["guild"][0].isdigit():
-            guild_id = int(params["guild"][0])
-
-    # Prioridad B: servidor con más partidas del usuario en DuckDB
-    if guild_id is None:
-        try:
-            guild_id = await obtener_guild_mas_activa_usuario_async(user_id)
-        except Exception as e:
-            print(f"[Top.gg Webhook] Error consultando servidor más activo: {e}")
-
-    # Prioridad C: primer servidor compartido entre el bot y el usuario
-    if guild_id is None:
-        for g in bot.guilds:
-            if g.get_member(user_id):
-                guild_id = g.id
-                break
-
-    if guild_id is None:
-        print(f"[Top.gg Webhook] ⚠️ Voto recibido de usuario {user_id}, pero no se encontró servidor asociado.")
-        return aiohttp.web.json_response({"status": "received_no_guild", "user_id": user_id})
-
-    # 3. Sumar 10 partidas premium
-    nuevas = await sumar_partidas_voto_async(guild_id, 10)
-    print(f"🗳️ [Top.gg Webhook] ¡Voto exitoso! Usuario {user_id} -> Servidor {guild_id}. Partidas totales: {nuevas}")
-
-    # 4. Enviar anuncio en el canal del servidor
-    guild = bot.get_guild(guild_id)
-    if guild:
-        target_ch = guild.system_channel
-        if not (target_ch and target_ch.permissions_for(guild.me).send_messages):
-            for ch in guild.text_channels:
-                if ch.permissions_for(guild.me).send_messages:
-                    target_ch = ch
-                    break
-        if target_ch:
-            try:
-                embed = discord.Embed(
-                    title=t("vote_announced_title", guild_id),
-                    description=t("vote_announced_desc", guild_id, user=f"<@{user_id}>", count=nuevas),
-                    color=discord.Color.from_rgb(255, 105, 180),
-                )
-                embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
-                await target_ch.send(embed=embed)
-            except Exception as e:
-                print(f"[Top.gg Webhook] No se pudo enviar anuncio en {guild.name}: {e}")
-
-    return aiohttp.web.json_response({
-        "status": "success",
-        "user_id": user_id,
-        "guild_id": guild_id,
-        "partidas_totales": nuevas,
-    })
-
-
-async def iniciar_webhook_topgg():
-    global _webhook_runner
-    port = int(os.getenv("TOPGG_WEBHOOK_PORT", "5000"))
-    app = aiohttp.web.Application()
-    app.router.add_post("/topgg-webhook", handle_topgg_webhook)
-    app.router.add_post("/dblwebhook", handle_topgg_webhook)
-    app.router.add_get("/", lambda req: aiohttp.web.Response(text="PokeImpostor Top.gg Webhook Active ⚡"))
-    _webhook_runner = aiohttp.web.AppRunner(app)
-    await _webhook_runner.setup()
-    site = aiohttp.web.TCPSite(_webhook_runner, "0.0.0.0", port)
-    try:
-        await site.start()
-        print(f"🗳️ [Top.gg Webhook] Servidor escuchando en http://0.0.0.0:{port}/topgg-webhook")
-    except Exception as e:
-        print(f"⚠️ [Top.gg Webhook] No se pudo iniciar en el puerto {port}: {e}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -314,7 +166,7 @@ async def on_ready():
             print(f"[on_ready] Error asegurando rol en {g.name}: {e}")
 
     # Iniciar listener de webhook Top.gg
-    bot.loop.create_task(iniciar_webhook_topgg())
+    bot.loop.create_task(iniciar_webhook_topgg(bot))
 
     # ── Recuperación tras reinicio ───────────────────────────────────────────
     canales_previos = _cargar_sesiones_previas()
@@ -322,9 +174,7 @@ async def on_ready():
         try:
             canal = bot.get_channel(channel_id) or await bot.fetch_channel(channel_id)
             gid = canal.guild.id if getattr(canal, "guild", None) else None
-            await canal.send(
-                t("session_lost_after_restart", gid)
-            )
+            await canal.send(t("session_lost_after_restart", gid))
         except Exception as e:
             print(f"[on_ready] No se pudo avisar en canal {channel_id}: {e}")
 
@@ -337,7 +187,6 @@ async def on_guild_join(guild: discord.Guild):
     print(f"📥 Bot añadido al servidor: {guild.name} ({guild.id})")
     await asegurar_rol_pokehost(guild)
 
-    # Buscar canal adecuado para el mensaje de bienvenida
     target_channel = guild.system_channel
     if not (target_channel and target_channel.permissions_for(guild.me).send_messages):
         for ch in guild.text_channels:
@@ -377,14 +226,12 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  /impregister
+#  SLASH COMMANDS (29 GLOBALES LIMPIOS)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# 1 & 2. /impregister & /play-kyu
 @bot.tree.command(name="impregister", description="Open a new PokeImpostor lobby / Abrir sala de PokeImpostor")
 async def impregister(interaction: discord.Interaction):
-    # Este juego depende de roles de servidor, DMs a
-    # miembros del servidor, e idioma por servidor. No tiene sentido fuera
-    # de un guild (ej. DMs directos al bot).
     if interaction.guild_id is None or interaction.guild is None:
         return await interaction.response.send_message(
             "❌ This command only works inside a server. / Este comando solo funciona dentro de un servidor.",
@@ -392,11 +239,8 @@ async def impregister(interaction: discord.Interaction):
         )
 
     gid = interaction.guild_id
-
-    # Asegurar que el rol PokeHost existe en el servidor
     await asegurar_rol_pokehost(interaction.guild)
 
-    # Validar permisos: debe tener el rol PokeHost o ser Administrador
     if not es_anfitrion_o_admin(interaction.user, interaction.guild):
         return await interaction.response.send_message(
             t("register_only_host", gid, role=obtener_nombre_rol_host(interaction.guild)),
@@ -404,16 +248,12 @@ async def impregister(interaction: discord.Interaction):
         )
 
     if interaction.channel.id in partidas_activas:
-        return await interaction.response.send_message(
-            t("register_already_active", gid), ephemeral=True
-        )
+        return await interaction.response.send_message(t("register_already_active", gid), ephemeral=True)
+
     nueva = Partida(canal=interaction.channel, partidas_activas=partidas_activas)
     partidas_activas[interaction.channel.id] = nueva
     view = PanelInscripcion(nueva)
-    await interaction.response.send_message(
-        embed=_build_embed_lobby(nueva),
-        view=view,
-    )
+    await interaction.response.send_message(embed=_build_embed_lobby(nueva), view=view)
     try:
         view.message = await interaction.original_response()
         nueva.mensaje_lobby = view.message
@@ -426,70 +266,13 @@ async def play_kyu(interaction: discord.Interaction):
     await impregister(interaction)
 
 
-
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  /impver — reenviar rol por DM
-# ═══════════════════════════════════════════════════════════════════════════════
-
+# 3 & 4. /impver & /role-kyu
 @bot.tree.command(name="impver", description="Re-send your role by DM (only during an active game)")
 async def impver(interaction: discord.Interaction):
-    gid     = interaction.guild_id
+    gid = interaction.guild_id or 0
     partida = partidas_activas.get(interaction.channel.id)
-
-    if partida is None or (partida.datos_pokemon is None and not partida.pokemons_ebrios and partida.objetivo_humano is None):
-        return await interaction.response.send_message(t("impver_no_game", gid), ephemeral=True)
-
-    if not any(j.id == interaction.user.id for j in partida.jugadores_iniciales):
-        return await interaction.response.send_message(t("impver_not_player", gid), ephemeral=True)
-
-    try:
-        es_impostor  = any(imp.id == interaction.user.id for imp in partida.impostores_iniciales)
-        es_ebrios    = bool(partida.pokemons_ebrios)
-        es_cj        = partida.objetivo_humano is not None
-
-        if es_cj:
-            # Variante Objetivo Humano
-            if es_impostor:
-                pista = partida.pistas_impostores.get(interaction.user.id, "")
-                await interaction.user.send(embed=partida._build_dm_caos_jugador_impostor(pista))
-            else:
-                await interaction.user.send(embed=partida._build_dm_caos_jugador_tripulante(partida.objetivo_humano))
-
-        elif es_ebrios:
-            # Variante Danza Caos — 100% idéntico a tripulante normal
-            dp = partida.pokemons_ebrios.get(interaction.user.id)
-            if dp:
-                emb = discord.Embed(
-                    title=t("impver_crew_title", gid),
-                    description=t("dm_crew_desc", gid, name=dp.get("nombre", "?"), types=" / ".join(dp.get("tipos", ["?"]))),
-                    color=discord.Color.from_rgb(30, 160, 80),
-                )
-                if dp.get("sprite"):
-                    emb.set_image(url=dp["sprite"])
-                await interaction.user.send(embed=emb)
-
-        elif es_impostor:
-            # Impostor normal (incluye cómplices si están configurados)
-            await interaction.user.send(embed=partida._build_dm_impostor(interaction.user))
-        else:
-            # Tripulante normal
-            dp = partida.datos_pokemon
-            if dp:
-                emb = discord.Embed(
-                    title=t("impver_crew_title", gid),
-                    description=t("dm_crew_desc", gid, name=dp.get("nombre", "?"), types=" / ".join(dp.get("tipos", ["?"]))),
-                    color=discord.Color.from_rgb(30, 160, 80),
-                )
-                if dp.get("sprite"):
-                    emb.set_image(url=dp["sprite"])
-                await interaction.user.send(embed=emb)
-
-        await interaction.response.send_message(t("impver_sent", gid), ephemeral=True)
-
-    except discord.Forbidden:
-        await interaction.response.send_message(t("impver_dm_blocked", gid), ephemeral=True)
+    ok, msg_key = await reenviar_rol_secreto(partida, interaction.user, gid)
+    await interaction.response.send_message(t(msg_key, gid), ephemeral=True)
 
 
 @bot.tree.command(name="role-kyu", description="Re-send your secret role by DM / Reenviar rol secreto por DM")
@@ -497,23 +280,17 @@ async def role_kyu(interaction: discord.Interaction):
     await impver(interaction)
 
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  /implanguage — cambiar idioma del servidor
-# ═══════════════════════════════════════════════════════════════════════════════
-
+# 5 & 6. /implang & /lang-kyu
 async def _ejecutar_cambio_idioma(interaction: discord.Interaction, language: str):
     if interaction.guild_id is None or interaction.guild is None:
         return await interaction.response.send_message(
             "❌ This command only works inside a server. / Este comando solo funciona dentro de un servidor.",
             ephemeral=True,
         )
-
     gid = interaction.guild_id
     if not es_anfitrion_o_admin(interaction.user, interaction.guild):
-        return await interaction.response.send_message(
-            t("lang_only_admin", gid), ephemeral=True
-        )
+        return await interaction.response.send_message(t("lang_only_admin", gid), ephemeral=True)
+
     set_lang(gid, language)
     key = "lang_changed_en" if language == "en" else "lang_changed_es"
     await interaction.response.send_message(t(key, gid))
@@ -539,131 +316,42 @@ async def lang_kyu(interaction: discord.Interaction, language: str):
     await _ejecutar_cambio_idioma(interaction, language)
 
 
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  /imphelp
-# ═══════════════════════════════════════════════════════════════════════════════
-
-async def _ejecutar_help(interaction: discord.Interaction):
-    gid = interaction.guild_id
-    embed = discord.Embed(
-        title=t("help_title",  gid),
-        description=t("help_desc", gid),
-        color=discord.Color.from_rgb(255, 203, 5),
-    )
-    embed.add_field(name=t("help_step1_name", gid), value=t("help_step1_value", gid), inline=False)
-    embed.add_field(name=t("help_step2_name", gid), value=t("help_step2_value", gid), inline=False)
-    embed.add_field(name=t("help_step3_name", gid), value=t("help_step3_value", gid), inline=False)
-    embed.add_field(name=t("help_step4_name", gid), value=t("help_step4_value", gid), inline=False)
-    embed.add_field(name=t("help_modes_name", gid), value=t("help_modes_value", gid), inline=False)
-    embed.add_field(name=t("help_commands_name", gid), value=t("help_commands_value", gid), inline=False)
-    embed.add_field(name=t("help_art_credits_name", gid), value=t("help_art_credits_value", gid), inline=False)
-    embed.set_footer(text=t("help_footer", gid))
-    await interaction.response.send_message(embed=embed)
-
-
+# 7 & 8. /imphelp & /help-kyu
 @bot.tree.command(name="imphelp", description="How to play PokeImpostor / Cómo jugar")
 async def imphelp(interaction: discord.Interaction):
-    await _ejecutar_help(interaction)
+    gid = interaction.guild_id or 0
+    await interaction.response.send_message(embed=construir_embed_ayuda(gid))
 
 
 @bot.tree.command(name="help-kyu", description="How to play PokeImpostor / Cómo jugar")
 async def help_kyu(interaction: discord.Interaction):
-    await _ejecutar_help(interaction)
+    await imphelp(interaction)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  /impcreditos — Créditos del artista
-# ═══════════════════════════════════════════════════════════════════════════════
-
-async def _ejecutar_creditos(interaction: discord.Interaction):
-    gid = interaction.guild_id
-    embed = discord.Embed(
-        title=t("credits_title", gid),
-        description=t("credits_desc", gid),
-        color=discord.Color.from_rgb(255, 105, 180),
-    )
-    embed.set_footer(text=t("credits_footer", gid))
-    await interaction.response.send_message(embed=embed)
-
-
+# 9 & 10. /impcreditos & /credits-kyu
 @bot.tree.command(name="impcreditos", description="Artist and illustration credits / Créditos del artista de PokeImpostor")
 async def impcreditos(interaction: discord.Interaction):
-    await _ejecutar_creditos(interaction)
+    gid = interaction.guild_id or 0
+    await interaction.response.send_message(embed=construir_embed_creditos(gid))
 
 
 @bot.tree.command(name="credits-kyu", description="Artist and illustration credits / Créditos del artista de PokeImpostor")
 async def credits_kyu(interaction: discord.Interaction):
-    await _ejecutar_creditos(interaction)
+    await impcreditos(interaction)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  /impperfil — Estadísticas y perfil del jugador
-# ═══════════════════════════════════════════════════════════════════════════════
-
+# 11 & 12. /impprofile & /profile-kyu
 async def _ejecutar_perfil(interaction: discord.Interaction, usuario: discord.Member | None = None):
     if interaction.guild_id is None:
         return await interaction.response.send_message(
             "❌ This command only works inside a server. / Este comando solo funciona dentro de un servidor.",
             ephemeral=True,
         )
-
     gid = interaction.guild_id
     target = usuario or interaction.user
-    stats = await obtener_perfil_jugador_async(gid, target.id)
-
-    if stats is None:
-        return await interaction.response.send_message(
-            t("profile_no_games", gid),
-            ephemeral=True,
-        )
-
-    # Color personalizado según el rol del miembro si tiene uno configurado
-    embed_color = target.color if getattr(target, "color", None) and target.color.value != 0 else discord.Color.from_rgb(255, 203, 5)
-    embed = discord.Embed(
-        title=t("profile_title", gid, name=target.display_name),
-        color=embed_color,
-    )
-    if getattr(target, "display_avatar", None) and target.display_avatar.url:
-        embed.set_thumbnail(url=target.display_avatar.url)
-
-    embed.add_field(
-        name=t("profile_general_field", gid),
-        value=t("profile_general_value", gid,
-                total=stats["total_partidas"],
-                wins=stats["victorias"],
-                losses=stats["derrotas"],
-                winrate=stats["winrate_gral"]),
-        inline=False,
-    )
-    embed.add_field(
-        name=t("profile_roles_field", gid),
-        value=t("profile_roles_value", gid,
-                imp_wins=stats["victorias_impostor"],
-                imp_games=stats["partidas_impostor"],
-                imp_wr=stats["winrate_impostor"],
-                crew_wins=stats["victorias_tripulante"],
-                crew_games=stats["partidas_tripulante"],
-                crew_wr=stats["winrate_tripulante"]),
-        inline=False,
-    )
-
-    if stats["expulsado_inocente"] > 0:
-        embed.add_field(
-            name=t("profile_innocent_field", gid),
-            value=t("profile_innocent_value", gid, count=stats["expulsado_inocente"]),
-            inline=True,
-        )
-
-    if stats["pokemon_frecuente"]:
-        embed.add_field(
-            name=t("profile_pokemon_field", gid),
-            value=t("profile_pokemon_value", gid, name=stats["pokemon_frecuente"]),
-            inline=True,
-        )
-
-    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+    embed, err = await construir_embed_perfil(gid, target)
+    if err:
+        return await interaction.response.send_message(t(err, gid), ephemeral=True)
     await interaction.response.send_message(embed=embed)
 
 
@@ -679,51 +367,17 @@ async def profile_kyu(interaction: discord.Interaction, usuario: discord.Member 
     await _ejecutar_perfil(interaction, usuario)
 
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  /impranking — Tabla de clasificación del servidor
-# ═══════════════════════════════════════════════════════════════════════════════
-
+# 13 & 14. /impleaderboard & /leaderboard-kyu
 async def _ejecutar_ranking(interaction: discord.Interaction, categoria: str = "general"):
     if interaction.guild_id is None:
         return await interaction.response.send_message(
             "❌ This command only works inside a server. / Este comando solo funciona dentro de un servidor.",
             ephemeral=True,
         )
-
     gid = interaction.guild_id
-    top = await obtener_ranking_async(gid, categoria)
-
-    if not top:
-        return await interaction.response.send_message(
-            t("ranking_empty", gid),
-            ephemeral=True,
-        )
-
-    title_key = (
-        "ranking_title_impostores" if categoria == "impostores"
-        else ("ranking_title_detectives" if categoria == "detectives" else "ranking_title_general")
-    )
-    embed = discord.Embed(
-        title=t(title_key, gid),
-        color=discord.Color.from_rgb(255, 203, 5),
-    )
-
-    medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
-    lines = []
-    for idx, row in enumerate(top):
-        medal = medals[idx] if idx < len(medals) else f"{idx + 1}."
-        lines.append(
-            t("ranking_entry", gid,
-              medal=medal,
-              name=row["user_name"],
-              wins=row["victorias"],
-              winrate=row["winrate"],
-              total=row["total"])
-        )
-
-    embed.description = "\n".join(lines)
-    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+    embed, err = await construir_embed_ranking(gid, categoria)
+    if err:
+        return await interaction.response.send_message(t(err, gid), ephemeral=True)
     await interaction.response.send_message(embed=embed)
 
 
@@ -749,59 +403,17 @@ async def leaderboard_kyu(interaction: discord.Interaction, categoria: str = "ge
     await _ejecutar_ranking(interaction, categoria)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  /impstats — Analítica global del servidor
-# ═══════════════════════════════════════════════════════════════════════════════
-
+# 15 & 16. /impstats & /stats-kyu
 async def _ejecutar_stats(interaction: discord.Interaction):
     if interaction.guild_id is None:
         return await interaction.response.send_message(
             "❌ This command only works inside a server. / Este comando solo funciona dentro de un servidor.",
             ephemeral=True,
         )
-
     gid = interaction.guild_id
-    stats = await obtener_stats_servidor_async(gid)
-
-    if stats is None:
-        return await interaction.response.send_message(
-            t("server_stats_empty", gid),
-            ephemeral=True,
-        )
-
-    embed = discord.Embed(
-        title=t("server_stats_title", gid),
-        color=discord.Color.blurple(),
-    )
-
-    embed.add_field(
-        name=t("server_stats_balance_field", gid),
-        value=t("server_stats_balance_value", gid,
-                total=stats["total_partidas"],
-                imp_wins=stats["vic_impostores"],
-                imp_pct=stats["pct_impostores"],
-                crew_wins=stats["vic_tripulantes"],
-                crew_pct=stats["pct_tripulantes"],
-                no_imp=stats["sin_impostor"]),
-        inline=False,
-    )
-    embed.add_field(
-        name=t("server_stats_fav_mode", gid),
-        value=f"**{stats['modo_favorito'].capitalize()}**",
-        inline=True,
-    )
-    embed.add_field(
-        name=t("server_stats_deadliest_pk", gid),
-        value=f"**{stats['pokemon_letal']}**",
-        inline=True,
-    )
-    embed.add_field(
-        name=t("server_stats_common_pk", gid),
-        value=f"**{stats['pokemon_comun']}**",
-        inline=True,
-    )
-
-    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+    embed, err = await construir_embed_stats(gid)
+    if err:
+        return await interaction.response.send_message(t(err, gid), ephemeral=True)
     await interaction.response.send_message(embed=embed)
 
 
@@ -815,18 +427,13 @@ async def stats_kyu(interaction: discord.Interaction):
     await _ejecutar_stats(interaction)
 
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  SISTEMA DE LICENCIAS, MONETIZACIÓN Y CLAVES VIP
-# ═══════════════════════════════════════════════════════════════════════════════
-
+# 17 & 18. /impgenkey & /genkey-kyu
 class ModalGenerarKey(discord.ui.Modal):
     def __init__(self, gid: int):
-        super().__init__(title=t("license_key_modal_title", gid))
+        super().__init__(title="PokeImpostor — Generar Clave VIP")
         self.gid = gid
-
         self.password_input = discord.ui.TextInput(
-            label=t("license_key_modal_pwd", gid),
+            label="Master Password (MASTER_AUTH_KEY)",
             placeholder="••••••••••••",
             required=True,
             style=discord.TextStyle.short,
@@ -850,12 +457,8 @@ class ModalGenerarKey(discord.ui.Modal):
         self.add_item(self.valor_input)
 
     async def on_submit(self, interaction: discord.Interaction):
-        # Validación con digest criptográfico seguro (timing-attack resistant)
         if not verificar_master_password(self.password_input.value.strip()):
-            return await interaction.response.send_message(
-                t("license_auth_failed", self.gid),
-                ephemeral=True
-            )
+            return await interaction.response.send_message(t("license_auth_failed", self.gid), ephemeral=True)
 
         tipo_raw = self.tipo_input.value.strip().lower()
         val_str = self.valor_input.value.strip().lower()
@@ -877,10 +480,7 @@ class ModalGenerarKey(discord.ui.Modal):
         exito = await crear_licencia_async(nueva_key, tipo, duracion_dias, cargas)
 
         if not exito:
-            return await interaction.response.send_message(
-                "❌ Error al registrar la clave en la base de datos.",
-                ephemeral=True
-            )
+            return await interaction.response.send_message("❌ Error al registrar la clave en la base de datos.", ephemeral=True)
 
         embed = discord.Embed(
             title=t("license_key_gen_title", self.gid),
@@ -891,13 +491,11 @@ class ModalGenerarKey(discord.ui.Modal):
 
 
 async def _ejecutar_generarkey(interaction: discord.Interaction):
-    # Verificación exclusiva de servidor central autorizado
     if interaction.guild_id != SERVER_ADMIN_CENTRAL_ID:
         return await interaction.response.send_message(
             f"⛔ Este comando solo puede ser ejecutado en el servidor central autorizado (ID: {SERVER_ADMIN_CENTRAL_ID}).",
             ephemeral=True
         )
-    # Verificación estricta de propietario del bot / app owner
     es_dueno = await bot.is_owner(interaction.user) or (
         os.getenv("OWNER_ID") and str(interaction.user.id) == os.getenv("OWNER_ID").strip()
     )
@@ -907,8 +505,7 @@ async def _ejecutar_generarkey(interaction: discord.Interaction):
             ephemeral=True
         )
     gid = interaction.guild_id or 0
-    modal = ModalGenerarKey(gid)
-    await interaction.response.send_modal(modal)
+    await interaction.response.send_modal(ModalGenerarKey(gid))
 
 
 @bot.tree.command(name="impgenkey", description="Owner only: Generate VIP License Keys / Generar claves VIP")
@@ -921,6 +518,7 @@ async def genkey_kyu(interaction: discord.Interaction):
     await _ejecutar_generarkey(interaction)
 
 
+# 19 & 20. /impredeem & /redeem-kyu
 async def _ejecutar_canjear(interaction: discord.Interaction, clave: str):
     if interaction.guild_id is None or interaction.guild is None:
         return await interaction.response.send_message(
@@ -935,29 +533,9 @@ async def _ejecutar_canjear(interaction: discord.Interaction, clave: str):
             ephemeral=True
         )
 
-    res = await canjear_licencia_async(clave, gid, interaction.user.id)
-    if not res["exito"]:
-        err = res.get("error")
-        if err == "already_used":
-            return await interaction.response.send_message(t("redeem_already_used", gid), ephemeral=True)
-        return await interaction.response.send_message(t("redeem_not_found", gid), ephemeral=True)
-
-    tipo = res["tipo"]
-    if tipo == "permanente":
-        det = "Pase Vitalicio ($5 USD) Permanente de por vida"
-    elif tipo == "dias":
-        exp = res["expira_en"].strftime("%d/%m/%Y") if res.get("expira_en") else "?"
-        dias = res.get("duracion_dias", 30)
-        det = f"{dias} días (hasta {exp})"
-    else:
-        det = f"{res['cargas_totales']} partidas VIP disponibles (Top.gg / Cargas)"
-
-    embed = discord.Embed(
-        title=t("redeem_success_title", gid),
-        description=t("redeem_success_desc", gid, tipo=tipo.upper(), details=det),
-        color=discord.Color.green(),
-    )
-    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+    embed, err = await canjear_clave_licencia(clave.strip(), gid, interaction.user.id)
+    if err:
+        return await interaction.response.send_message(t(err, gid), ephemeral=True)
     await interaction.response.send_message(embed=embed)
 
 
@@ -973,6 +551,7 @@ async def redeem_kyu(interaction: discord.Interaction, clave: str):
     await _ejecutar_canjear(interaction, clave)
 
 
+# 21 & 22. /implicense & /license-kyu
 async def _ejecutar_licencia(interaction: discord.Interaction):
     if interaction.guild_id is None:
         return await interaction.response.send_message(
@@ -980,29 +559,12 @@ async def _ejecutar_licencia(interaction: discord.Interaction):
             ephemeral=True,
         )
     gid = interaction.guild_id
-    estado = await verificar_estado_premium_async(gid)
-
-    if estado["es_premium"]:
-        embed = discord.Embed(
-            title=t("license_status_title", gid),
-            description=t("license_status_premium", gid, tipo=estado["tipo"].upper(), details=estado["detalle"]),
-            color=discord.Color.gold(),
-        )
-        embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
-        await interaction.response.send_message(embed=embed)
-    else:
-        client_id = bot.user.id if bot.user else 1135381488775463075
-        vote_url = f"https://top.gg/bot/{client_id}/vote"
-        view = discord.ui.View()
-        view.add_item(discord.ui.Button(label=t("vote_btn_label", gid), url=vote_url, style=discord.ButtonStyle.link))
-        view.add_item(discord.ui.Button(label=t("donate_btn_label", gid), url=BUYMEACOFFEE_URL, style=discord.ButtonStyle.link))
-        embed = discord.Embed(
-            title=t("license_status_title", gid),
-            description=t("license_status_free", gid),
-            color=discord.Color.light_grey(),
-        )
-        embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+    client_id = bot.user.id if bot.user else 1135381488775463075
+    embed, view = await construir_payload_licencia(gid, client_id)
+    if view:
         await interaction.response.send_message(embed=embed, view=view)
+    else:
+        await interaction.response.send_message(embed=embed)
 
 
 @bot.tree.command(name="implicense", description="Check this server's license and VIP tier / Consultar estado de licencia")
@@ -1015,70 +577,33 @@ async def license_kyu(interaction: discord.Interaction):
     await _ejecutar_licencia(interaction)
 
 
-async def _ejecutar_voto(interaction: discord.Interaction):
-    gid = interaction.guild_id or 0
-    client_id = bot.user.id if bot.user else 1135381488775463075
-    vote_url = f"https://top.gg/bot/{client_id}/vote?guild={gid}" if gid else f"https://top.gg/bot/{client_id}/vote"
-    view = discord.ui.View()
-    view.add_item(discord.ui.Button(label=t("vote_btn_label", gid), url=vote_url, style=discord.ButtonStyle.link))
-    view.add_item(discord.ui.Button(label=t("donate_btn_label", gid), url=BUYMEACOFFEE_URL, style=discord.ButtonStyle.link))
-    embed = discord.Embed(
-        title=t("vote_embed_title", gid),
-        description=t("vote_embed_desc", gid),
-        color=discord.Color.from_rgb(255, 105, 180),
-    )
-    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
-    await interaction.response.send_message(embed=embed, view=view)
-
-
+# 23. /vote-kyu
 @bot.tree.command(name="vote-kyu", description="Vote on Top.gg for 10 free premium matches / Votar en Top.gg")
 async def vote_kyu(interaction: discord.Interaction):
-    await _ejecutar_voto(interaction)
-
-
-async def _ejecutar_donar(interaction: discord.Interaction):
-    gid = interaction.guild_id or 0
-    view = discord.ui.View()
-    view.add_item(discord.ui.Button(label=t("donate_btn_label", gid), url=BUYMEACOFFEE_URL, style=discord.ButtonStyle.link))
-    embed = discord.Embed(
-        title=t("donate_embed_title", gid),
-        description=t("donate_embed_desc", gid),
-        color=discord.Color.gold(),
-    )
-    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
-    await interaction.response.send_message(embed=embed, view=view)
-
-
-@bot.tree.command(name="donate-kyu", description="Support the bot & get Lifetime VIP ($5 USD) / Donar")
-async def donate_kyu(interaction: discord.Interaction):
-    await _ejecutar_donar(interaction)
-
-
-async def _ejecutar_invitar(interaction: discord.Interaction):
     gid = interaction.guild_id or 0
     client_id = bot.user.id if bot.user else 1135381488775463075
-    invite_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&permissions={INVITE_PERMS_INT}&scope=bot%20applications.commands"
-    view = discord.ui.View()
-    view.add_item(discord.ui.Button(label=t("invite_btn_label", gid), url=invite_url, style=discord.ButtonStyle.link))
-    embed = discord.Embed(
-        title=t("invite_embed_title", gid),
-        description=t("invite_embed_desc", gid),
-        color=discord.Color.from_rgb(255, 203, 5),
-    )
-    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+    embed, view = construir_payload_voto(gid, client_id)
     await interaction.response.send_message(embed=embed, view=view)
 
 
+# 24. /donate-kyu
+@bot.tree.command(name="donate-kyu", description="Support the bot & get Lifetime VIP ($5 USD) / Donar")
+async def donate_kyu(interaction: discord.Interaction):
+    gid = interaction.guild_id or 0
+    embed, view = construir_payload_donar(gid)
+    await interaction.response.send_message(embed=embed, view=view)
+
+
+# 25. /invite-kyu
 @bot.tree.command(name="invite-kyu", description="Invite Mimikyu to another server / Invitar a Mimikyu")
 async def invite_kyu(interaction: discord.Interaction):
-    await _ejecutar_invitar(interaction)
+    gid = interaction.guild_id or 0
+    client_id = bot.user.id if bot.user else 1135381488775463075
+    embed, view = construir_payload_invitar(gid, client_id)
+    await interaction.response.send_message(embed=embed, view=view)
 
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-#  /impsetrole — Configurar o crear rol de anfitrión PokeImpostor
-# ═══════════════════════════════════════════════════════════════════════════════
-
+# 26 & 27. /impsetrole & /setrole-kyu
 async def _ejecutar_setrole(
     interaction: discord.Interaction,
     role: discord.Role | None = None,
@@ -1091,76 +616,17 @@ async def _ejecutar_setrole(
         )
 
     gid = interaction.guild_id
-
-    # Solo administradores o el dueño del servidor pueden configurar el rol
     es_admin = (
         getattr(interaction.user, "guild_permissions", None)
         and interaction.user.guild_permissions.administrator
     ) or (interaction.user == interaction.guild.owner)
 
     if not es_admin:
-        return await interaction.response.send_message(
-            t("setrole_admin_only", gid),
-            ephemeral=True,
-        )
+        return await interaction.response.send_message(t("setrole_admin_only", gid), ephemeral=True)
 
-    target_role: discord.Role | None = role
-    creado = False
-
-    if target_role is None:
-        # Buscar si ya existe el rol PokeHost
-        target_role = discord.utils.get(interaction.guild.roles, name=NOMBRE_ROL_HOST)
-        if target_role is None:
-            # Crear el rol con color insignia de Pokémon
-            try:
-                target_role = await interaction.guild.create_role(
-                    name=NOMBRE_ROL_HOST,
-                    color=discord.Color.from_rgb(255, 203, 5),
-                    mentionable=True,
-                    reason="PokeImpostor official host role",
-                )
-                creado = True
-            except discord.Forbidden:
-                return await interaction.response.send_message(
-                    t("setrole_missing_perms", gid),
-                    ephemeral=True,
-                )
-            except Exception as e:
-                return await interaction.response.send_message(
-                    f"❌ Error creating role: {e}",
-                    ephemeral=True,
-                )
-
-    # Persistir rol host en DuckDB
-    await set_guild_rol_host_async(gid, target_role.id)
-
-    # Mensaje base
-    if creado:
-        msg = t("setrole_success_created", gid, role=target_role.mention)
-    else:
-        msg = t("setrole_success_existing", gid, role=target_role.mention)
-
-    # Asignar a usuario si se especificó, o por defecto al autor si no lo tiene
-    usuario_asignar = assign_to
-    if usuario_asignar is None:
-        if isinstance(interaction.user, discord.Member) and target_role not in interaction.user.roles:
-            usuario_asignar = interaction.user
-
-    if usuario_asignar is not None:
-        try:
-            await usuario_asignar.add_roles(target_role, reason="PokeImpostor host role assignment")
-            msg += "\n" + t("setrole_assigned_user", gid, role=target_role.name, user=usuario_asignar.mention)
-        except discord.Forbidden:
-            msg += "\n" + t("setrole_hierarchy_error", gid, role=target_role.name, user=usuario_asignar.mention)
-        except Exception as e:
-            msg += f"\n⚠️ Warning: could not assign role to {usuario_asignar.mention}: {e}"
-
-    embed = discord.Embed(
-        title=t("setrole_embed_title", gid),
-        description=msg,
-        color=discord.Color.from_rgb(255, 203, 5),
-    )
-    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+    embed, err = await ejecutar_setrole_comun(interaction.guild, interaction.user, role, assign_to)
+    if err:
+        return await interaction.response.send_message(err, ephemeral=True)
     await interaction.response.send_message(embed=embed)
 
 
@@ -1169,11 +635,7 @@ async def _ejecutar_setrole(
     role="Role to designate as PokeHost (leave empty to auto-create @PokeHost)",
     assign_to="Trainer to grant the host role to (optional)",
 )
-async def impsetrole(
-    interaction: discord.Interaction,
-    role: discord.Role | None = None,
-    assign_to: discord.Member | None = None,
-):
+async def impsetrole(interaction: discord.Interaction, role: discord.Role | None = None, assign_to: discord.Member | None = None):
     await _ejecutar_setrole(interaction, role, assign_to)
 
 
@@ -1182,50 +644,39 @@ async def impsetrole(
     role="Role to designate as PokeHost (leave empty to auto-create @PokeHost)",
     assign_to="Trainer to grant the host role to (optional)",
 )
-async def setrole_kyu(
-    interaction: discord.Interaction,
-    role: discord.Role | None = None,
-    assign_to: discord.Member | None = None,
-):
+async def setrole_kyu(interaction: discord.Interaction, role: discord.Role | None = None, assign_to: discord.Member | None = None):
     await _ejecutar_setrole(interaction, role, assign_to)
 
 
-
-async def _ejecutar_partner_add(interaction: discord.Interaction, servidor_id: str, motivo: str = "Beta Tester Fundador"):
-    # Verificación exclusiva de servidor central autorizado
+# 28 & 29. /imppartner_add & /partner-kyu
+async def _ejecutar_partner_add(interaction: discord.Interaction, servidor_id: str, motivo: str):
     if interaction.guild_id != SERVER_ADMIN_CENTRAL_ID:
         return await interaction.response.send_message(
             f"⛔ Este comando solo puede ser ejecutado en el servidor central autorizado (ID: {SERVER_ADMIN_CENTRAL_ID}).",
             ephemeral=True
         )
-    # Verificación estricta de propietario del bot / app owner
     es_dueno = await bot.is_owner(interaction.user) or (
         os.getenv("OWNER_ID") and str(interaction.user.id) == os.getenv("OWNER_ID").strip()
     )
     if not es_dueno:
-        return await interaction.response.send_message(
-            "⛔ Access Denied: This command is restricted to the bot owner.",
-            ephemeral=True
-        )
+        return await interaction.response.send_message("⛔ Access Denied: Bot owner only.", ephemeral=True)
+
     gid = interaction.guild_id or 0
 
     class ModalPartnerAuth(discord.ui.Modal):
         def __init__(self):
-            super().__init__(title="🔐 Confirmar Partner con Contraseña")
+            super().__init__(title="PokeImpostor — Autorizar Beta Partner")
             self.pwd = discord.ui.TextInput(
-                label="Contraseña Maestra",
+                label="Master Password (MASTER_AUTH_KEY)",
                 placeholder="••••••••••••",
-                style=discord.TextStyle.short,
                 required=True,
+                style=discord.TextStyle.short,
             )
             self.add_item(self.pwd)
 
         async def on_submit(self, modal_inter: discord.Interaction):
             if not verificar_master_password(self.pwd.value.strip()):
-                return await modal_inter.response.send_message(
-                    t("license_auth_failed", gid),
-                    ephemeral=True
-                )
+                return await modal_inter.response.send_message(t("license_auth_failed", gid), ephemeral=True)
             try:
                 target_gid = int(servidor_id.strip())
             except ValueError:
@@ -1233,10 +684,7 @@ async def _ejecutar_partner_add(interaction: discord.Interaction, servidor_id: s
 
             ok = await registrar_servidor_partner_async(target_gid, motivo)
             if ok:
-                await modal_inter.response.send_message(
-                    t("partner_register_success", gid, guild_id=servidor_id),
-                    ephemeral=True
-                )
+                await modal_inter.response.send_message(t("partner_register_success", gid, guild_id=servidor_id), ephemeral=True)
             else:
                 await modal_inter.response.send_message("❌ Error al registrar partner.", ephemeral=True)
 
@@ -1255,7 +703,6 @@ async def partner_kyu(interaction: discord.Interaction, servidor_id: str, motivo
     await _ejecutar_partner_add(interaction, servidor_id, motivo)
 
 
-
 # ═══════════════════════════════════════════════════════════════════════════════
 #  INTERCEPTOR DE MENSAJES DE TEXTO (-imp sufijo y prefijo)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1263,10 +710,7 @@ async def partner_kyu(interaction: discord.Interaction, servidor_id: str, motivo
 def _extraer_comando_imp(texto: str) -> tuple[bool, str, list[str]]:
     """
     Detecta si un mensaje de texto es un comando para PokeImpostor.
-    Soporta:
-      - Sufijo: 'register -imp', 'perfil -imp', 'canjear ABCD -imp'
-      - Prefijo: '-imp register', '!imp register'
-    Retorna: (es_comando_valido, nombre_comando, argumentos)
+    Soporta sufijos (-mimi, mimi, -imp) y prefijos (-mimi, !mimi, -imp, etc.).
     """
     s = texto.strip()
     if not s:
@@ -1336,7 +780,7 @@ async def on_message(message: discord.Message):
 
     gid = message.guild.id
 
-    # 1. play / jugar / register / impregister / sala
+    # 1. play / jugar / register / sala
     if cmd in ("play", "jugar", "register", "registrar", "sala", "lobby", "start", "iniciar"):
         await asegurar_rol_pokehost(message.guild)
         if not es_anfitrion_o_admin(message.author, message.guild):
@@ -1350,127 +794,35 @@ async def on_message(message: discord.Message):
         nueva = Partida(canal=message.channel, partidas_activas=partidas_activas)
         partidas_activas[message.channel.id] = nueva
         view = PanelInscripcion(nueva)
-        msg_lobby = await message.channel.send(
-            embed=_build_embed_lobby(nueva),
-            view=view,
-        )
+        msg_lobby = await message.channel.send(embed=_build_embed_lobby(nueva), view=view)
         view.message = msg_lobby
         nueva.mensaje_lobby = msg_lobby
         return
 
-    # 2. ver / impver
+    # 2. ver / impver / rol
     elif cmd in ("ver", "rol", "role", "myrole"):
         partida = partidas_activas.get(message.channel.id)
-        if partida is None or (partida.datos_pokemon is None and not partida.pokemons_ebrios and partida.objetivo_humano is None):
-            await message.reply(t("impver_no_game", gid), mention_author=False)
-            return
-
-        if not any(j.id == message.author.id for j in partida.jugadores_iniciales):
-            await message.reply(t("impver_not_player", gid), mention_author=False)
-            return
-
-        try:
-            es_impostor = any(imp.id == message.author.id for imp in partida.impostores_iniciales)
-            es_ebrios = bool(partida.pokemons_ebrios)
-            es_cj = partida.objetivo_humano is not None
-
-            if es_cj:
-                if es_impostor:
-                    pista = partida.pistas_impostores.get(message.author.id, "")
-                    await message.author.send(embed=partida._build_dm_caos_jugador_impostor(pista))
-                else:
-                    await message.author.send(embed=partida._build_dm_caos_jugador_tripulante(partida.objetivo_humano))
-
-            elif es_ebrios:
-                # Variante Danza Caos — 100% idéntico a tripulante normal
-                dp = partida.pokemons_ebrios.get(message.author.id)
-                if dp:
-                    emb = discord.Embed(
-                        title=t("impver_crew_title", gid),
-                        description=t("dm_crew_desc", gid, name=dp.get("nombre", "?"), types=" / ".join(dp.get("tipos", ["?"]))),
-                        color=discord.Color.from_rgb(30, 160, 80),
-                    )
-                    if dp.get("sprite"):
-                        emb.set_image(url=dp["sprite"])
-                    await message.author.send(embed=emb)
-
-            elif es_impostor:
-                # Impostor normal (incluye cómplices si están configurados)
-                await message.author.send(embed=partida._build_dm_impostor(message.author))
-            else:
-                dp = partida.datos_pokemon
-                if dp:
-                    emb = discord.Embed(
-                        title=t("impver_crew_title", gid),
-                        description=t("dm_crew_desc", gid, name=dp.get("nombre", "?"), types=" / ".join(dp.get("tipos", ["?"]))),
-                        color=discord.Color.from_rgb(30, 160, 80),
-                    )
-                    if dp.get("sprite"):
-                        emb.set_image(url=dp["sprite"])
-                    await message.author.send(embed=emb)
-
+        ok, msg_key = await reenviar_rol_secreto(partida, message.author, gid)
+        if ok:
             try:
                 await message.add_reaction("📬")
             except Exception:
-                await message.reply(t("impver_sent", gid), delete_after=10, mention_author=False)
-
-        except discord.Forbidden:
-            await message.reply(t("impver_dm_blocked", gid), mention_author=False)
+                await message.reply(t(msg_key, gid), delete_after=10, mention_author=False)
+        else:
+            await message.reply(t(msg_key, gid), mention_author=False)
         return
 
-    # 3. perfil / impperfil
+    # 3. perfil / profile
     elif cmd in ("perfil", "profile"):
         target = message.mentions[0] if message.mentions else message.author
-        stats = await obtener_perfil_jugador_async(gid, target.id)
-        if stats is None:
-            await message.reply(t("profile_no_games", gid), mention_author=False)
+        embed, err = await construir_embed_perfil(gid, target)
+        if err:
+            await message.reply(t(err, gid), mention_author=False)
             return
-
-        embed_color = target.color if getattr(target, "color", None) and target.color.value != 0 else discord.Color.from_rgb(255, 203, 5)
-        embed = discord.Embed(
-            title=t("profile_title", gid, name=target.display_name),
-            color=embed_color,
-        )
-        if getattr(target, "display_avatar", None) and target.display_avatar.url:
-            embed.set_thumbnail(url=target.display_avatar.url)
-
-        embed.add_field(
-            name=t("profile_general_field", gid),
-            value=t("profile_general_value", gid,
-                    total=stats["total_partidas"],
-                    wins=stats["victorias"],
-                    losses=stats["derrotas"],
-                    winrate=stats["winrate_gral"]),
-            inline=False,
-        )
-        embed.add_field(
-            name=t("profile_roles_field", gid),
-            value=t("profile_roles_value", gid,
-                    imp_wins=stats["victorias_impostor"],
-                    imp_games=stats["partidas_impostor"],
-                    imp_wr=stats["winrate_impostor"],
-                    crew_wins=stats["victorias_tripulante"],
-                    crew_games=stats["partidas_tripulante"],
-                    crew_wr=stats["winrate_tripulante"]),
-            inline=False,
-        )
-        if stats["expulsado_inocente"] > 0:
-            embed.add_field(
-                name=t("profile_innocent_field", gid),
-                value=t("profile_innocent_value", gid, count=stats["expulsado_inocente"]),
-                inline=True,
-            )
-        if stats["pokemon_frecuente"]:
-            embed.add_field(
-                name=t("profile_pokemon_field", gid),
-                value=t("profile_pokemon_value", gid, name=stats["pokemon_frecuente"]),
-                inline=True,
-            )
-        embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
         await message.reply(embed=embed, mention_author=False)
         return
 
-    # 4. ranking / impranking
+    # 4. ranking / leaderboard / top
     elif cmd in ("ranking", "leaderboard", "top"):
         cat = "general"
         if args:
@@ -1480,104 +832,33 @@ async def on_message(message: discord.Message):
             elif "trip" in arg_low or "det" in arg_low or "crew" in arg_low:
                 cat = "detectives"
 
-        top = await obtener_ranking_async(gid, cat)
-        if not top:
-            await message.reply(t("ranking_empty", gid), mention_author=False)
+        embed, err = await construir_embed_ranking(gid, cat)
+        if err:
+            await message.reply(t(err, gid), mention_author=False)
             return
-
-        title_key = (
-            "ranking_title_impostores" if cat == "impostores"
-            else ("ranking_title_detectives" if cat == "detectives" else "ranking_title_general")
-        )
-        embed = discord.Embed(
-            title=t(title_key, gid),
-            color=discord.Color.from_rgb(255, 203, 5),
-        )
-        medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
-        lines = []
-        for idx, row in enumerate(top):
-            medal = medals[idx] if idx < len(medals) else f"{idx + 1}."
-            lines.append(
-                t("ranking_entry", gid,
-                  medal=medal,
-                  name=row["user_name"],
-                  wins=row["victorias"],
-                  winrate=row["winrate"],
-                  total=row["total"])
-            )
-        embed.description = "\n".join(lines)
-        embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
         await message.reply(embed=embed, mention_author=False)
         return
 
-    # 5. stats / impstats
+    # 5. stats / serverstats / partidas
     elif cmd in ("stats", "stats_partidas", "serverstats", "partidas"):
-        stats = await obtener_stats_servidor_async(gid)
-        if stats is None:
-            await message.reply(t("server_stats_empty", gid), mention_author=False)
+        embed, err = await construir_embed_stats(gid)
+        if err:
+            await message.reply(t(err, gid), mention_author=False)
             return
-
-        embed = discord.Embed(
-            title=t("server_stats_title", gid),
-            color=discord.Color.blurple(),
-        )
-        embed.add_field(
-            name=t("server_stats_balance_field", gid),
-            value=t("server_stats_balance_value", gid,
-                    total=stats["total_partidas"],
-                    imp_wins=stats["vic_impostores"],
-                    imp_pct=stats["pct_impostores"],
-                    crew_wins=stats["vic_tripulantes"],
-                    crew_pct=stats["pct_tripulantes"],
-                    no_imp=stats["sin_impostor"]),
-            inline=False,
-        )
-        embed.add_field(
-            name=t("server_stats_fav_mode", gid),
-            value=f"**{stats['modo_favorito'].capitalize()}**",
-            inline=True,
-        )
-        embed.add_field(
-            name=t("server_stats_deadliest_pk", gid),
-            value=f"**{stats['pokemon_letal']}**",
-            inline=True,
-        )
-        embed.add_field(
-            name=t("server_stats_common_pk", gid),
-            value=f"**{stats['pokemon_comun']}**",
-            inline=True,
-        )
-        embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
         await message.reply(embed=embed, mention_author=False)
         return
 
-    # 6. licencia / implicencia
+    # 6. licencia / license / vip / tier
     elif cmd in ("licencia", "license", "vip", "tier"):
-        estado = await verificar_estado_premium_async(gid)
-        if estado["es_premium"]:
-            embed = discord.Embed(
-                title=t("license_status_title", gid),
-                description=t("license_status_premium", gid, tipo=estado["tipo"].upper(), details=estado["detalle"]),
-                color=discord.Color.gold(),
-            )
-            embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
-            await message.reply(embed=embed, mention_author=False)
-        else:
-            client_id = bot.user.id if bot.user else 1135381488775463075
-            vote_url = f"https://top.gg/bot/{client_id}/vote"
-            view = discord.ui.View()
-            view.add_item(discord.ui.Button(label=t("vote_btn_label", gid), url=vote_url, style=discord.ButtonStyle.link))
-            view.add_item(discord.ui.Button(label=t("donate_btn_label", gid), url=BUYMEACOFFEE_URL, style=discord.ButtonStyle.link))
-            embed = discord.Embed(
-                title=t("license_status_title", gid),
-                description=t("license_status_free", gid),
-                color=discord.Color.light_grey(),
-            )
-            embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+        client_id = bot.user.id if bot.user else 1135381488775463075
+        embed, view = await construir_payload_licencia(gid, client_id)
+        if view:
             await message.reply(embed=embed, view=view, mention_author=False)
+        else:
+            await message.reply(embed=embed, mention_author=False)
         return
 
-    # 7. canjear / impcanjear
+    # 7. canjear / redeem
     elif cmd in ("canjear", "redeem"):
         if not es_anfitrion_o_admin(message.author, message.guild):
             await message.reply(t("redeem_only_host", gid, role=obtener_nombre_rol_host(message.guild)), mention_author=False)
@@ -1587,36 +868,14 @@ async def on_message(message: discord.Message):
             await message.reply("⚠️ Usage: `mimi redeem <KEY>` (or `redeem <KEY> -mimi`) / Uso: `mimi canjear <CLAVE>` (o `canjear <CLAVE> -mimi`)", mention_author=False)
             return
 
-        clave = args[0].strip()
-        res = await canjear_licencia_async(clave, gid, message.author.id)
-        if not res["exito"]:
-            err = res.get("error")
-            if err == "already_used":
-                await message.reply(t("redeem_already_used", gid), mention_author=False)
-            else:
-                await message.reply(t("redeem_not_found", gid), mention_author=False)
+        embed, err = await canjear_clave_licencia(args[0].strip(), gid, message.author.id)
+        if err:
+            await message.reply(t(err, gid), mention_author=False)
             return
-
-        tipo = res["tipo"]
-        if tipo == "permanente":
-            det = "Pase Vitalicio ($5 USD) Permanente de por vida"
-        elif tipo == "dias":
-            exp = res["expira_en"].strftime("%d/%m/%Y") if res.get("expira_en") else "?"
-            dias = res.get("duracion_dias", 30)
-            det = f"{dias} días (hasta {exp})"
-        else:
-            det = f"{res['cargas_totales']} partidas VIP disponibles (Top.gg / Cargas)"
-
-        embed = discord.Embed(
-            title=t("redeem_success_title", gid),
-            description=t("redeem_success_desc", gid, tipo=tipo.upper(), details=det),
-            color=discord.Color.green(),
-        )
-        embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
         await message.reply(embed=embed, mention_author=False)
         return
 
-    # 8. lang / implang / implanguage / idioma / impidioma
+    # 8. lang / idioma
     elif cmd in ("lang", "language", "idioma", "idiomas", "lenguaje"):
         if not es_anfitrion_o_admin(message.author, message.guild):
             await message.reply(t("lang_only_admin", gid), mention_author=False)
@@ -1637,41 +896,19 @@ async def on_message(message: discord.Message):
             await message.reply("⚠️ Valid options: `en` or `es` / Opciones válidas: `en` o `es`", mention_author=False)
         return
 
-    # 9. generarkey / impgenerarkey / genkey
+    # 9. generarkey / genkey
     elif cmd in ("generarkey", "genkey", "impgenkey"):
-        await message.reply(
-            "🔐 For Discord security and password entry, please use the slash command: `/impgenkey`",
-            mention_author=False
-        )
+        await message.reply("🔐 For Discord security and password entry, please use the slash command: `/impgenkey`", mention_author=False)
         return
 
-    # 10. help / imphelp / ayuda
+    # 10. help / ayuda / guia
     elif cmd in ("help", "ayuda", "guia", "guide"):
-        embed = discord.Embed(
-            title=t("help_title", gid),
-            description=t("help_desc", gid),
-            color=discord.Color.from_rgb(255, 203, 5),
-        )
-        embed.add_field(name=t("help_step1_name", gid), value=t("help_step1_value", gid), inline=False)
-        embed.add_field(name=t("help_step2_name", gid), value=t("help_step2_value", gid), inline=False)
-        embed.add_field(name=t("help_step3_name", gid), value=t("help_step3_value", gid), inline=False)
-        embed.add_field(name=t("help_step4_name", gid), value=t("help_step4_value", gid), inline=False)
-        embed.add_field(name=t("help_modes_name", gid), value=t("help_modes_value", gid), inline=False)
-        embed.add_field(name=t("help_commands_name", gid), value=t("help_commands_value", gid), inline=False)
-        embed.add_field(name=t("help_art_credits_name", gid), value=t("help_art_credits_value", gid), inline=False)
-        embed.set_footer(text=t("help_footer", gid))
-        await message.reply(embed=embed, mention_author=False)
+        await message.reply(embed=construir_embed_ayuda(gid), mention_author=False)
         return
 
-    # 11. creditos / credits / arte / art
+    # 11. creditos / credits / arte
     elif cmd in ("creditos", "credito", "credits", "credit", "arte", "art", "artista", "artist"):
-        embed = discord.Embed(
-            title=t("credits_title", gid),
-            description=t("credits_desc", gid),
-            color=discord.Color.from_rgb(255, 105, 180),
-        )
-        embed.set_footer(text=t("credits_footer", gid))
-        await message.reply(embed=embed, mention_author=False)
+        await message.reply(embed=construir_embed_creditos(gid), mention_author=False)
         return
 
     # 12. setrole / hostrole / rolesetup
@@ -1687,109 +924,31 @@ async def on_message(message: discord.Message):
 
         target_role = message.role_mentions[0] if message.role_mentions else None
         target_user = message.mentions[0] if message.mentions else None
-        creado = False
 
-        if target_role is None and args:
-            for a in args:
-                if a.isdigit():
-                    r = message.guild.get_role(int(a))
-                    if r:
-                        target_role = r
-                        break
-                r = discord.utils.get(message.guild.roles, name=a)
-                if r:
-                    target_role = r
-                    break
-
-        if target_role is None:
-            target_role = discord.utils.get(message.guild.roles, name=NOMBRE_ROL_HOST)
-            if target_role is None:
-                try:
-                    target_role = await message.guild.create_role(
-                        name=NOMBRE_ROL_HOST,
-                        color=discord.Color.from_rgb(255, 203, 5),
-                        mentionable=True,
-                        reason="PokeImpostor official host role",
-                    )
-                    creado = True
-                except discord.Forbidden:
-                    await message.reply(t("setrole_missing_perms", gid), mention_author=False)
-                    return
-                except Exception as e:
-                    await message.reply(f"❌ Error creating role: {e}", mention_author=False)
-                    return
-
-        await set_guild_rol_host_async(gid, target_role.id)
-
-        if creado:
-            msg = t("setrole_success_created", gid, role=target_role.mention)
-        else:
-            msg = t("setrole_success_existing", gid, role=target_role.mention)
-
-        usuario_asignar = target_user
-        if usuario_asignar is None:
-            if isinstance(message.author, discord.Member) and target_role not in message.author.roles:
-                usuario_asignar = message.author
-
-        if usuario_asignar is not None:
-            try:
-                await usuario_asignar.add_roles(target_role, reason="PokeImpostor host role assignment")
-                msg += "\n" + t("setrole_assigned_user", gid, role=target_role.name, user=usuario_asignar.mention)
-            except discord.Forbidden:
-                msg += "\n" + t("setrole_hierarchy_error", gid, role=target_role.name, user=usuario_asignar.mention)
-            except Exception as e:
-                msg += f"\n⚠️ Warning: could not assign role to {usuario_asignar.mention}: {e}"
-
-        embed = discord.Embed(
-            title=t("setrole_embed_title", gid),
-            description=msg,
-            color=discord.Color.from_rgb(255, 203, 5),
-        )
-        embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+        embed, err = await ejecutar_setrole_comun(message.guild, message.author, target_role, target_user, args=args)
+        if err:
+            await message.reply(err, mention_author=False)
+            return
         await message.reply(embed=embed, mention_author=False)
         return
 
     # 13. vote / votar / voto
     elif cmd in ("vote", "votar", "voto"):
         client_id = bot.user.id if bot.user else 1135381488775463075
-        vote_url = f"https://top.gg/bot/{client_id}/vote?guild={gid}"
-        view = discord.ui.View()
-        view.add_item(discord.ui.Button(label=t("vote_btn_label", gid), url=vote_url, style=discord.ButtonStyle.link))
-        view.add_item(discord.ui.Button(label=t("donate_btn_label", gid), url=BUYMEACOFFEE_URL, style=discord.ButtonStyle.link))
-        embed = discord.Embed(
-            title=t("vote_embed_title", gid),
-            description=t("vote_embed_desc", gid),
-            color=discord.Color.from_rgb(255, 105, 180),
-        )
-        embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+        embed, view = construir_payload_voto(gid, client_id)
         await message.reply(embed=embed, view=view, mention_author=False)
         return
 
-    # 14. donar / donate / kofi / buymeacoffee / coffee
+    # 14. donar / donate / kofi
     elif cmd in ("donar", "donate", "dona", "donation", "kofi", "buymeacoffee", "coffee"):
-        view = discord.ui.View()
-        view.add_item(discord.ui.Button(label=t("donate_btn_label", gid), url=BUYMEACOFFEE_URL, style=discord.ButtonStyle.link))
-        embed = discord.Embed(
-            title=t("donate_embed_title", gid),
-            description=t("donate_embed_desc", gid),
-            color=discord.Color.gold(),
-        )
-        embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+        embed, view = construir_payload_donar(gid)
         await message.reply(embed=embed, view=view, mention_author=False)
         return
 
     # 15. invite / invitar
     elif cmd in ("invite", "invitar", "invitacion", "invitación"):
         client_id = bot.user.id if bot.user else 1135381488775463075
-        invite_url = f"https://discord.com/oauth2/authorize?client_id={client_id}&permissions={INVITE_PERMS_INT}&scope=bot%20applications.commands"
-        view = discord.ui.View()
-        view.add_item(discord.ui.Button(label=t("invite_btn_label", gid), url=invite_url, style=discord.ButtonStyle.link))
-        embed = discord.Embed(
-            title=t("invite_embed_title", gid),
-            description=t("invite_embed_desc", gid),
-            color=discord.Color.from_rgb(255, 203, 5),
-        )
-        embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+        embed, view = construir_payload_invitar(gid, client_id)
         await message.reply(embed=embed, view=view, mention_author=False)
         return
 
@@ -1807,7 +966,6 @@ async def on_message(message: discord.Message):
 
         from motor_juego import DummyMember, CaosVariante, ModoJuego
 
-        # Parsear argumentos: cantidad numérica y/o variante de caos
         cantidad = 3
         var_arg = None
         for a in args:
@@ -1818,7 +976,6 @@ async def on_message(message: discord.Message):
 
         cantidad = max(1, min(10, cantidad))
 
-        # Si el usuario no está dentro todavía, lo metemos primero
         if not any(j.id == message.author.id for j in partida.jugadores):
             partida.jugadores.append(message.author)
 
@@ -1832,7 +989,6 @@ async def on_message(message: discord.Message):
                 partida.jugadores.append(DummyMember(fake_id, nom, message.author))
                 agregados += 1
 
-        # Si pasas un segundo argumento (ej: `-mimi debug 3 objetivo_humano`), forzar esa variante de Caos
         variante_nombre = None
         if var_arg:
             v_low = var_arg.lower()
@@ -1843,7 +999,6 @@ async def on_message(message: discord.Message):
                     variante_nombre = v.value
                     break
 
-        # Actualizar visualmente el embed del lobby si existe
         if getattr(partida, "mensaje_lobby", None):
             try:
                 from vistas.common import build_embed_lobby
