@@ -38,22 +38,9 @@ class PanelVotacion(discord.ui.View):
         modo  = partida.config.modo_juego
         total = len(partida.jugadores)
 
-        # ── Caso Especial: Objetivo Humano (Caos Jugador) ─────────────────────────
-        # En esta variante, solo el detective (impostor) vota quién cree que
-        # es el objetivo secreto humano. Los tripulantes no votan.
-        es_objetivo_humano = (
-            modo == ModoJuego.CAOS
-            and (
-                getattr(partida, "_variante_ronda", None) == CaosVariante.OBJETIVO_HUMANO
-                or partida.objetivo_humano is not None
-            )
-        )
-        if es_objetivo_humano:
-            self._init_votacion_objetivo_humano(g)
-            return
-
         # ── Modos (Clásico / Extendido / Caos con todas sus variantes) ──────────────
-        es_clasico = (modo == ModoJuego.CLASICO)
+        # Solo Modo Extendido permite voto múltiple; Clásico y Caos (camuflado como Clásico) usan 1 voto
+        permite_multivoto = (modo == ModoJuego.EXTENDIDO)
 
         # Límite de Discord: máximo 25 opciones por Select (hasta 24 jugadores + 1 Voto Nulo)
         opciones = [discord.SelectOption(label=j.display_name, value=str(j.id)) for j in partida.jugadores[:24]]
@@ -66,7 +53,7 @@ class PanelVotacion(discord.ui.View):
             emoji="⚪",
         ))
 
-        max_v = 1 if es_clasico else min(total, len(opciones))
+        max_v = min(total, len(opciones)) if permite_multivoto else 1
 
         sel = discord.ui.Select(
             placeholder=t("vote_placeholder", g),
@@ -87,123 +74,6 @@ class PanelVotacion(discord.ui.View):
         self.partida.limpiar_memoria()
         self.clear_items()
         self.stop()
-
-    # ─────────────────────────────────────────────────────────────────────────
-    #  VOTACIÓN ESPECIAL — Objetivo Humano (solo el detective vota)
-    # ─────────────────────────────────────────────────────────────────────────
-    def _init_votacion_objetivo_humano(self, g: int):
-        # Solo el detective (impostor) puede votar, eligiendo quién cree que
-        # es el objetivo. Los tripulantes no votan — la ronda termina cuando
-        # el detective adivina o pasa.
-        opciones_cj = [
-            discord.SelectOption(label=j.display_name, value=str(j.id))
-            for j in self.partida.jugadores
-            if not any(imp.id == j.id for imp in self.partida.impostores)  # el detective no puede votarse a sí mismo
-        ]
-        opciones_cj.append(discord.SelectOption(
-            label=t("vote_null_label", g),
-            value=VOTO_NULO_ID,
-            description=t("caos_jugador_pass_desc", g),
-            emoji="⚪",
-        ))
-        sel_cj = discord.ui.Select(
-            placeholder=t("caos_jugador_vote_placeholder", g),
-            min_values=1, max_values=1,
-            options=opciones_cj,
-            row=0,
-        )
-        sel_cj.callback = self._voto_caos_jugador
-        self.add_item(sel_cj)
-        self.sel_votos = sel_cj
-
-        btn_forzar = discord.ui.Button(label=t("btn_force_close", g), style=discord.ButtonStyle.secondary, row=1)
-        btn_forzar.callback = self._forzar_cierre_cj
-        self.add_item(btn_forzar)
-
-    async def _voto_caos_jugador(self, inter: discord.Interaction):
-        g = inter.guild_id
-        es_detective = any(imp.id == inter.user.id for imp in self.partida.impostores)
-        detective_dummy = any(getattr(imp, "es_dummy", False) for imp in self.partida.impostores)
-        es_host = es_anfitrion_o_admin(inter.user, inter.guild)
-
-        if not es_detective and not (detective_dummy and es_host):
-            return await inter.response.send_message(t("caos_jugador_only_detective", g), ephemeral=True)
-
-        async with self.partida.lock:
-            if inter.user.id in self.votos_emitidos:
-                return await inter.response.send_message(t("vote_already_voted", g), ephemeral=True)
-            if self._resultados_en_proceso:
-                return await inter.response.send_message(t("vote_already_closed", g), ephemeral=True)
-            self.votos_emitidos.add(inter.user.id)
-            self._resultados_en_proceso = True
-            valores = inter.data.get("values", self.sel_votos.values if hasattr(self, "sel_votos") else [])
-            valor = valores[0] if valores else VOTO_NULO_ID
-
-        self.clear_items()
-        self.stop()
-        try:
-            await inter.message.edit(view=None)
-        except Exception:
-            pass
-
-        objetivo = self.partida.objetivo_humano
-        acerto   = False  # por defecto: si pasa (voto nulo), el detective NO acierta
-
-        if valor == VOTO_NULO_ID:
-            await inter.response.send_message(embed=discord.Embed(
-                title=t("caos_jugador_pass_title", g),
-                description=t("caos_jugador_pass_desc_result", g, target=f"**{objetivo.display_name}**"),
-                color=discord.Color.green(),
-            ))
-        else:
-            adivinado = discord.utils.get(self.partida.jugadores, id=int(valor))
-            acerto    = (adivinado is not None and objetivo is not None and adivinado.id == objetivo.id)
-            if acerto:
-                emb = discord.Embed(
-                    title=t("caos_jugador_correct_title", g),
-                    description=t("caos_jugador_correct_desc", g,
-                                  detective=f"**{inter.user.display_name}**",
-                                  target=f"**{objetivo.display_name}**" if objetivo else "???"),
-                    color=discord.Color.from_rgb(180, 30, 30),
-                )
-                if objetivo and getattr(objetivo, "display_avatar", None) and getattr(objetivo.display_avatar, "url", None):
-                    emb.set_thumbnail(url=objetivo.display_avatar.url)
-                await inter.response.send_message(embed=emb)
-            else:
-                nombre_adivinado = adivinado.display_name if adivinado else "???"
-                emb = discord.Embed(
-                    title=t("caos_jugador_wrong_title", g),
-                    description=t("caos_jugador_wrong_desc", g,
-                                  guessed=f"**{nombre_adivinado}**",
-                                  target=f"**{objetivo.display_name}**" if objetivo else "???"),
-                    color=discord.Color.green(),
-                )
-                if objetivo and getattr(objetivo, "display_avatar", None) and getattr(objetivo.display_avatar, "url", None):
-                    emb.set_thumbnail(url=objetivo.display_avatar.url)
-                await inter.response.send_message(embed=emb)
-
-        return await self._pantalla_final(inter.channel, victoria_impostores=acerto)
-
-    async def _forzar_cierre_cj(self, inter: discord.Interaction):
-        g = inter.guild_id
-        if not es_anfitrion_o_admin(inter.user, inter.guild):
-            return await inter.response.send_message(
-                t("only_host_or_admin", g, role=obtener_nombre_rol_host(inter.guild)), ephemeral=True
-            )
-
-        async with self.partida.lock:
-            if self._resultados_en_proceso:
-                return await inter.response.send_message(t("vote_already_closed", g), ephemeral=True)
-            self._resultados_en_proceso = True
-
-        await inter.response.send_message(t("caos_jugador_admin_skip", g))
-        self.clear_items()
-        self.stop()
-        try:
-            await inter.message.edit(view=None)
-        except Exception:
-            pass
-        await self._pantalla_final(inter.channel, victoria_impostores=False)
 
     # ─────────────────────────────────────────────────────────────────────────
     #  VOTACIÓN NORMAL — Clásico / Extendido / Caos estándar
@@ -363,7 +233,15 @@ class PanelVotacion(discord.ui.View):
             return await self._pantalla_final(canal, victoria_impostores=False)
 
         tripulantes_vivos = len(self.partida.jugadores) - len(self.partida.impostores)
-        if len(self.partida.impostores) > 0 and len(self.partida.impostores) >= tripulantes_vivos:
+        es_caos_mayoria = (
+            self.partida.config.modo_juego == ModoJuego.CAOS
+            and getattr(self.partida, "_variante_ronda", None) in (
+                CaosVariante.CINCUENTA_PORCIENTO,
+                CaosVariante.SETENTA_Y_CINCO,
+            )
+        )
+        umbral_victoria = (tripulantes_vivos == 0) if es_caos_mayoria else (len(self.partida.impostores) >= tripulantes_vivos)
+        if len(self.partida.impostores) > 0 and umbral_victoria:
             await canal.send(embed=discord.Embed(
                 title=t("results_impostors_win_title", g),
                 description=t("results_impostors_win_desc", g),
@@ -420,7 +298,15 @@ class PanelVotacion(discord.ui.View):
         await canal.send(embed=embed_rev)
 
         tripulantes_vivos = len(self.partida.jugadores) - len(self.partida.impostores)
-        if len(self.partida.impostores) > 0 and len(self.partida.impostores) >= tripulantes_vivos:
+        es_caos_mayoria = (
+            self.partida.config.modo_juego == ModoJuego.CAOS
+            and getattr(self.partida, "_variante_ronda", None) in (
+                CaosVariante.CINCUENTA_PORCIENTO,
+                CaosVariante.SETENTA_Y_CINCO,
+            )
+        )
+        umbral_victoria = (tripulantes_vivos == 0) if es_caos_mayoria else (len(self.partida.impostores) >= tripulantes_vivos)
+        if len(self.partida.impostores) > 0 and umbral_victoria:
             return await self._resolver_victoria_impostores(canal, tripulantes_vivos)
 
         await self._siguiente_ronda(canal)

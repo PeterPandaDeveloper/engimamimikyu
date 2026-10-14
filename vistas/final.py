@@ -8,7 +8,7 @@ import asyncio
 import discord
 from motor_juego import Partida, ModoJuego, CaosVariante
 from i18n import t
-from db import guardar_partida_async, consumir_partida_premium_async
+from db import guardar_partida_async, consumir_partida_premium_async, verificar_estado_premium_async
 
 from .common import TIMEOUT_LOBBY, gid, NOMBRE_ROL_HOST, es_anfitrion_o_admin, obtener_nombre_rol_host
 
@@ -142,62 +142,69 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
     post_view.message = msg
 
     # ── Guardar datos de la partida en DuckDB (asíncrono en segundo plano) ──
-    try:
-        jugadores_data = []
-        impostores_iniciales_ids = {imp.id for imp in partida.impostores_iniciales}
-        jugadores_actuales_ids = {j.id for j in partida.jugadores}
-        for j in partida.jugadores_iniciales:
-            es_imp = j.id in impostores_iniciales_ids
-            es_obj = bool(partida.objetivo_humano and (partida.objetivo_humano.id == j.id))
-            if es_imp:
-                rol = "impostor"
-            elif es_obj:
-                rol = "objetivo"
-            else:
-                rol = "tripulante"
+    # Si la partida contenía bots fantasma (DummyMember de depuración), no ensuciamos
+    # la base de datos de producción ni consumimos cargas VIP del servidor.
+    hay_dummies = any(getattr(j, "es_dummy", False) for j in partida.jugadores_iniciales)
+    if not hay_dummies:
+        try:
+            jugadores_data = []
+            impostores_iniciales_ids = {imp.id for imp in partida.impostores_iniciales}
+            jugadores_actuales_ids = {j.id for j in partida.jugadores}
+            for j in partida.jugadores_iniciales:
+                es_imp = j.id in impostores_iniciales_ids
+                es_obj = bool(partida.objetivo_humano and (partida.objetivo_humano.id == j.id))
+                if es_imp:
+                    rol = "impostor"
+                elif es_obj:
+                    rol = "objetivo"
+                else:
+                    rol = "tripulante"
 
-            expulsado = (j.id not in jugadores_actuales_ids)
-            if partida.caos_sin_impostores:
-                # En Caos sin impostores (0 Impostores / Amigos Borrachos), ganan los tripulantes que sobrevivieron a la paranoia
-                gano = not expulsado
-            else:
-                gano = (es_imp and victoria_impostores) or (not es_imp and not victoria_impostores)
+                expulsado = (j.id not in jugadores_actuales_ids)
+                if partida.caos_sin_impostores:
+                    # En Caos sin impostores (0 Impostores / Amigos Borrachos), ganan los tripulantes que sobrevivieron a la paranoia
+                    gano = not expulsado
+                elif getattr(partida, "caos_todos_impostores", False):
+                    # En Caos 100% impostores, los que sobrevivieron a la paranoia ganan y el expulsado pierde
+                    gano = not expulsado
+                else:
+                    gano = (es_imp and victoria_impostores) or (not es_imp and not victoria_impostores)
 
-            jugadores_data.append({
-                "user_id": j.id,
-                "user_name": j.display_name,
-                "rol": rol,
-                "gano": gano,
-                "expulsado": expulsado,
-            })
+                jugadores_data.append({
+                    "user_id": j.id,
+                    "user_name": j.display_name,
+                    "rol": rol,
+                    "gano": gano,
+                    "expulsado": expulsado,
+                })
 
-        modo_val = modo.value if hasattr(modo, "value") else str(modo)
-        var_val = variante.value if (variante and hasattr(variante, "value")) else (str(variante) if variante else None)
-        pk_id = partida.datos_pokemon.get("id") if partida.datos_pokemon else None
-        pk_nom = partida.datos_pokemon.get("nombre") if partida.datos_pokemon else None
-        pk_tipos = " / ".join(partida.datos_pokemon.get("tipos", [])) if partida.datos_pokemon else None
+            modo_val = modo.value if hasattr(modo, "value") else str(modo)
+            var_val = variante.value if (variante and hasattr(variante, "value")) else (str(variante) if variante else None)
+            pk_id = partida.datos_pokemon.get("id") if partida.datos_pokemon else None
+            pk_nom = partida.datos_pokemon.get("nombre") if partida.datos_pokemon else None
+            pk_tipos = " / ".join(partida.datos_pokemon.get("tipos", [])) if partida.datos_pokemon else None
 
-        asyncio.create_task(
-            guardar_partida_async(
-                guild_id=g,
-                canal_id=canal.id,
-                modo=modo_val,
-                variante=var_val,
-                rondas=partida.ronda,
-                pokemon_id=pk_id,
-                pokemon_nombre=pk_nom,
-                pokemon_tipos=pk_tipos,
-                victoria_impostores=victoria_impostores,
-                caos_sin_impostores=partida.caos_sin_impostores,
-                jugadores_data=jugadores_data,
+            asyncio.create_task(
+                guardar_partida_async(
+                    guild_id=g,
+                    canal_id=canal.id,
+                    modo=modo_val,
+                    variante=var_val,
+                    rondas=partida.ronda,
+                    pokemon_id=pk_id,
+                    pokemon_nombre=pk_nom,
+                    pokemon_tipos=pk_tipos,
+                    victoria_impostores=victoria_impostores,
+                    caos_sin_impostores=partida.caos_sin_impostores,
+                    jugadores_data=jugadores_data,
+                )
             )
-        )
 
-        # Descontar una carga si el servidor funciona por partidas de Top.gg
-        if canal.guild:
-            asyncio.create_task(consumir_partida_premium_async(canal.guild.id))
-    except Exception as e:
-        print(f"⚠️ [DuckDB] No se pudo encolar el guardado de la partida: {e}")
+            # Descontar una carga si el servidor funciona por partidas de Top.gg
+            if canal.guild:
+                asyncio.create_task(consumir_partida_premium_async(canal.guild.id))
+        except Exception as e:
+            print(f"⚠️ [DuckDB] No se pudo encolar el guardado de la partida: {e}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -247,6 +254,12 @@ class PanelPostRonda(discord.ui.View):
             self.partida.jugadores = self.partida.jugadores_iniciales.copy()
             self.partida.ronda = 1
             self.partida.terminada = False
+
+            # Verificar si el servidor aún tiene estado premium para modos especiales
+            if self.partida.config.modo_juego != ModoJuego.CLASICO and g:
+                estado = await verificar_estado_premium_async(g)
+                if not estado["es_premium"]:
+                    self.partida.config.modo_juego = ModoJuego.CLASICO
 
             self.partida._ronda_arrancando = True
             await inter.response.edit_message(view=None)

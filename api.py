@@ -130,9 +130,9 @@ async def obtener_datos_completos_pokemon(
             nombre = data["name"].capitalize()
             sprites_data = data.get("sprites", {})
             sprite = (
-                sprites_data.get("front_default")
-                or sprites_data.get("other", {}).get("official-artwork", {}).get("front_default")
+                sprites_data.get("other", {}).get("official-artwork", {}).get("front_default")
                 or sprites_data.get("other", {}).get("home", {}).get("front_default")
+                or sprites_data.get("front_default")
                 or None
             )
             tipos = [t["type"]["name"].capitalize() for t in data.get("types", [])]

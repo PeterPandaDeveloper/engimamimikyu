@@ -58,22 +58,10 @@ class PanelDebate(discord.ui.View):
         from .votacion import PanelVotacion
         view_vot = PanelVotacion(self.partida)
 
-        es_cj = (
-            self.partida.config.modo_juego == ModoJuego.CAOS
-            and (
-                getattr(self.partida, "_variante_ronda", None) == CaosVariante.OBJETIVO_HUMANO
-                or self.partida.objetivo_humano is not None
-            )
-        )
-        desc_vot = (
-            t("caos_jugador_vote_placeholder", g)
-            if es_cj
-            else t("vote_desc", g, current=0, total=len(self.partida.jugadores))
-        )
         msg = await inter.channel.send(
             embed=discord.Embed(
                 title=t("vote_title_open", g),
-                description=desc_vot,
+                description=t("vote_desc", g, current=0, total=len(self.partida.jugadores)),
                 color=discord.Color.red(),
             ),
             view=view_vot,

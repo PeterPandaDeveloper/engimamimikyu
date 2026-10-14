@@ -639,6 +639,7 @@ class Partida:
         if modo == ModoJuego.CAOS:
             if self.config.caos_variante not in (CaosVariante.NORMAL, "normal"):
                 variante_elegida = self.config.caos_variante
+                self.config.caos_variante = CaosVariante.NORMAL  # Resetear tras consumir
             else:
                 variante_elegida = self._sortear_variante_caos()
             self._variante_ronda = variante_elegida   # usada por _calcular_impostores

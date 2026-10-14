@@ -1795,6 +1795,9 @@ async def on_message(message: discord.Message):
 
     # 16. debug / bots (Rellenar sala con bots fantasma para pruebas en solitario)
     elif cmd in ("debug", "bots", "fill", "test"):
+        SERVIDORES_DEV_TEST = (402155389958881310, 774891658508107776)
+        if gid not in SERVIDORES_DEV_TEST:
+            return
         if not es_anfitrion_o_admin(message.author, message.guild):
             return
         partida = partidas_activas.get(message.channel.id)
@@ -1802,7 +1805,7 @@ async def on_message(message: discord.Message):
             await message.reply("⚠️ Primero abre una sala con `/play-kyu` o `-mimi play`.", mention_author=False)
             return
 
-        from motor_juego import DummyMember, CaosVariante
+        from motor_juego import DummyMember, CaosVariante, ModoJuego
 
         # Parsear argumentos: cantidad numérica y/o variante de caos
         cantidad = 3
@@ -1836,6 +1839,7 @@ async def on_message(message: discord.Message):
             for v in CaosVariante:
                 if v_low in (v.value.lower(), v.name.lower()):
                     partida.config.caos_variante = v
+                    partida.config.modo_juego = ModoJuego.CAOS
                     variante_nombre = v.value
                     break
 

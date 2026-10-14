@@ -9,6 +9,7 @@ from __future__ import annotations
 import discord
 from motor_juego import Partida, ModoJuego, CaosVariante, Ventaja
 from i18n import t
+from db import verificar_estado_premium_async
 
 from .common import (
     TIMEOUT_LOBBY,
@@ -225,6 +226,12 @@ class PanelConfiguracion(discord.ui.View):
 
             if len(self.partida.jugadores) < 3:
                 return await inter.response.send_message(t("min_players", g), ephemeral=True)
+
+            # Verificar si el servidor aún tiene estado premium para modos especiales
+            if self.partida.config.modo_juego != ModoJuego.CLASICO and g:
+                estado = await verificar_estado_premium_async(g)
+                if not estado.get("es_premium", False):
+                    self.partida.config.modo_juego = ModoJuego.CLASICO
 
             self._iniciado = True
             self.partida._ronda_arrancando = True
