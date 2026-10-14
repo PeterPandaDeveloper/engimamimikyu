@@ -15,7 +15,6 @@ from db import (
     verificar_estado_premium_async,
     get_guild_rol_host,
     set_guild_rol_host_async,
-    NOMBRE_ROL_HOST,
 )
 
 BUYMEACOFFEE_URL = "https://buymeacoffee.com/peterpandadeveloperz"
