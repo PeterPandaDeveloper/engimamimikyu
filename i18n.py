@@ -17,16 +17,29 @@ import os
 
 from db import cargar_todos_los_idiomas, get_guild_lang, set_guild_lang
 
-_idiomas: dict[int, str] = cargar_todos_los_idiomas()
+_idiomas: dict[int, str] = {}
+_idiomas_cargados: bool = False
+
+
+def _asegurar_cache_idiomas():
+    global _idiomas, _idiomas_cargados
+    if not _idiomas_cargados:
+        try:
+            _idiomas = cargar_todos_los_idiomas()
+            _idiomas_cargados = True
+        except Exception:
+            pass
 
 
 def get_lang(guild_id: int) -> str:
+    _asegurar_cache_idiomas()
     if guild_id not in _idiomas:
         _idiomas[guild_id] = get_guild_lang(guild_id)
     return _idiomas.get(guild_id, "en")
 
 
 def set_lang(guild_id: int, lang: str) -> None:
+    _asegurar_cache_idiomas()
     _idiomas[guild_id] = lang
     set_guild_lang(guild_id, lang)
 

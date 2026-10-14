@@ -8,7 +8,7 @@ import asyncio
 import discord
 from motor_juego import Partida, ModoJuego, CaosVariante
 from i18n import t
-from db import guardar_partida_async
+from db import guardar_partida_async, consumir_partida_premium_async
 
 from .common import TIMEOUT_LOBBY, gid, NOMBRE_ROL_HOST, es_anfitrion_o_admin, obtener_nombre_rol_host
 
@@ -157,7 +157,11 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
                 rol = "tripulante"
 
             expulsado = (j.id not in jugadores_actuales_ids)
-            gano = (es_imp and victoria_impostores) or (not es_imp and not victoria_impostores)
+            if partida.caos_sin_impostores:
+                # En Caos sin impostores (0 Impostores / Amigos Borrachos), ganan los tripulantes que sobrevivieron a la paranoia
+                gano = not expulsado
+            else:
+                gano = (es_imp and victoria_impostores) or (not es_imp and not victoria_impostores)
 
             jugadores_data.append({
                 "user_id": j.id,
@@ -188,6 +192,10 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
                 jugadores_data=jugadores_data,
             )
         )
+
+        # Descontar una carga si el servidor funciona por partidas de Top.gg
+        if canal.guild:
+            asyncio.create_task(consumir_partida_premium_async(canal.guild.id))
     except Exception as e:
         print(f"⚠️ [DuckDB] No se pudo encolar el guardado de la partida: {e}")
 

@@ -160,6 +160,19 @@ class PanelConfiguracion(discord.ui.View):
     async def _set_modo(self, inter: discord.Interaction):
         g = gid(self.partida)
         nuevo_modo = ModoJuego(inter.data["values"][0])
+
+        # Verificación de estado premium / cargas para modos avanzados (Extendido y Caos)
+        if nuevo_modo in (ModoJuego.EXTENDIDO, ModoJuego.CAOS):
+            from db import verificar_estado_premium_async
+            estado = await verificar_estado_premium_async(g)
+            if not estado.get("es_premium", False):
+                self.partida.config.modo_juego = ModoJuego.CLASICO
+                for opt in self._sel_modo.options:
+                    opt.default = (opt.value == ModoJuego.CLASICO.value)
+                if hasattr(self, "_btn_complices") and self._btn_complices in self.children:
+                    self.remove_item(self._btn_complices)
+                return await inter.response.send_message(t("license_status_free", g), ephemeral=True)
+
         self.partida.config.modo_juego = nuevo_modo
         for opt in self._sel_modo.options:
             opt.default = (opt.value == nuevo_modo.value)

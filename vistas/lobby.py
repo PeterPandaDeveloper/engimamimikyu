@@ -49,34 +49,35 @@ class PanelInscripcion(discord.ui.View):
 
     async def _unirse(self, inter: discord.Interaction):
         g = inter.guild_id
-        if any(j.id == inter.user.id for j in self.partida.jugadores):
-            return await inter.response.send_message(t("lobby_already_in", g), ephemeral=True)
-        if len(self.partida.jugadores) >= 24:
-            return await inter.response.send_message(t("lobby_full", g), ephemeral=True)
+        async with self.partida.lock:
+            if any(j.id == inter.user.id for j in self.partida.jugadores):
+                return await inter.response.send_message(t("lobby_already_in", g), ephemeral=True)
+            if len(self.partida.jugadores) >= 24:
+                return await inter.response.send_message(t("lobby_full", g), ephemeral=True)
 
-        # Validación de sala única por jugador (no puede estar en otra sala activa)
-        for canal_id, p in self.partida.partidas_activas.items():
-            if canal_id == self.partida.canal.id:
-                continue
-            if getattr(p, "terminada", False):
-                continue
-            en_espera = any(j.id == inter.user.id for j in getattr(p, "jugadores", []))
-            en_juego = any(j.id == inter.user.id for j in getattr(p, "jugadores_iniciales", []))
-            if en_espera or en_juego:
-                return await inter.response.send_message(
-                    t("lobby_already_in_other_game", g),
-                    ephemeral=True,
-                )
+            # Validación de sala única por jugador (no puede estar en otra sala activa)
+            for canal_id, p in self.partida.partidas_activas.items():
+                if canal_id == self.partida.canal.id:
+                    continue
+                if getattr(p, "terminada", False):
+                    continue
+                en_espera = any(j.id == inter.user.id for j in getattr(p, "jugadores", []))
+                en_juego = any(j.id == inter.user.id for j in getattr(p, "jugadores_iniciales", []))
+                if en_espera or en_juego:
+                    return await inter.response.send_message(
+                        t("lobby_already_in_other_game", g),
+                        ephemeral=True,
+                    )
 
-        self.partida.jugadores.append(inter.user)
+            self.partida.jugadores.append(inter.user)
         await inter.response.edit_message(embed=build_embed_lobby(self.partida))
 
     async def _salir(self, inter: discord.Interaction):
         g = inter.guild_id
-        jugador_encontrado = next((j for j in self.partida.jugadores if j.id == inter.user.id), None)
-        if not jugador_encontrado:
-            return await inter.response.send_message(t("lobby_not_in", g), ephemeral=True)
-        self.partida.jugadores.remove(jugador_encontrado)
+        async with self.partida.lock:
+            if not any(j.id == inter.user.id for j in self.partida.jugadores):
+                return await inter.response.send_message(t("lobby_not_in", g), ephemeral=True)
+            self.partida.jugadores = [j for j in self.partida.jugadores if j.id != inter.user.id]
         await inter.response.edit_message(embed=build_embed_lobby(self.partida))
 
     async def _config(self, inter: discord.Interaction):

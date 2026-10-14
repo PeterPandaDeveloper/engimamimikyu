@@ -319,17 +319,28 @@ class Partida:
                 if len(palabra) >= 3 and palabra.lower() != nombre:
                     return t("hint_text_word", gid, word=palabra)
 
-        # 3. Extracción dinámica por hábitat
+        # 3. Extracción dinámica por hábitat (soporte para inglés y español)
         HABITATS_AMBIGUOS: dict[str, tuple[str, str]] = {
             "cave": ("Caverna", "Cavern"),
+            "cueva": ("Caverna", "Cavern"),
             "forest": ("Silvestre", "Woodland"),
+            "bosque": ("Silvestre", "Woodland"),
             "grassland": ("Pradera", "Meadow"),
+            "praderas": ("Pradera", "Meadow"),
+            "pradera": ("Pradera", "Meadow"),
             "mountain": ("Cumbre", "Summit"),
+            "montaña": ("Cumbre", "Summit"),
+            "montana": ("Cumbre", "Summit"),
             "rare": ("Insólito", "Uncommon"),
+            "raro": ("Insólito", "Uncommon"),
             "rough-terrain": ("Rocoso", "Craggy"),
+            "terreno escarpado": ("Rocoso", "Craggy"),
             "sea": ("Abisal", "Marine"),
+            "mar": ("Abisal", "Marine"),
             "urban": ("Metrópolis", "Urban"),
+            "urbano": ("Metrópolis", "Urban"),
             "waters-edge": ("Ribera", "Shore"),
+            "orilla del agua": ("Ribera", "Shore"),
         }
         hab_key = str(habitat).lower()
         if hab_key in HABITATS_AMBIGUOS:
@@ -581,7 +592,10 @@ class Partida:
 
         # Caos: elegir variante aleatoriamente entre las 7 permitidas ─────────
         if modo == ModoJuego.CAOS:
-            variante_elegida = self._sortear_variante_caos()
+            if self.config.caos_variante not in (CaosVariante.NORMAL, "normal"):
+                variante_elegida = self.config.caos_variante
+            else:
+                variante_elegida = self._sortear_variante_caos()
             self._variante_ronda = variante_elegida   # usada por _calcular_impostores
             if variante_elegida in (CaosVariante.AMIGOS_BORRACHOS, CaosVariante.DANZA_CAOS):
                 return await self._arrancar_amigos_ebrios()
@@ -713,6 +727,9 @@ class Partida:
             else:
                 pista = t("hint_text_ends_letter", gid, v=ultima_letra)
             self.pistas_impostores[imp.id] = pista
+
+        if self.impostores:
+            self.pista_generada = self.pistas_impostores.get(self.impostores[0].id, "")
 
         dm_fallidos: list[discord.Member] = []
         impostores_ids = {imp.id for imp in self.impostores}

@@ -54,9 +54,9 @@ class PanelVotacion(discord.ui.View):
 
         # ── Modos (Clásico / Extendido / Caos con todas sus variantes) ──────────────
         es_clasico = (modo == ModoJuego.CLASICO)
-        max_v      = 1 if es_clasico else total
 
-        opciones = [discord.SelectOption(label=j.display_name, value=str(j.id)) for j in partida.jugadores]
+        # Límite de Discord: máximo 25 opciones por Select (hasta 24 jugadores + 1 Voto Nulo)
+        opciones = [discord.SelectOption(label=j.display_name, value=str(j.id)) for j in partida.jugadores[:24]]
 
         # Voto nulo disponible en TODOS los modos
         opciones.append(discord.SelectOption(
@@ -65,6 +65,8 @@ class PanelVotacion(discord.ui.View):
             description=t("vote_null_desc", g),
             emoji="⚪",
         ))
+
+        max_v = 1 if es_clasico else min(total, len(opciones))
 
         sel = discord.ui.Select(
             placeholder=t("vote_placeholder", g),
@@ -455,8 +457,17 @@ class PanelVotacion(discord.ui.View):
             quedan_impostores = len(self.partida.impostores) > 0
             return await self._pantalla_final(canal, victoria_impostores=quedan_impostores)
 
-        # Condición de derrota por tiempo: si se alcanzó el límite de rondas configurado (1 a 9)
+        # Condición de fin por límite de rondas configurado (1 a 9)
         if self.partida.ronda >= self.partida.config.max_rondas:
+            if self.partida.caos_sin_impostores:
+                # En 0 impostores o Amigos Borrachos no hay traidores que hayan escapado
+                await canal.send(embed=discord.Embed(
+                    title=t("final_title_cero_impostores", g),
+                    description=t("final_desc_cero_impostores", g),
+                    color=discord.Color.gold(),
+                ))
+                return await self._pantalla_final(canal, victoria_impostores=False)
+
             quedan_impostores = len(self.partida.impostores) > 0
             await canal.send(embed=discord.Embed(
                 title=t("game_over_timeout_title", g),

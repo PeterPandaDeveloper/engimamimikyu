@@ -137,6 +137,14 @@ def _init_db_sync() -> None:
             except Exception as e:
                 print(f"[DuckDB] Error al migrar idiomas.json: {e}")
 
+        # Precargar caché de roles host en memoria para lecturas 0ms sin contención
+        try:
+            rows_roles = con.execute("SELECT guild_id, rol_host_id FROM servidores_config WHERE rol_host_id IS NOT NULL").fetchall()
+            for r_gid, r_rid in rows_roles:
+                _ROLES_HOST_CACHE[r_gid] = r_rid
+        except Exception as e:
+            print(f"[DuckDB] Error precargando roles host: {e}")
+
         try:
             con.execute("CHECKPOINT;")
         except Exception:

@@ -4,3 +4,4 @@ __pycache__/
 data/*.duckdb*
 data/sesiones_activas.json
 data/pokemon_cache.json
+proyecto.txt
