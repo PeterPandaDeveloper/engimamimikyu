@@ -416,6 +416,7 @@ async def impregister(interaction: discord.Interaction):
     )
     try:
         view.message = await interaction.original_response()
+        nueva.mensaje_lobby = view.message
     except Exception:
         pass
 
@@ -1354,6 +1355,7 @@ async def on_message(message: discord.Message):
             view=view,
         )
         view.message = msg_lobby
+        nueva.mensaje_lobby = msg_lobby
         return
 
     # 2. ver / impver
@@ -1789,6 +1791,68 @@ async def on_message(message: discord.Message):
         )
         embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
         await message.reply(embed=embed, view=view, mention_author=False)
+        return
+
+    # 16. debug / bots (Rellenar sala con bots fantasma para pruebas en solitario)
+    elif cmd in ("debug", "bots", "fill", "test"):
+        if not es_anfitrion_o_admin(message.author, message.guild):
+            return
+        partida = partidas_activas.get(message.channel.id)
+        if partida is None:
+            await message.reply("⚠️ Primero abre una sala con `/play-kyu` o `-mimi play`.", mention_author=False)
+            return
+
+        from motor_juego import DummyMember, CaosVariante
+
+        # Parsear argumentos: cantidad numérica y/o variante de caos
+        cantidad = 3
+        var_arg = None
+        for a in args:
+            if a.isdigit():
+                cantidad = int(a)
+            else:
+                var_arg = a
+
+        cantidad = max(1, min(10, cantidad))
+
+        # Si el usuario no está dentro todavía, lo metemos primero
+        if not any(j.id == message.author.id for j in partida.jugadores):
+            partida.jugadores.append(message.author)
+
+        nombres_bots = ["Ash", "Misty", "Brock", "Gary", "Cynthia", "Red", "Dawn", "Serena", "N", "Lance"]
+        agregados = 0
+        for idx, nom in enumerate(nombres_bots):
+            if agregados >= cantidad or len(partida.jugadores) >= 24:
+                break
+            fake_id = 900000 + idx
+            if not any(j.id == fake_id for j in partida.jugadores):
+                partida.jugadores.append(DummyMember(fake_id, nom, message.author))
+                agregados += 1
+
+        # Si pasas un segundo argumento (ej: `-mimi debug 3 objetivo_humano`), forzar esa variante de Caos
+        variante_nombre = None
+        if var_arg:
+            v_low = var_arg.lower()
+            for v in CaosVariante:
+                if v_low in (v.value.lower(), v.name.lower()):
+                    partida.config.caos_variante = v
+                    variante_nombre = v.value
+                    break
+
+        # Actualizar visualmente el embed del lobby si existe
+        if getattr(partida, "mensaje_lobby", None):
+            try:
+                from vistas.common import build_embed_lobby
+                await partida.mensaje_lobby.edit(embed=build_embed_lobby(partida))
+            except Exception:
+                pass
+
+        det_caos = f"\n🌀 **Variante Caos forzada:** `{variante_nombre}`" if variante_nombre else ""
+        await message.reply(
+            f"🧪 **Modo Debug Activado:** Se unieron **{agregados} bots fantasma** a la sala "
+            f"(Total: **{len(partida.jugadores)}** jugadores). Todos sus DMs te llegarán a ti.{det_caos}",
+            mention_author=False,
+        )
         return
 
     await bot.process_commands(message)

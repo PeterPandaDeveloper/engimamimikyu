@@ -122,7 +122,11 @@ class PanelVotacion(discord.ui.View):
 
     async def _voto_caos_jugador(self, inter: discord.Interaction):
         g = inter.guild_id
-        if not any(imp.id == inter.user.id for imp in self.partida.impostores):
+        es_detective = any(imp.id == inter.user.id for imp in self.partida.impostores)
+        detective_dummy = any(getattr(imp, "es_dummy", False) for imp in self.partida.impostores)
+        es_host = es_anfitrion_o_admin(inter.user, inter.guild)
+
+        if not es_detective and not (detective_dummy and es_host):
             return await inter.response.send_message(t("caos_jugador_only_detective", g), ephemeral=True)
 
         async with self.partida.lock:
@@ -223,6 +227,15 @@ class PanelVotacion(discord.ui.View):
             if VOTO_NULO_ID not in valores:
                 for acusado_id in valores:
                     self.votos_urna.setdefault(acusado_id, set()).add(inter.user.id)
+
+            # ── AUTO-VOTO DE BOTS FANTASMA (MODO DEBUG) ──
+            for j in self.partida.jugadores:
+                if getattr(j, "es_dummy", False) and j.id not in self.votos_emitidos:
+                    self.votos_emitidos.add(j.id)
+                    # Los dummies votan al mismo que tú o a un sospechoso al azar si tú votaste nulo
+                    if VOTO_NULO_ID not in valores:
+                        for acusado_id in valores:
+                            self.votos_urna.setdefault(acusado_id, set()).add(j.id)
 
             total  = len(self.partida.jugadores)
             actual = len(self.votos_emitidos)

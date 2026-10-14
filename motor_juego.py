@@ -15,6 +15,50 @@ from tipos_pokemon import debilidades_x4, debilidades_x2
 from i18n import t, get_lang
 
 
+class _DummyAvatar:
+    def __init__(self, url: str):
+        self.url = url
+
+
+class DummyMember:
+    """
+    Jugador fantasma para pruebas en solitario (Modo Debugger en Discord real).
+    Redirige sus DMs al anfitrión humano para que pueda inspeccionar todos los roles.
+    """
+    es_dummy: bool = True
+
+    def __init__(self, user_id: int, display_name: str, host_member: discord.Member):
+        self.id = user_id
+        self.name = display_name.lower().replace(" ", "_")
+        self.display_name = f"🤖 {display_name}"
+        self.global_name = display_name
+        self.mention = f"**@{display_name}**"
+        self.bot = False
+        self.host_member = host_member
+        # Avatar oficial temático para que se vea genial en Objetivo Humano y expulsiones
+        self.display_avatar = _DummyAvatar(
+            f"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/{user_id % 151 + 1}.png"
+        )
+        self.roles = []
+        self.color = discord.Color.blue()
+
+    def __eq__(self, other):
+        if hasattr(other, "id"):
+            return self.id == other.id
+        return False
+
+    def __hash__(self):
+        return hash(self.id)
+
+    async def send(self, content: str | None = None, *, embed: discord.Embed | None = None, **kwargs):
+        # Redirige el DM del bot fantasma al DM del anfitrión que está probando
+        try:
+            header = f"🧪 **[DEBUG — Rol enviado a {self.display_name}]:**"
+            await self.host_member.send(content=header, embed=embed)
+        except Exception as e:
+            print(f"[Debug DM] No se pudo redirigir DM de {self.display_name}: {e}")
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  ENUMS
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -101,6 +145,7 @@ class Partida:
     def __init__(self, canal: discord.TextChannel, partidas_activas: dict):
         self.canal  = canal
         self.config = ConfigPartida()
+        self.mensaje_lobby: discord.Message | None = None
 
         self.jugadores:  list[discord.Member] = []
         self.impostores: list[discord.Member] = []
