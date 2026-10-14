@@ -93,9 +93,9 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
             embed.add_field(name=t("final_caos_jugador_field", g), value=f"👤 **{objetivo.display_name}** (`@{objetivo.name}`)", inline=False)
             if getattr(objetivo, "display_avatar", None) and objetivo.display_avatar.url:
                 embed.set_image(url=objetivo.display_avatar.url)
-                embed.set_thumbnail(url=objetivo.display_avatar.url)
+        impostores_iniciales_ids = {imp.id for imp in partida.impostores_iniciales}
         lista_imp = "\n".join(f"🔪 {j.display_name}" for j in partida.impostores_iniciales)
-        lista_trip = "\n".join(f"✅ {j.display_name}" for j in partida.jugadores_iniciales if j not in partida.impostores_iniciales)
+        lista_trip = "\n".join(f"✅ {j.display_name}" for j in partida.jugadores_iniciales if j.id not in impostores_iniciales_ids)
         embed.add_field(name=t("final_impostors_field", g), value=lista_imp or t("final_none_caos", g), inline=True)
         embed.add_field(name=t("final_crew_field",      g), value=lista_trip or "—", inline=True)
 
@@ -113,8 +113,9 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
                 value=f"**{dp['nombre']}**\n{' / '.join(dp['tipos'])} · {dp['gen']}",
                 inline=False,
             )
-        descubiertos = [j for j in partida.impostores_iniciales if j not in partida.impostores]
-        ocultos      = [j for j in partida.impostores_iniciales if j in partida.impostores]
+        impostores_actuales_ids = {imp.id for imp in partida.impostores}
+        descubiertos = [j for j in partida.impostores_iniciales if j.id not in impostores_actuales_ids]
+        ocultos      = [j for j in partida.impostores_iniciales if j.id in impostores_actuales_ids]
 
         if victoria_impostores and ocultos:
             lineas_imp = []
@@ -126,10 +127,11 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
         else:
             lista_imp = "\n".join(f"🔪 {j.display_name}" for j in partida.impostores_iniciales)
 
+        impostores_iniciales_ids = {imp.id for imp in partida.impostores_iniciales}
         lista_trip = "\n".join(
             f"✅ {j.display_name}"
             for j in partida.jugadores_iniciales
-            if j not in partida.impostores_iniciales
+            if j.id not in impostores_iniciales_ids
         )
         embed.add_field(name=t("final_impostors_field", g), value=lista_imp  or t("final_none_caos", g), inline=True)
         embed.add_field(name=t("final_crew_field",      g), value=lista_trip or "—",                     inline=True)
@@ -141,9 +143,11 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
     # ── Guardar datos de la partida en DuckDB (asíncrono en segundo plano) ──
     try:
         jugadores_data = []
+        impostores_iniciales_ids = {imp.id for imp in partida.impostores_iniciales}
+        jugadores_actuales_ids = {j.id for j in partida.jugadores}
         for j in partida.jugadores_iniciales:
-            es_imp = j in partida.impostores_iniciales
-            es_obj = (j == partida.objetivo_humano)
+            es_imp = j.id in impostores_iniciales_ids
+            es_obj = bool(partida.objetivo_humano and (partida.objetivo_humano.id == j.id))
             if es_imp:
                 rol = "impostor"
             elif es_obj:
@@ -151,7 +155,7 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
             else:
                 rol = "tripulante"
 
-            expulsado = (j not in partida.jugadores)
+            expulsado = (j.id not in jugadores_actuales_ids)
             gano = (es_imp and victoria_impostores) or (not es_imp and not victoria_impostores)
 
             jugadores_data.append({

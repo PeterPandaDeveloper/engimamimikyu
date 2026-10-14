@@ -82,7 +82,7 @@ class PanelVotacion(discord.ui.View):
         opciones_cj = [
             discord.SelectOption(label=j.display_name, value=str(j.id))
             for j in self.partida.jugadores
-            if j not in self.partida.impostores  # el detective no puede votarse a sí mismo
+            if not any(imp.id == j.id for imp in self.partida.impostores)  # el detective no puede votarse a sí mismo
         ]
         opciones_cj.append(discord.SelectOption(
             label=t("vote_null_label", g),
@@ -106,7 +106,7 @@ class PanelVotacion(discord.ui.View):
 
     async def _voto_caos_jugador(self, inter: discord.Interaction):
         g = inter.guild_id
-        if inter.user not in self.partida.impostores:
+        if not any(imp.id == inter.user.id for imp in self.partida.impostores):
             return await inter.response.send_message(t("caos_jugador_only_detective", g), ephemeral=True)
 
         async with self.partida.lock:
@@ -195,7 +195,7 @@ class PanelVotacion(discord.ui.View):
         # evitar que dos votos casi simultáneos (ej. el penúltimo y el
         # último) decidan ambos que "ya votaron todos".
         async with self.partida.lock:
-            if inter.user not in self.partida.jugadores:
+            if not any(j.id == inter.user.id for j in self.partida.jugadores):
                 return await inter.response.send_message(t("vote_only_players", g), ephemeral=True)
             if inter.user.id in self.votos_emitidos:
                 return await inter.response.send_message(t("vote_already_voted", g), ephemeral=True)
@@ -321,10 +321,8 @@ class PanelVotacion(discord.ui.View):
         ))
 
         for exp in expulsados_empate:
-            if exp in self.partida.impostores:
-                self.partida.impostores.remove(exp)
-            if exp in self.partida.jugadores:
-                self.partida.jugadores.remove(exp)
+            self.partida.impostores = [j for j in self.partida.impostores if j.id != exp.id]
+            self.partida.jugadores = [j for j in self.partida.jugadores if j.id != exp.id]
 
         self.partida.rondas_sin_expulsion = 0  # hubo expulsión: resetear estancamiento
 
@@ -357,23 +355,23 @@ class PanelVotacion(discord.ui.View):
 
         self.partida.rondas_sin_expulsion = 0  # hubo expulsión: resetear estancamiento
 
-        es_impostor = expulsado in self.partida.impostores
+        es_impostor = any(imp.id == expulsado.id for imp in self.partida.impostores)
         embed_rev   = discord.Embed(color=discord.Color.dark_red())
         if getattr(expulsado, "display_avatar", None) and getattr(expulsado.display_avatar, "url", None):
             embed_rev.set_thumbnail(url=expulsado.display_avatar.url)
 
         if es_impostor:
             if getattr(self.partida, "caos_todos_impostores", False):
-                self.partida.impostores.remove(expulsado)
-                self.partida.jugadores.remove(expulsado)
+                self.partida.impostores = [j for j in self.partida.impostores if j.id != expulsado.id]
+                self.partida.jugadores = [j for j in self.partida.jugadores if j.id != expulsado.id]
                 embed_rev.title       = t("results_caos_todos_impostores_title", g)
                 embed_rev.description = t("results_caos_todos_impostores_desc",  g, name=expulsado.display_name)
                 embed_rev.color       = discord.Color.magenta()
                 await canal.send(embed=embed_rev)
                 return await self._pantalla_final(canal, victoria_impostores=True)
 
-            self.partida.impostores.remove(expulsado)
-            self.partida.jugadores.remove(expulsado)
+            self.partida.impostores = [j for j in self.partida.impostores if j.id != expulsado.id]
+            self.partida.jugadores = [j for j in self.partida.jugadores if j.id != expulsado.id]
 
             if len(self.partida.impostores) == 0:
                 embed_rev.title       = t("results_impostor_found_title", g)
@@ -384,10 +382,9 @@ class PanelVotacion(discord.ui.View):
 
             embed_rev.title       = t("results_impostor_more_title", g)
             embed_rev.description = t("results_impostor_more_desc",  g,
-                                      name=expulsado.display_name,
-                                      remaining=len(self.partida.impostores))
+                                      name=expulsado.display_name)
         else:
-            self.partida.jugadores.remove(expulsado)
+            self.partida.jugadores = [j for j in self.partida.jugadores if j.id != expulsado.id]
             embed_rev.title       = t("results_innocent_title", g)
             embed_rev.description = t("results_innocent_desc",  g, name=expulsado.display_name)
 
@@ -397,12 +394,7 @@ class PanelVotacion(discord.ui.View):
         if len(self.partida.impostores) > 0 and len(self.partida.impostores) >= tripulantes_vivos:
             return await self._resolver_victoria_impostores(canal, tripulantes_vivos)
 
-        # La pregunta "¿hay más impostores?" solo aplica al Caos NORMAL
-        # (las variantes Objetivo Humano / Danza Caos no llegan a esta rama)
-        if self.partida.config.modo_juego == ModoJuego.CAOS and es_impostor:
-            await self._pregunta_caos(canal)
-        else:
-            await self._siguiente_ronda(canal)
+        await self._siguiente_ronda(canal)
 
     # ── Victoria de impostores (con caso especial 1 vs 1) ────────────────────
     async def _resolver_victoria_impostores(self, canal: discord.TextChannel, tripulantes_vivos: int):
@@ -414,7 +406,7 @@ class PanelVotacion(discord.ui.View):
         if len(self.partida.impostores) == 1 and tripulantes_vivos == 1:
             impostor_final = self.partida.impostores[0]
             tripulante_final = next(
-                (j for j in self.partida.jugadores if j not in self.partida.impostores),
+                (j for j in self.partida.jugadores if j.id != impostor_final.id),
                 None,
             )
             embed_faceoff = discord.Embed(
@@ -487,58 +479,6 @@ class PanelVotacion(discord.ui.View):
                     description=t("public_hint_desc", g, hint=pista_publica),
                     color=discord.Color.from_rgb(255, 150, 0),
                 ))
-
-    async def _pregunta_caos(self, canal: discord.TextChannel):
-        g      = gid(self.partida)
-        _sig   = self._siguiente_ronda
-        _final = self._pantalla_final
-
-        class VotoCaos(discord.ui.View):
-            def __init__(self, p: Partida):
-                super().__init__(timeout=TIMEOUT_VOTACION)
-                self.p = p
-                self._respondido = False
-
-            async def _procesar(self, i: discord.Interaction, es_si: bool):
-                g_local = gid(self.p)
-                es_admin = es_anfitrion_o_admin(i.user, i.guild)
-                es_jugador = any(j.id == i.user.id for j in self.p.jugadores)
-                if not es_admin and not es_jugador:
-                    return await i.response.send_message(t("vote_only_players", g_local), ephemeral=True)
-
-                async with self.p.lock:
-                    if self._respondido:
-                        return await i.response.send_message(t("vote_already_closed", g_local), ephemeral=True)
-                    self._respondido = True
-
-                self.stop()
-                try:
-                    await i.response.edit_message(view=None)
-                except Exception:
-                    pass
-
-                if es_si:
-                    await _sig(i.channel)
-                else:
-                    quedan_impostores = len(self.p.impostores) > 0
-                    await _final(i.channel, victoria_impostores=quedan_impostores)
-
-            @discord.ui.button(style=discord.ButtonStyle.danger)
-            async def b_si(self, i: discord.Interaction, b: discord.ui.Button):
-                await self._procesar(i, es_si=True)
-
-            @discord.ui.button(style=discord.ButtonStyle.success)
-            async def b_no(self, i: discord.Interaction, b: discord.ui.Button):
-                await self._procesar(i, es_si=False)
-
-        view = VotoCaos(self.partida)
-        view.b_si.label = t("btn_caos_yes", g)
-        view.b_no.label = t("btn_caos_no",  g)
-        await canal.send(embed=discord.Embed(
-            title=t("caos_question_title", g),
-            description=t("caos_question_desc", g),
-            color=discord.Color.from_rgb(100, 0, 200),
-        ), view=view)
 
     # ── Delegación a la pantalla final (módulo aparte) ───────────────────────
     async def _pantalla_final(self, canal: discord.TextChannel, victoria_impostores: bool):

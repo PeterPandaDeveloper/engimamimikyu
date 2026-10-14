@@ -456,11 +456,11 @@ async def impver(interaction: discord.Interaction):
     if partida is None or (partida.datos_pokemon is None and not partida.pokemons_ebrios and partida.objetivo_humano is None):
         return await interaction.response.send_message(t("impver_no_game", gid), ephemeral=True)
 
-    if interaction.user not in partida.jugadores_iniciales:
+    if not any(j.id == interaction.user.id for j in partida.jugadores_iniciales):
         return await interaction.response.send_message(t("impver_not_player", gid), ephemeral=True)
 
     try:
-        es_impostor  = interaction.user in partida.impostores_iniciales
+        es_impostor  = any(imp.id == interaction.user.id for imp in partida.impostores_iniciales)
         es_ebrios    = bool(partida.pokemons_ebrios)
         es_cj        = partida.objetivo_humano is not None
 
@@ -1711,12 +1711,12 @@ async def on_message(message: discord.Message):
             await message.reply(t("impver_no_game", gid), mention_author=False)
             return
 
-        if message.author not in partida.jugadores_iniciales:
+        if not any(j.id == message.author.id for j in partida.jugadores_iniciales):
             await message.reply(t("impver_not_player", gid), mention_author=False)
             return
 
         try:
-            es_impostor = message.author in partida.impostores_iniciales
+            es_impostor = any(imp.id == message.author.id for imp in partida.impostores_iniciales)
             es_ebrios = bool(partida.pokemons_ebrios)
             es_cj = partida.objetivo_humano is not None
 

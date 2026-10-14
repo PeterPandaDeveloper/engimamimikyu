@@ -483,7 +483,7 @@ class Partida:
         gid       = self.canal.guild.id
         pista     = self.pistas_impostores.get(jugador.id, self.pista_generada)
         total_imp = len(self.impostores)
-        complices = [j for j in self.impostores if j != jugador]
+        complices = [j for j in self.impostores if j.id != jugador.id]
         modo      = self.config.modo_juego
 
         embed = discord.Embed(
@@ -621,10 +621,11 @@ class Partida:
 
         # enviar DMs en paralelo con asyncio.gather
         dm_fallidos: list[discord.Member] = []
+        impostores_ids = {imp.id for imp in self.impostores}
 
         async def _enviar_dm(j: discord.Member):
             try:
-                if j in self.impostores:
+                if j.id in impostores_ids:
                     await j.send(embed=self._build_dm_impostor(j))
                 else:
                     await j.send(embed=self._build_dm_tripulante(self.datos_pokemon))
@@ -677,13 +678,16 @@ class Partida:
 
         return True
 
-    # ── Subrutina: Caos Jugador ────────────────────────────────────────────────
+    # ── Subrutina: Caos Jugador (Objetivo Humano) ──────────────────────────────
     async def _arrancar_caos_jugador(self) -> bool:
-        # 1. Selección completamente aleatoria e independiente del objetivo y del/los impostor(es)
+        # 1. El objetivo humano puede ser cualquier jugador elegido al azar
         self.objetivo_humano = random.choice(self.jugadores)
 
-        num_imp = max(1, min(len(self.jugadores) - 1, self._calcular_impostores(len(self.jugadores))))
-        self.impostores = random.sample(self.jugadores, k=num_imp)
+        # 2. El o los impostores se eligen de entre los demás jugadores (NUNCA el objetivo humano)
+        candidatos_impostor = [j for j in self.jugadores if j.id != self.objetivo_humano.id]
+        calc_imp = self._calcular_impostores(len(self.jugadores))
+        num_imp = max(1, min(len(candidatos_impostor), calc_imp))
+        self.impostores = random.sample(candidatos_impostor, k=num_imp)
         self.jugadores_iniciales  = self.jugadores.copy()
         self.impostores_iniciales = self.impostores.copy()
 
@@ -706,10 +710,11 @@ class Partida:
             self.pistas_impostores[imp.id] = pista
 
         dm_fallidos: list[discord.Member] = []
+        impostores_ids = {imp.id for imp in self.impostores}
 
         async def _enviar_dm_humano(jugador: discord.Member):
             try:
-                if jugador in self.impostores:
+                if jugador.id in impostores_ids:
                     # El impostor recibe el DM ESTÁNDAR de impostor con su pista ambigua.
                     # NO sabe que es modo objetivo humano ni se spoilea.
                     pista = self.pistas_impostores.get(jugador.id, "")

@@ -604,8 +604,8 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "🔪 Impostor descubierto",
     },
     "results_impostor_more_desc": {
-        "en": "**{name} WAS AN IMPOSTOR.**\n\nBut there are still **{remaining}** traitor(s) hiding...",
-        "es": "**{name} SÍ ERA IMPOSTOR.**\n\nPero aún quedan **{remaining}** traidor(es) oculto(s)...",
+        "en": "**{name} WAS AN IMPOSTOR.**\n\nThe mystery continues...",
+        "es": "**{name} SÍ ERA UN IMPOSTOR.**\n\nEl juego continúa...",
     },
     "results_innocent_title": {
         "en": "😱 Innocent ejected!",
