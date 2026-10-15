@@ -964,6 +964,18 @@ async def on_message(message: discord.Message):
 
         from motor_juego import DummyMember, CaosVariante, ModoJuego
 
+        if args and args[0].lower() in ("clear", "limpiar", "off"):
+            async with partida.lock:
+                partida.jugadores = [j for j in partida.jugadores if not getattr(j, "es_dummy", False)]
+            if getattr(partida, "mensaje_lobby", None):
+                try:
+                    from vistas.common import build_embed_lobby
+                    await partida.mensaje_lobby.edit(embed=build_embed_lobby(partida))
+                except Exception:
+                    pass
+            await message.reply("🧹 Bots fantasma retirados de la sala.", mention_author=False)
+            return
+
         cantidad = 3
         var_arg = None
         for a in args:

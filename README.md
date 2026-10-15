@@ -23,7 +23,7 @@ Trainers receive secret Pokémon clues via Direct Message. One or more players a
 ## How to Play
 
 ```
-1. Host opens lobby (/impregister)  -->  Players join (3-12 players)
+1. Host opens lobby (/impregister)  -->  Players join (3-24 players)
 2. Host picks settings (Mode, Clue type, Region, Round limit 1-9)
 3. Secret roles delivered via DM
 4. Word Round: Each player says one word/clue in the chat

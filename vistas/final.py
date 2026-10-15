@@ -263,8 +263,8 @@ class PanelPostRonda(discord.ui.View):
                     self.partida.config.modo_juego = ModoJuego.CLASICO
 
             self.partida._ronda_arrancando = True
-            await inter.response.edit_message(view=None)
             self.partida.mensaje_post_ronda = None
+            await inter.response.edit_message(view=None)
             try:
                 exito = await self.partida.arrancar_ronda()
             finally:
