@@ -84,7 +84,7 @@ El proyecto cuenta con una arquitectura completamente desacoplada y modular:
 * **`vistas/` (Componentes UI):**
   * `config.py`: Panel de configuración pre-partida con validación VIP en vivo.
   * `debate.py`: Temporizadores de discusión y botón de inicio de votación.
-  * `votacion.py`: Votación cero-spoilers con auto-voto de bots fantasma y soporte multi-voto en modo extendido.
+  * `votacion.py`: Votación cero-spoilers con auto-voto de bots fantasma y votación unificada de 1 voto por jugador.
   * `final.py`: Resumen final, persistencia de métricas, descuento de cargas VIP y sistema de revancha.
 
 ---

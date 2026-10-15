@@ -988,15 +988,15 @@ async def on_message(message: discord.Message):
                     partida.jugadores.append(DummyMember(fake_id, nom, message.author))
                     agregados += 1
 
-        variante_nombre = None
-        if var_arg:
-            v_low = var_arg.lower()
-            for v in CaosVariante:
-                if v_low in (v.value.lower(), v.name.lower()):
-                    partida.config.caos_variante = v
-                    partida.config.modo_juego = ModoJuego.CAOS
-                    variante_nombre = v.value
-                    break
+            variante_nombre = None
+            if var_arg:
+                v_low = var_arg.lower()
+                for v in CaosVariante:
+                    if v_low in (v.value.lower(), v.name.lower()):
+                        partida.config.caos_variante = v
+                        partida.config.modo_juego = ModoJuego.CAOS
+                        variante_nombre = v.value
+                        break
 
         if getattr(partida, "mensaje_lobby", None):
             try:
