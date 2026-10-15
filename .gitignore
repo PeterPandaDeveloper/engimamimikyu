@@ -1,9 +1,32 @@
+# Variables de entorno y secretos (NUNCA subir .env real)
 .env
+.env.*
+!.env.example
+
+# Reglas locales de IA y empaquetados de contexto (contienen IPs/notas internas)
+GEMINI.md
+.gemini/
+proyecto.txt
+repomix-output*
+
+# Entornos virtuales de Python
+venv/
+.venv/
+env/
+
+# Caché de Python y compilados
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+
+# Bases de datos DuckDB, WAL y cachés dinámicas en tiempo de ejecución
 data/*.duckdb*
 data/sesiones_activas.json
 data/pokemon_cache.json
-proyecto.txt
-.gemini/
-GEMINI.md
+data/idiomas.json
+
+# Archivos del sistema operativo e IDEs
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
