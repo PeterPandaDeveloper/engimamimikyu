@@ -230,8 +230,7 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # 1 & 2. /impregister & /play-kyu
-@bot.tree.command(name="impregister", description="Open a new PokeImpostor lobby / Abrir sala de PokeImpostor")
-async def impregister(interaction: discord.Interaction):
+async def _ejecutar_register(interaction: discord.Interaction):
     if interaction.guild_id is None or interaction.guild is None:
         return await interaction.response.send_message(
             "❌ This command only works inside a server. / Este comando solo funciona dentro de un servidor.",
@@ -261,23 +260,32 @@ async def impregister(interaction: discord.Interaction):
         pass
 
 
+@bot.tree.command(name="impregister", description="Open a new PokeImpostor lobby / Abrir sala de PokeImpostor")
+async def impregister(interaction: discord.Interaction):
+    await _ejecutar_register(interaction)
+
+
 @bot.tree.command(name="play-kyu", description="Start a new PokeImpostor lobby / Iniciar sala de PokeImpostor")
 async def play_kyu(interaction: discord.Interaction):
-    await impregister(interaction)
+    await _ejecutar_register(interaction)
 
 
 # 3 & 4. /impver & /role-kyu
-@bot.tree.command(name="impver", description="Re-send your role by DM (only during an active game)")
-async def impver(interaction: discord.Interaction):
+async def _ejecutar_ver(interaction: discord.Interaction):
     gid = interaction.guild_id or 0
     partida = partidas_activas.get(interaction.channel.id)
     ok, msg_key = await reenviar_rol_secreto(partida, interaction.user, gid)
     await interaction.response.send_message(t(msg_key, gid), ephemeral=True)
 
 
+@bot.tree.command(name="impver", description="Re-send your role by DM (only during an active game)")
+async def impver(interaction: discord.Interaction):
+    await _ejecutar_ver(interaction)
+
+
 @bot.tree.command(name="role-kyu", description="Re-send your secret role by DM / Reenviar rol secreto por DM")
 async def role_kyu(interaction: discord.Interaction):
-    await impver(interaction)
+    await _ejecutar_ver(interaction)
 
 
 # 5 & 6. /implang & /lang-kyu
@@ -317,27 +325,35 @@ async def lang_kyu(interaction: discord.Interaction, language: str):
 
 
 # 7 & 8. /imphelp & /help-kyu
-@bot.tree.command(name="imphelp", description="How to play PokeImpostor / Cómo jugar")
-async def imphelp(interaction: discord.Interaction):
+async def _ejecutar_help(interaction: discord.Interaction):
     gid = interaction.guild_id or 0
     await interaction.response.send_message(embed=construir_embed_ayuda(gid))
 
 
+@bot.tree.command(name="imphelp", description="How to play PokeImpostor / Cómo jugar")
+async def imphelp(interaction: discord.Interaction):
+    await _ejecutar_help(interaction)
+
+
 @bot.tree.command(name="help-kyu", description="How to play PokeImpostor / Cómo jugar")
 async def help_kyu(interaction: discord.Interaction):
-    await imphelp(interaction)
+    await _ejecutar_help(interaction)
 
 
 # 9 & 10. /impcreditos & /credits-kyu
-@bot.tree.command(name="impcreditos", description="Artist and illustration credits / Créditos del artista de PokeImpostor")
-async def impcreditos(interaction: discord.Interaction):
+async def _ejecutar_creditos(interaction: discord.Interaction):
     gid = interaction.guild_id or 0
     await interaction.response.send_message(embed=construir_embed_creditos(gid))
 
 
+@bot.tree.command(name="impcreditos", description="Artist and illustration credits / Créditos del artista de PokeImpostor")
+async def impcreditos(interaction: discord.Interaction):
+    await _ejecutar_creditos(interaction)
+
+
 @bot.tree.command(name="credits-kyu", description="Artist and illustration credits / Créditos del artista de PokeImpostor")
 async def credits_kyu(interaction: discord.Interaction):
-    await impcreditos(interaction)
+    await _ejecutar_creditos(interaction)
 
 
 # 11 & 12. /impprofile & /profile-kyu
