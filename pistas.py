@@ -1,6 +1,6 @@
 """
-pistas.py — Generación y formateo de pistas para impostores y detectives en PokeImpostor
-Contiene los diccionarios temáticos, algoritmos de ambigüedad, Cloze test y debilidades.
+pistas.py — Generación y formateo de pistas para impostores y detectives en PokeImpostor.
+Incluye el bonus de característica visual (Color) en pistas de Letra Inicial y Región.
 """
 from __future__ import annotations
 
@@ -127,19 +127,15 @@ TIPOS_AMBIGUOS: dict[str, tuple[str, str]] = {
 
 
 def pista_palabra_ambigua(dp: dict, gid: int) -> str:
-    """
-    Pista de una sola palabra ambigua para el impostor.
-    Entrega un término conceptual, rasgo, temática o comportamiento del Pokémon
-    sin revelar su nombre directamente ni usar estadísticas numéricas.
-    """
     lang = get_lang(gid)
-    nombre = dp.get("nombre", "").lower()
+    # Usar nombre_base si es una forma Mega/Gimmick para encontrar su palabra temática
+    nombre_base = (dp.get("nombre_base") or dp.get("nombre") or "").lower()
     especie = dp.get("especie", "")
     habitat = dp.get("habitat", "")
     tipos = dp.get("tipos", [])
 
-    if nombre in VOCABULARIO_TEMATICO:
-        pal_es, pal_en = VOCABULARIO_TEMATICO[nombre]
+    if nombre_base in VOCABULARIO_TEMATICO:
+        pal_es, pal_en = VOCABULARIO_TEMATICO[nombre_base]
         palabra = pal_es if lang == "es" else pal_en
         return t("hint_text_word", gid, word=palabra)
 
@@ -148,7 +144,7 @@ def pista_palabra_ambigua(dp: dict, gid: int) -> str:
         partes = limpia.split()
         if partes:
             palabra = partes[-1].capitalize() if lang == "es" else partes[0].capitalize()
-            if len(palabra) >= 3 and palabra.lower() != nombre:
+            if len(palabra) >= 3 and palabra.lower() != nombre_base:
                 return t("hint_text_word", gid, word=palabra)
 
     hab_key = str(habitat).lower()
@@ -164,8 +160,7 @@ def pista_palabra_ambigua(dp: dict, gid: int) -> str:
             palabra = p_es if lang == "es" else p_en
             return t("hint_text_word", gid, word=palabra)
 
-    palabra = "Enigma" if lang == "es" else "Enigma"
-    return t("hint_text_word", gid, word=palabra)
+    return t("hint_text_word", gid, word="Enigma")
 
 
 def pista_perfil(dp: dict, gid: int) -> str:
@@ -193,13 +188,12 @@ def pista_pokedex(dp: dict, gid: int) -> str:
     if not entry:
         return t("hint_text_pokedex_unavailable", gid)
 
-    nombre = dp.get("nombre", "")
+    nombre_base = dp.get("nombre_base") or dp.get("nombre", "")
     palabras = entry.split()
     limite = " ".join(palabras[:18])
     if len(palabras) > 18:
         limite += "..."
 
-    # Términos que regalarían la identidad o tipo elemental
     terminos = {
         "fuego", "fire", "agua", "water", "planta", "grass", "electrico", "eléctrico", "electric",
         "hielo", "ice", "lucha", "fighting", "veneno", "poison", "tierra", "ground",
@@ -209,8 +203,8 @@ def pista_pokedex(dp: dict, gid: int) -> str:
         "caparazon", "caparazón", "shell", "pico", "beak", "garras", "claws",
         "tentaculos", "tentáculos", "tentacles", "antenas", "colmillos", "fangs",
     }
-    if nombre:
-        nom_lower = nombre.lower()
+    if nombre_base:
+        nom_lower = nombre_base.lower()
         terminos.add(nom_lower)
         if len(nom_lower) >= 5 and nom_lower[:4] not in {"para", "como", "este", "esta", "todo", "toda", "gran", "star", "sand", "slow"}:
             terminos.add(nom_lower[:4])
@@ -222,20 +216,41 @@ def pista_pokedex(dp: dict, gid: int) -> str:
     return t("hint_text_pokedex", gid, excerpt=limite)
 
 
+def pista_letra_con_color(dp: dict, gid: int) -> str:
+    """
+    Feedback de Candela: En lugar de dar solo la letra inicial (que deja vendido
+    al impostor si le toca hablar de primero), entrega la Letra Inicial de la
+    especie + el Color principal del Pokémon.
+    """
+    nombre_especie = dp.get("nombre_base") or dp.get("nombre") or "?"
+    inicial = nombre_especie[0].upper()
+    color = dp.get("color") or t("hint_unknown_value", gid)
+    return t("hint_text_letter_color", gid, v=inicial, color=color)
+
+
+def pista_region_con_color(dp: dict, gid: int) -> str:
+    """
+    Entrega la Región/Generación de origen acompañada de su color principal
+    para dar una característica tangible de la que hablar en el turno 1.
+    """
+    gen = dp.get("gen", "?")
+    color = dp.get("color") or t("hint_unknown_value", gid)
+    return t("hint_text_region_color", gid, v=gen, color=color)
+
+
 def generar_pista(dp: dict, ventaja: Ventaja, gid: int, excluir: set[str] | None = None) -> str:
     """
     Genera una pista aleatoria o según config.
     Si excluir está definido, no repite pistas ya asignadas a otros impostores.
     """
-    nombre = dp.get("nombre") or "?"
     habilidades = dp.get("habilidades") or []
     hab_valor = random.choice(habilidades) if habilidades else t("hint_unknown_value", gid)
 
     opciones: dict[Ventaja, str] = {
-        Ventaja.LETRA:        t("hint_text_letter", gid, v=nombre[0]),
-        Ventaja.TIPO:         t("hint_text_type",   gid, v=", ".join(dp.get("tipos", ["?"]))),
-        Ventaja.RANGO_REGION: t("hint_text_region", gid, v=dp.get("gen", "?")),
-        Ventaja.HABILIDAD:    t("hint_text_ability", gid, v=hab_valor),
+        Ventaja.LETRA:           pista_letra_con_color(dp, gid),
+        Ventaja.TIPO:            t("hint_text_type",    gid, v=", ".join(dp.get("tipos", ["?"]))),
+        Ventaja.RANGO_REGION:    pista_region_con_color(dp, gid),
+        Ventaja.HABILIDAD:       t("hint_text_ability", gid, v=hab_valor),
         Ventaja.PALABRA_AMBIGUA: pista_palabra_ambigua(dp, gid),
         Ventaja.PERFIL:          pista_perfil(dp, gid),
         Ventaja.DEBILIDADES:     pista_debilidades(dp, gid),
@@ -245,7 +260,6 @@ def generar_pista(dp: dict, ventaja: Ventaja, gid: int, excluir: set[str] | None
     if ventaja != Ventaja.ALEATORIO:
         return opciones.get(ventaja, opciones[Ventaja.TIPO])
 
-    # aleatorio: evitar repetir si hay varias pistas disponibles
     if excluir:
         disponibles = [v for k, v in opciones.items() if v not in excluir]
         if disponibles:

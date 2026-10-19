@@ -114,8 +114,8 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "🚪 Salir",
     },
     "btn_config": {
-        "en": "⚙️ Settings",
-        "es": "⚙️ Configurar",
+        "en": "⚙️ Setup & Start",
+        "es": "⚙️ Configurar e iniciar",
     },
     "btn_cancel": {
         "en": "❌ Cancel",
@@ -287,7 +287,7 @@ STRINGS: dict[str, dict[str, str]] = {
     # Opciones de pista
     "hint_random":       {"en": "Random",              "es": "Aleatorio"},
     "hint_random_desc":  {"en": "Changes each round",  "es": "Cambia cada ronda"},
-    "hint_letter":       {"en": "First letter",        "es": "Letra inicial"},
+    "hint_letter":       {"en": "First letter & Color", "es": "Letra inicial y Color"},
     "hint_type":         {"en": "Type",                "es": "Tipo"},
     "hint_region":       {"en": "Origin Region",       "es": "Región de origen"},
     "hint_ability":      {"en": "Ability",             "es": "Habilidad"},
@@ -325,16 +325,20 @@ STRINGS: dict[str, dict[str, str]] = {
     },
 
     # Opciones de regiones
-    "region_all":   {"en": "All",          "es": "Todas"},
-    "region_gen1":  {"en": "Kanto  (Gen 1)","es": "Kanto  (Gen 1)"},
-    "region_gen2":  {"en": "Johto  (Gen 2)","es": "Johto  (Gen 2)"},
-    "region_gen3":  {"en": "Hoenn  (Gen 3)","es": "Hoenn  (Gen 3)"},
-    "region_gen4":  {"en": "Sinnoh (Gen 4)","es": "Sinnoh (Gen 4)"},
-    "region_gen5":  {"en": "Unova  (Gen 5)","es": "Teselia (Gen 5)"},
-    "region_gen6":  {"en": "Kalos  (Gen 6)","es": "Kalos  (Gen 6)"},
-    "region_gen7":  {"en": "Alola  (Gen 7)","es": "Alola  (Gen 7)"},
-    "region_gen8":  {"en": "Galar  (Gen 8)","es": "Galar  (Gen 8)"},
-    "region_gen9":  {"en": "Paldea (Gen 9)","es": "Paldea (Gen 9)"},
+    "region_all":      {"en": "All (Gens 1-9 + Forms)",        "es": "Todas (Gens 1-9 + Formas)"},
+    "region_gen1":     {"en": "Kanto  (Gen 1)",                "es": "Kanto  (Gen 1)"},
+    "region_gen2":     {"en": "Johto  (Gen 2)",                "es": "Johto  (Gen 2)"},
+    "region_gen3":     {"en": "Hoenn  (Gen 3)",                "es": "Hoenn  (Gen 3)"},
+    "region_gen4":     {"en": "Sinnoh (Gen 4)",                "es": "Sinnoh (Gen 4)"},
+    "region_gen5":     {"en": "Unova  (Gen 5)",                "es": "Teselia (Gen 5)"},
+    "region_gen6":     {"en": "Kalos  (Gen 6)",                "es": "Kalos  (Gen 6)"},
+    "region_gen7":     {"en": "Alola  (Gen 7)",                "es": "Alola  (Gen 7)"},
+    "region_gen8":     {"en": "Galar  (Gen 8)",                "es": "Galar  (Gen 8)"},
+    "region_gen9":     {"en": "Paldea (Gen 9)",                "es": "Paldea (Gen 9)"},
+    "region_megas":    {"en": "🧬 Mega Evolutions & Primal",   "es": "🧬 Mega Evoluciones y Primigenios"},
+    "region_regional": {"en": "🌍 Regional Forms (Alola/Galar/Hisui/Paldea)", "es": "🌍 Formas Regionales (Alola/Galar/Hisui/Paldea)"},
+    "region_gmax":     {"en": "🌩️ Gigantamax Forms",           "es": "🌩️ Formas Gigantamax"},
+    "region_gimmicks": {"en": "✨ Gimmick & Alternate Forms",  "es": "✨ Formas Gimmick y Alternas"},
 
     # Opciones de timer — eliminadas (el debate ya no tiene límite de tiempo)
 
@@ -411,11 +415,19 @@ STRINGS: dict[str, dict[str, str]] = {
     },
 
     # ── Pistas generadas ──────────────────────────────────────────────────────
-    "hint_text_letter":      {"en": "Its name starts with the letter **{v}**.",  "es": "Su nombre empieza con la letra **{v}**."},
-    "hint_text_ends_letter": {"en": "Its name ends with the letter **{v}**.",    "es": "Su nombre termina con la letra **{v}**."},
-    "hint_text_type":        {"en": "Its type is **{v}**.",                      "es": "Es de tipo **{v}**."},
-    "hint_text_region":  {"en": "It first appeared in the **{v}**.",         "es": "Apareció por primera vez en la **{v}**."},
-    "hint_text_ability": {"en": "One of its abilities is **{v}**.",          "es": "Una de sus habilidades es **{v}**."},
+    "hint_text_letter":       {"en": "Its name starts with the letter **{v}**.",  "es": "Su nombre empieza con la letra **{v}**."},
+    "hint_text_ends_letter":  {"en": "Its name ends with the letter **{v}**.",    "es": "Su nombre termina con la letra **{v}**."},
+    "hint_text_letter_color": {
+        "en": "Its species name starts with the letter **{v}** and its main color is **{color}**.",
+        "es": "El nombre de su especie empieza con la letra **{v}** y su color principal es **{color}**.",
+    },
+    "hint_text_type":         {"en": "Its type is **{v}**.",                      "es": "Es de tipo **{v}**."},
+    "hint_text_region":       {"en": "It first appeared in **{v}**.",             "es": "Apareció por primera vez en **{v}**."},
+    "hint_text_region_color": {
+        "en": "It first appeared in **{v}** and its main color is **{color}**.",
+        "es": "Apareció por primera vez en **{v}** y su color principal es **{color}**.",
+    },
+    "hint_text_ability":      {"en": "One of its abilities is **{v}**.",          "es": "Una de sus habilidades es **{v}**."},
 
     # Estadísticas: nombres legibles
     "stat_name_hp":      {"en": "HP",              "es": "PS"},

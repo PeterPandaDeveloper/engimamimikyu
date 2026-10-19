@@ -122,19 +122,49 @@ class ConfigPartida:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  RANGOS POR GENERACIÓN
+#  RANGOS POR GENERACIÓN Y FORMAS ESPECIALES (MEGAS / GIMMICKS)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-RANGOS_GEN: dict[str, range] = {
-    "gen1": range(1,   152),
-    "gen2": range(152, 252),
-    "gen3": range(252, 387),
-    "gen4": range(387, 494),
-    "gen5": range(494, 650),
-    "gen6": range(650, 722),
-    "gen7": range(722, 810),
-    "gen8": range(810, 906),
-    "gen9": range(906, 1026),
+# IDs verificados en PokéAPI v2 (/pokemon/{id})
+IDS_MEGAS_PRIMAL: list[int] = (
+    list(range(10033, 10080))  # Mega Venusaur..Mega Diancie + Kyogre/Groudon Primigenios
+    + [10087, 10088, 10089, 10090]  # Mega Slowbro, Steelix, Pidgeot, Glalie
+)
+
+IDS_REGIONALES: list[int] = (
+    list(range(10091, 10116))  # Formas de Alola (Rattata..Marowak)
+    + list(range(10161, 10181))  # Formas de Galar (Meowth..Stunfisk)
+    + list(range(10229, 10245))  # Formas de Hisui (Growlithe..Avalugg)
+    + [10250, 10251, 10252, 10253]  # Formas de Paldea (Tauros, Wooper)
+)
+
+IDS_GMAX: list[int] = list(range(10195, 10228))  # Formas Gigantamax
+
+IDS_GIMMICKS: list[int] = (
+    list(range(10001, 10025))  # Deoxys, Wormadam, Giratina-O, Shaymin-S, Rotom, Castform, Meloetta, Landorus-T, Kyurem-B/W
+    + [10026, 10086, 10116, 10118, 10119, 10152, 10155, 10156, 10157]  # Aegislash, Hoopa-U, Greninja-Ash, Zygarde, Lycanroc, Necrozma
+    + [10185, 10186, 10188, 10189, 10191, 10193, 10194]  # Eiscue, Morpeko, Zacian-C, Zamazenta-C, Urshifu, Calyrex
+    + [10245, 10246, 10247, 10248, 10256, 10272, 10273, 10274, 10275]  # Dialga/Palkia Origen, Enamorus-T, Palafin-H, Ursaluna-BM, Ogerpon
+)
+
+IDS_TODAS_FORMAS_ESPECIALES: list[int] = (
+    IDS_MEGAS_PRIMAL + IDS_REGIONALES + IDS_GMAX + IDS_GIMMICKS
+)
+
+RANGOS_GEN: dict[str, range | list[int]] = {
+    "gen1":     range(1,   152),
+    "gen2":     range(152, 252),
+    "gen3":     range(252, 387),
+    "gen4":     range(387, 494),
+    "gen5":     range(494, 650),
+    "gen6":     range(650, 722),
+    "gen7":     range(722, 810),
+    "gen8":     range(810, 906),
+    "gen9":     range(906, 1026),
+    "megas":    IDS_MEGAS_PRIMAL,
+    "regional": IDS_REGIONALES,
+    "gmax":     IDS_GMAX,
+    "gimmicks": IDS_GIMMICKS,
 }
 
 
@@ -234,7 +264,7 @@ class Partida:
     def _elegir_id_pokemon(self) -> int:
         ids_validos: list[int] = []
         if "todas" in self.config.regiones:
-            ids_validos = list(range(1, 1026))
+            ids_validos = list(range(1, 1026)) + IDS_TODAS_FORMAS_ESPECIALES
         else:
             for gen in self.config.regiones:
                 if gen in RANGOS_GEN:

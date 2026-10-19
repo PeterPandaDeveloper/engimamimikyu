@@ -79,19 +79,23 @@ class PanelConfiguracion(discord.ui.View):
         self._sel_pista.callback = self._set_pista
         self.add_item(self._sel_pista)
 
-    # ── Select: regiones de Pokémon ──────────────────────────────────────────
+    # ── Select: regiones y formas especiales de Pokémon ──────────────────────
     def _add_select_region(self, g: int):
         region_specs = [
-            ("todas", "region_all"),
-            ("gen1",  "region_gen1"),
-            ("gen2",  "region_gen2"),
-            ("gen3",  "region_gen3"),
-            ("gen4",  "region_gen4"),
-            ("gen5",  "region_gen5"),
-            ("gen6",  "region_gen6"),
-            ("gen7",  "region_gen7"),
-            ("gen8",  "region_gen8"),
-            ("gen9",  "region_gen9"),
+            ("todas",    "region_all"),
+            ("gen1",     "region_gen1"),
+            ("gen2",     "region_gen2"),
+            ("gen3",     "region_gen3"),
+            ("gen4",     "region_gen4"),
+            ("gen5",     "region_gen5"),
+            ("gen6",     "region_gen6"),
+            ("gen7",     "region_gen7"),
+            ("gen8",     "region_gen8"),
+            ("gen9",     "region_gen9"),
+            ("megas",    "region_megas"),
+            ("regional", "region_regional"),
+            ("gmax",     "region_gmax"),
+            ("gimmicks", "region_gimmicks"),
         ]
         options = [
             discord.SelectOption(
@@ -102,7 +106,7 @@ class PanelConfiguracion(discord.ui.View):
             for val, label_key in region_specs
         ]
         self._sel_region = discord.ui.Select(
-            placeholder=t("sel_regions", g), min_values=1, max_values=10,
+            placeholder=t("sel_regions", g), min_values=1, max_values=len(region_specs),
             options=options, row=2,
         )
         self._sel_region.callback = self._set_region
@@ -196,7 +200,17 @@ class PanelConfiguracion(discord.ui.View):
         await inter.response.edit_message(embed=build_embed_config(self.partida), view=self)
 
     async def _set_region(self, inter: discord.Interaction):
-        self.partida.config.regiones = inter.data["values"]
+        seleccionadas = list(inter.data["values"])
+        previas = self.partida.config.regiones
+
+        # Parche inteligente (Feedback Andrick): desmarca "todas" si eligen una región específica
+        if len(seleccionadas) > 1 and "todas" in seleccionadas:
+            if "todas" in previas:
+                seleccionadas.remove("todas")
+            else:
+                seleccionadas = ["todas"]
+
+        self.partida.config.regiones = seleccionadas
         for opt in self._sel_region.options:
             opt.default = (opt.value in self.partida.config.regiones)
         await inter.response.edit_message(embed=build_embed_config(self.partida), view=self)
