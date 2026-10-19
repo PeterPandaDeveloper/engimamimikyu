@@ -196,8 +196,7 @@ class Partida:
         self.pista_publica_revelada: bool = False
         self.empates_consecutivos: int = 0
 
-        # fix: cada impostor tiene su propia pista
-        # { jugador.id: texto_de_pista }
+        # Pistas asignadas a cada impostor: { jugador.id: texto_de_pista }
         self.pistas_impostores: dict[int, str] = {}
         # para /impver y compatibilidad — pista del primer impostor o única
         self.pista_generada: str = ""
@@ -488,7 +487,7 @@ class Partida:
         self.jugadores_iniciales  = self.jugadores.copy()
         self.impostores_iniciales = self.impostores.copy()
 
-        # fix: pista DISTINTA para cada impostor
+        # Generación de pista única para cada impostor
         pistas_usadas: set[str] = set()
         for imp in self.impostores:
             pista = self._generar_pista_para(self.datos_pokemon, excluir=pistas_usadas)

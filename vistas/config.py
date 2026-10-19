@@ -203,7 +203,7 @@ class PanelConfiguracion(discord.ui.View):
         seleccionadas = list(inter.data["values"])
         previas = self.partida.config.regiones
 
-        # Parche inteligente (Feedback Andrick): desmarca "todas" si eligen una región específica
+        # Desmarcar 'todas' si el usuario selecciona una región específica (y viceversa)
         if len(seleccionadas) > 1 and "todas" in seleccionadas:
             if "todas" in previas:
                 seleccionadas.remove("todas")

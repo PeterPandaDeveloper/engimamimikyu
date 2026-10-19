@@ -3,11 +3,14 @@
 .env.*
 !.env.example
 
-# Reglas locales de IA y empaquetados de contexto (contienen IPs/notas internas)
+# Archivos de configuración local y documentación interna
 GEMINI.md
 .gemini/
 proyecto.txt
 repomix-output*
+simulacion_realista.py
+test_*.py
+scratch/
 
 # Entornos virtuales de Python
 venv/

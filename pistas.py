@@ -218,9 +218,8 @@ def pista_pokedex(dp: dict, gid: int) -> str:
 
 def pista_letra_con_color(dp: dict, gid: int) -> str:
     """
-    Feedback de Candela: En lugar de dar solo la letra inicial (que deja vendido
-    al impostor si le toca hablar de primero), entrega la Letra Inicial de la
-    especie + el Color principal del Pokémon.
+    Genera una pista compuesta con la inicial de la especie base y su color
+    principal para ofrecer una referencia visual equilibrada en la primera ronda.
     """
     nombre_especie = dp.get("nombre_base") or dp.get("nombre") or "?"
     inicial = nombre_especie[0].upper()

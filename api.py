@@ -246,7 +246,7 @@ async def obtener_datos_completos_pokemon(
 
             es_legendario = species_data.get("is_legendary", False) or species_data.get("is_mythical", False)
 
-            # ── Color localizado (Feedback de Candela) ────────────────────────
+            # ── Color principal localizado ────────────────────────────────────
             color_raw = (species_data.get("color") or {}).get("name", "").lower()
             if color_raw:
                 if lang == "es":
