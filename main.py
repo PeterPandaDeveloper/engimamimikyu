@@ -719,6 +719,127 @@ async def partner_kyu(interaction: discord.Interaction, servidor_id: str, motivo
     await _ejecutar_partner_add(interaction, servidor_id, motivo)
 
 
+# 30. /trainer-card (Visualización de Tarjeta de Entrenador)
+@bot.tree.command(name="trainer-card", description="View your stylized Trainer Card, medals & favorite Pokémon / Ver Tarjeta de Entrenador")
+@app_commands.describe(usuario="Trainer to inspect (optional) / Entrenador a consultar (opcional)")
+async def trainer_card_cmd(interaction: discord.Interaction, usuario: discord.Member | None = None):
+    await _ejecutar_perfil(interaction, usuario)
+
+
+# 31. /favorito-kyu (Elegir Pokémon favorito con Autocompletado en vivo)
+async def _autocompletar_pokemon(interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+    from api import buscar_coincidencias_pokemon, asegurar_catalogo_nombres
+    if not current.strip():
+        catalogo = await asegurar_catalogo_nombres()
+        return [app_commands.Choice(name=nom, value=nom) for _, nom in catalogo[:25]]
+    coincidencias = await buscar_coincidencias_pokemon(current, limite=25)
+    return [app_commands.Choice(name=nom, value=nom) for nom in coincidencias]
+
+
+@bot.tree.command(name="favorito-kyu", description="Choose your favorite Pokémon for your Trainer Card / Elegir Pokémon favorito")
+@app_commands.describe(pokemon="Start typing the Pokémon name / Escribe el nombre del Pokémon")
+@app_commands.autocomplete(pokemon=_autocompletar_pokemon)
+async def favorito_kyu(interaction: discord.Interaction, pokemon: str):
+    from api import asegurar_catalogo_nombres, obtener_datos_completos_pokemon
+    from db import set_pokemon_favorito_async
+    await interaction.response.defer(ephemeral=True)
+
+    catalogo = await asegurar_catalogo_nombres()
+    pk_id = next((pid for pid, nom in catalogo if nom.lower() == pokemon.strip().lower()), None)
+    if pk_id is None:
+        pk_id = next((pid for pid, nom in catalogo if pokemon.strip().lower() in nom.lower()), None)
+
+    es_es = (get_lang(interaction.guild_id or 0) == "es")
+    if pk_id is None:
+        msg_err = "❌ No encontré ese Pokémon. Usa las sugerencias de la lista." if es_es else "❌ Pokémon not found. Use the suggestions list."
+        return await interaction.followup.send(msg_err, ephemeral=True)
+
+    dp = await obtener_datos_completos_pokemon(pk_id, lang="es" if es_es else "en")
+    if not dp:
+        msg_api = "⚠️ Error al obtener el sprite desde PokéAPI." if es_es else "⚠️ Error fetching sprite from PokéAPI."
+        return await interaction.followup.send(msg_api, ephemeral=True)
+
+    await set_pokemon_favorito_async(interaction.user.id, pk_id, dp["nombre"], dp.get("sprite"))
+    emb = discord.Embed(
+        title="❤️ ¡Pokémon Favorito Actualizado!" if es_es else "❤️ Favorite Pokémon Updated!",
+        description=(
+            f"**{dp['nombre']}** ahora aparecerá como tu compañero insignia en tu `/trainer-card` y `/profile-kyu`."
+            if es_es else
+            f"**{dp['nombre']}** will now appear as your companion in `/trainer-card` and `/profile-kyu`."
+        ),
+        color=discord.Color.from_rgb(255, 105, 180),
+    )
+    if dp.get("sprite"):
+        emb.set_thumbnail(url=dp["sprite"])
+    await interaction.followup.send(embed=emb, ephemeral=True)
+
+
+# 32. /torneo-kyu (Iniciar modo Torneo de 3, 5, 7 o 10 partidas en el canal)
+@bot.tree.command(name="torneo-kyu", description="Start a Tournament Session (3, 5, 7 or 10 matches with podium) / Iniciar Modo Torneo")
+@app_commands.describe(
+    partidas="Number of matches for the tournament / Cantidad de partidas del torneo",
+    rondas_max="Max debate rounds per match (default: 3) / Rondas máx de debate por partida",
+)
+@app_commands.choices(partidas=[
+    app_commands.Choice(name="⚡ 3 Partidas (Torneo Rápido)", value=3),
+    app_commands.Choice(name="🏆 5 Partidas (Torneo Estándar)", value=5),
+    app_commands.Choice(name="🔥 7 Partidas (Torneo Largo)", value=7),
+    app_commands.Choice(name="👑 10 Partidas (Gran Torneo de Noche)", value=10),
+])
+async def torneo_kyu(
+    interaction: discord.Interaction,
+    partidas: int = 5,
+    rondas_max: app_commands.Range[int, 1, 9] = 3,
+):
+    if interaction.guild_id is None or interaction.guild is None:
+        return await interaction.response.send_message("❌ Solo en servidores.", ephemeral=True)
+    gid = interaction.guild_id
+    if not es_anfitrion_o_admin(interaction.user, interaction.guild):
+        return await interaction.response.send_message(
+            t("register_only_host", gid, role=obtener_nombre_rol_host(interaction.guild)), ephemeral=True
+        )
+
+    partida = partidas_activas.get(interaction.channel.id)
+    if partida is None:
+        partida = Partida(canal=interaction.channel, partidas_activas=partidas_activas)
+        partidas_activas[interaction.channel.id] = partida
+        partida.es_torneo = True
+        partida.torneo_max_partidas = partidas
+        partida.config.max_rondas = rondas_max
+        es_es = (get_lang(gid) == "es")
+        view = PanelInscripcion(partida)
+        msg_t_lobby = (
+            f"🏆 **¡MODO TORNEO ACTIVADO ({partidas} PARTIDAS)!** Acumulen puntos en cada revancha para llegar al podio."
+            if es_es else
+            f"🏆 **TOURNAMENT MODE ACTIVATED ({partidas} MATCHES)!** Accumulate points each rematch to reach the podium."
+        )
+        await interaction.response.send_message(
+            content=msg_t_lobby,
+            embed=_build_embed_lobby(partida),
+            view=view,
+        )
+        try:
+            view.message = await interaction.original_response()
+            partida.mensaje_lobby = view.message
+        except Exception:
+            pass
+    else:
+        es_es = (get_lang(gid) == "es")
+        partida.es_torneo = True
+        partida.torneo_max_partidas = partidas
+        partida.config.max_rondas = rondas_max
+        partida.torneo_partida_num = 0
+        partida.torneo_puntos.clear()
+        msg_t_active = (
+            f"🏆 **¡Modo Torneo activado en la sala actual a {partidas} partidas!**\n"
+            f"*(Puntos: Victoria Impostor invicto = 3 pts · Victoria Tripulante o Robo en Última Oportunidad = 2 pts)*"
+            if es_es else
+            f"🏆 **Tournament Mode activated in this room for {partidas} matches!**\n"
+            f"*(Points: Undefeated Impostor Win = 3 pts · Crewmate Win or Last Stand Steal = 2 pts)*"
+        )
+        await interaction.response.send_message(msg_t_active)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  INTERCEPTOR DE MENSAJES DE TEXTO (-imp sufijo y prefijo)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -813,6 +934,45 @@ async def on_message(message: discord.Message):
         nueva.mensaje_lobby = msg_lobby
         return
 
+    # 1b. torneo / tournament
+    elif cmd in ("torneo", "tournament"):
+        await asegurar_rol_pokehost(message.guild)
+        if not es_anfitrion_o_admin(message.author, message.guild):
+            await message.reply(t("register_only_host", gid, role=obtener_nombre_rol_host(message.guild)), mention_author=False)
+            return
+
+        cant_partidas = 5
+        if args and args[0].isdigit():
+            cant_partidas = max(3, min(20, int(args[0])))
+
+        partida = partidas_activas.get(message.channel.id)
+        if partida is None:
+            partida = Partida(canal=message.channel, partidas_activas=partidas_activas)
+            partidas_activas[message.channel.id] = partida
+            partida.es_torneo = True
+            partida.torneo_max_partidas = cant_partidas
+            partida.config.max_rondas = 3
+            view = PanelInscripcion(partida)
+            msg_lobby = await message.channel.send(
+                content=f"🏆 **¡MODO TORNEO ACTIVADO ({cant_partidas} PARTIDAS)!** Acumulen puntos en cada revancha para llegar al podio.",
+                embed=_build_embed_lobby(partida),
+                view=view,
+            )
+            view.message = msg_lobby
+            partida.mensaje_lobby = msg_lobby
+        else:
+            partida.es_torneo = True
+            partida.torneo_max_partidas = cant_partidas
+            partida.config.max_rondas = 3
+            partida.torneo_partida_num = 0
+            partida.torneo_puntos.clear()
+            await message.reply(
+                f"🏆 **¡Modo Torneo activado en la sala actual a {cant_partidas} partidas!**\n"
+                f"*(Puntos: Victoria Impostor invicto = 3 pts · Victoria Tripulante o Robo en Última Oportunidad = 2 pts)*",
+                mention_author=False,
+            )
+        return
+
     # 2. ver / impver / rol
     elif cmd in ("ver", "rol", "role", "myrole"):
         partida = partidas_activas.get(message.channel.id)
@@ -826,14 +986,49 @@ async def on_message(message: discord.Message):
             await message.reply(t(msg_key, gid), mention_author=False)
         return
 
-    # 3. perfil / profile
-    elif cmd in ("perfil", "profile"):
+    # 3. perfil / profile / card / tarjeta
+    elif cmd in ("perfil", "profile", "card", "trainercard", "tarjeta"):
         target = message.mentions[0] if message.mentions else message.author
         embed, err = await construir_embed_perfil(gid, target)
         if err:
             await message.reply(t(err, gid), mention_author=False)
             return
         await message.reply(embed=embed, mention_author=False)
+        return
+
+    # 3b. favorito / favorite / fav
+    elif cmd in ("favorito", "favorite", "fav"):
+        if not args:
+            await message.reply("⚠️ Uso: `mimi favorito <nombre>` (ej. `mimi favorito lucario`)", mention_author=False)
+            return
+
+        from api import asegurar_catalogo_nombres, obtener_datos_completos_pokemon
+        from db import set_pokemon_favorito_async
+
+        texto_poke = " ".join(args).strip().lower()
+        catalogo = await asegurar_catalogo_nombres()
+        pk_id = next((pid for pid, nom in catalogo if nom.lower() == texto_poke), None)
+        if pk_id is None:
+            pk_id = next((pid for pid, nom in catalogo if texto_poke in nom.lower()), None)
+
+        if pk_id is None:
+            await message.reply(f"❌ No encontré ningún Pokémon con el nombre `{texto_poke}`.", mention_author=False)
+            return
+
+        dp = await obtener_datos_completos_pokemon(pk_id, lang="es")
+        if not dp:
+            await message.reply("⚠️ Error al obtener datos de PokéAPI.", mention_author=False)
+            return
+
+        await set_pokemon_favorito_async(message.author.id, pk_id, dp["nombre"], dp.get("sprite"))
+        emb = discord.Embed(
+            title="❤️ ¡Pokémon Favorito Actualizado!",
+            description=f"**{dp['nombre']}** ahora aparecerá en tu `/trainer-card` y `-mimi card`.",
+            color=discord.Color.from_rgb(255, 105, 180),
+        )
+        if dp.get("sprite"):
+            emb.set_thumbnail(url=dp["sprite"])
+        await message.reply(embed=emb, mention_author=False)
         return
 
     # 4. ranking / leaderboard / top

@@ -11,7 +11,7 @@ from .common import (
     obtener_nombre_rol_host,
 )
 from .lobby import PanelInscripcion
-from .config import PanelConfiguracion
+from .config import PanelConfiguracion, PanelConfiguracionTorneo
 from .debate import PanelDebate
 from .votacion import PanelVotacion
 from .final import PanelPostRonda, mostrar_pantalla_final
@@ -19,6 +19,7 @@ from .final import PanelPostRonda, mostrar_pantalla_final
 __all__ = [
     "PanelInscripcion",
     "PanelConfiguracion",
+    "PanelConfiguracionTorneo",
     "PanelDebate",
     "PanelVotacion",
     "PanelPostRonda",

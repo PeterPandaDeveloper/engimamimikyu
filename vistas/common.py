@@ -6,7 +6,7 @@ from __future__ import annotations
 from typing import Any
 import discord
 from motor_juego import Partida, ModoJuego, CaosVariante, Ventaja
-from i18n import t
+from i18n import t, get_lang
 
 # Timeouts de las vistas (en segundos). El debate y la votación no tienen
 # límite de tiempo real para el juego — estos valores solo evitan que
@@ -108,11 +108,16 @@ def build_embed_config(partida: Partida) -> discord.Embed:
     else:
         regiones_str = ", ".join(t(f"region_{r}", g) if f"region_{r}" in t.__globals__["STRINGS"] else r for r in cfg.regiones)
 
-    embed = discord.Embed(title=t("config_title", g), color=discord.Color.blurple())
+    es_torneo = getattr(partida, "es_torneo", False)
+    titulo = "🏆 Configuración del Torneo" if (get_lang(g) == "es" and es_torneo) else ("🏆 Tournament Settings" if es_torneo else t("config_title", g))
+    embed = discord.Embed(title=titulo, color=discord.Color.gold() if es_torneo else discord.Color.blurple())
     embed.add_field(name=t("config_mode_label",    g), value=modo_display.get(cfg.modo_juego, cfg.modo_juego.value), inline=True)
     embed.add_field(name=t("config_hint_label",    g), value=ventaja_display.get(cfg.ventaja, cfg.ventaja.value),    inline=True)
     embed.add_field(name=t("config_regions_label", g), value=regiones_str,                                           inline=True)
     embed.add_field(name=t("config_rounds_label",  g), value=f"⏳ **{cfg.max_rondas}**",                             inline=True)
+    if es_torneo:
+        label_torneo = "🏆 Duración del Torneo" if get_lang(g) == "es" else "🏆 Tournament Length"
+        embed.add_field(name=label_torneo, value=f"**{partida.torneo_max_partidas} Partidas**" if get_lang(g) == "es" else f"**{partida.torneo_max_partidas} Matches**", inline=True)
     if cfg.modo_juego == ModoJuego.EXTENDIDO:
         activo = getattr(cfg, "conocer_complices", True)
         val_complices = t("config_complices_enabled", g) if activo else t("config_complices_disabled", g)

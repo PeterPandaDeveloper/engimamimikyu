@@ -106,6 +106,17 @@ def _init_schema_sync(con: duckdb.DuckDBPyConnection) -> None:
         );
     """)
 
+    # 6. Preferencias globales del jugador (Pokémon favorito para su Trainer Card)
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS jugadores_preferencias (
+            user_id BIGINT PRIMARY KEY,
+            pokemon_favorito_id INTEGER,
+            pokemon_favorito_nombre VARCHAR,
+            pokemon_favorito_sprite VARCHAR,
+            actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+
 
 def _get_connection() -> duckdb.DuckDBPyConnection:
     global _con
@@ -880,3 +891,43 @@ def _close_db_sync() -> None:
 async def close_db() -> None:
     """Cierra la conexión con DuckDB al apagar el bot para garantizar el vaciado limpio del WAL."""
     await asyncio.to_thread(_close_db_sync)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  PREFERENCIAS DE ENTRENADOR (/favorito y /trainer-card)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _set_pokemon_favorito_sync(user_id: int, pk_id: int, pk_nombre: str, pk_sprite: str | None) -> None:
+    with _DB_LOCK:
+        con = _get_connection()
+        con.execute("""
+            INSERT INTO jugadores_preferencias (user_id, pokemon_favorito_id, pokemon_favorito_nombre, pokemon_favorito_sprite, actualizado_en)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT (user_id) DO UPDATE SET
+                pokemon_favorito_id = EXCLUDED.pokemon_favorito_id,
+                pokemon_favorito_nombre = EXCLUDED.pokemon_favorito_nombre,
+                pokemon_favorito_sprite = EXCLUDED.pokemon_favorito_sprite,
+                actualizado_en = EXCLUDED.actualizado_en;
+        """, [user_id, pk_id, pk_nombre, pk_sprite])
+
+
+async def set_pokemon_favorito_async(user_id: int, pk_id: int, pk_nombre: str, pk_sprite: str | None) -> None:
+    await asyncio.to_thread(_set_pokemon_favorito_sync, user_id, pk_id, pk_nombre, pk_sprite)
+
+
+def _get_pokemon_favorito_sync(user_id: int) -> dict[str, Any] | None:
+    with _DB_LOCK:
+        con = _get_connection()
+        row = con.execute("""
+            SELECT pokemon_favorito_id, pokemon_favorito_nombre, pokemon_favorito_sprite
+            FROM jugadores_preferencias
+            WHERE user_id = ?;
+        """, [user_id]).fetchone()
+        if not row:
+            return None
+        return {"id": row[0], "nombre": row[1], "sprite": row[2]}
+
+
+async def get_pokemon_favorito_async(user_id: int) -> dict[str, Any] | None:
+    return await asyncio.to_thread(_get_pokemon_favorito_sync, user_id)
+

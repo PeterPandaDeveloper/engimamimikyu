@@ -226,6 +226,13 @@ class Partida:
         # para detectar intentos concurrentes de iniciar/revancha.
         self._ronda_arrancando: bool = False
 
+        # ── Estado de Modo Torneo (Serie Competitiva) ─────────────────────────
+        self.es_torneo:           bool            = False
+        self.torneo_max_partidas: int             = 5
+        self.torneo_partida_num:  int             = 0
+        self.torneo_puntos:       dict[int, dict] = {}
+        self.robo_ultima_oportunidad: bool        = False
+
     @property
     def partidas_activas(self) -> dict:
         return self._partidas_activas
@@ -446,6 +453,7 @@ class Partida:
         self.rondas_sin_expulsion   = 0
         self.pista_publica_revelada = False
         self.empates_consecutivos   = 0
+        self.robo_ultima_oportunidad = False
 
         modo = self.config.modo_juego
 

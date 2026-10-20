@@ -11,6 +11,7 @@ Reglas consolidadas (0 Spoilers):
 """
 from __future__ import annotations
 
+import asyncio
 import discord
 from motor_juego import Partida, ModoJuego
 from i18n import t, get_lang
@@ -230,6 +231,29 @@ class PanelVotacion(discord.ui.View):
             and not getattr(self.partida, "caos_todos_impostores", False)
             and len(self.partida.impostores) == 0
         ):
+            # En Modo Clásico y Extendido, el último impostor atrapado tiene su Última Oportunidad
+            impostores_caidos = [m for m in expulsados_empate if any(imp.id == m.id for imp in self.partida.impostores_iniciales)]
+            ultimo_imp = impostores_caidos[-1] if impostores_caidos else (expulsados_empate[0] if expulsados_empate else None)
+            if modo in (ModoJuego.CLASICO, ModoJuego.EXTENDIDO) and self.partida.datos_pokemon and ultimo_imp:
+                es_es = (get_lang(g) == "es")
+                view_uo = PanelUltimaOportunidad(self.partida, ultimo_imp)
+                emb_uo = discord.Embed(
+                    title="🎯 ¡ÚLTIMA OPORTUNIDAD DEL IMPOSTOR!" if es_es else "🎯 IMPOSTOR'S LAST STAND!",
+                    description=(
+                        f"¡Han atrapado a **{ultimo_imp.display_name}** en la expulsión múltiple! Pero antes de cantar victoria...\n\n"
+                        f"🕵️ **{ultimo_imp.display_name}** tiene **1 oportunidad** de escribir el nombre del Pokémon secreto. "
+                        f"Si lo adivina, **¡robará la partida!**"
+                        if es_es else
+                        f"**{ultimo_imp.display_name}** was caught in the mass ejection! But before celebrating...\n\n"
+                        f"🕵️ **{ultimo_imp.display_name}** has **1 chance** to guess the secret Pokémon's name. "
+                        f"If they guess right, **they steal the match!**"
+                    ),
+                    color=discord.Color.from_rgb(255, 140, 0),
+                )
+                msg_uo = await canal.send(embed=emb_uo, view=view_uo)
+                view_uo.message = msg_uo
+                return
+
             return await self._pantalla_final(canal, victoria_impostores=False)
 
         tripulantes_vivos = len(self.partida.jugadores) - len(self.partida.impostores)
@@ -288,6 +312,28 @@ class PanelVotacion(discord.ui.View):
                 embed_rev.description = t("results_impostor_found_desc",  g, name=expulsado.display_name)
                 embed_rev.color       = discord.Color.green()
                 await canal.send(embed=embed_rev)
+
+                # 🎯 En Modo Clásico y Extendido, el último impostor atrapado tiene su Última Oportunidad (Spyfall)
+                if modo in (ModoJuego.CLASICO, ModoJuego.EXTENDIDO) and self.partida.datos_pokemon:
+                    es_es = (get_lang(g) == "es")
+                    view_uo = PanelUltimaOportunidad(self.partida, expulsado)
+                    emb_uo = discord.Embed(
+                        title="🎯 ¡ÚLTIMA OPORTUNIDAD DEL IMPOSTOR!" if es_es else "🎯 IMPOSTOR'S LAST STAND!",
+                        description=(
+                            f"¡Han atrapado a **{expulsado.display_name}**! Pero antes de cantar victoria...\n\n"
+                            f"🕵️ **{expulsado.display_name}** tiene **1 oportunidad** de escribir el nombre del Pokémon secreto. "
+                            f"Si lo adivina, **¡robará la partida!**"
+                            if es_es else
+                            f"**{expulsado.display_name}** was caught! But before celebrating...\n\n"
+                            f"🕵️ **{expulsado.display_name}** has **1 chance** to guess the secret Pokémon's name. "
+                            f"If they guess right, **they steal the match!**"
+                        ),
+                        color=discord.Color.from_rgb(255, 140, 0),
+                    )
+                    msg_uo = await canal.send(embed=emb_uo, view=view_uo)
+                    view_uo.message = msg_uo
+                    return
+
                 return await self._pantalla_final(canal, victoria_impostores=False)
 
             embed_rev.title       = t("results_impostor_more_title", g)
@@ -421,3 +467,254 @@ class PanelVotacion(discord.ui.View):
     async def _pantalla_final(self, canal: discord.TextChannel, victoria_impostores: bool):
         from .final import mostrar_pantalla_final
         await mostrar_pantalla_final(self.partida, canal, victoria_impostores)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  🎯 MECÁNICA SPYFALL: ÚLTIMA OPORTUNIDAD DEL IMPOSTOR (CON PAUSA DRAMÁTICA)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class _SelectAutocompletadoPokemon(discord.ui.View):
+    """Menú efímero sin spoilers (solo nombres) para confirmar el Pokémon tras escribir un fragmento."""
+    def __init__(self, padre_view: PanelUltimaOportunidad, coincidencias: list[str], autor: discord.Member):
+        super().__init__(timeout=35)
+        self.padre_view = padre_view
+        self.coincidencias = coincidencias
+        self.autor = autor
+
+        opciones = [discord.SelectOption(label=nom, value=nom, emoji="🔮") for nom in coincidencias[:25]]
+        g = gid(padre_view.partida)
+        es_es = (get_lang(g) == "es")
+        sel = discord.ui.Select(
+            placeholder="🔍 Selecciona el Pokémon exacto de la lista..." if es_es else "🔍 Pick the exact Pokémon from the list...",
+            options=opciones,
+            min_values=1,
+            max_values=1,
+        )
+        sel.callback = self._confirmar_seleccion
+        self.add_item(sel)
+
+    async def _confirmar_seleccion(self, inter: discord.Interaction):
+        g = gid(self.padre_view.partida)
+        es_es = (get_lang(g) == "es")
+        elegido = inter.data["values"][0]
+        msg_conf = f"🎯 Has elegido **{elegido}**. ¡Lanzando veredicto en el canal!" if es_es else f"🎯 You chose **{elegido}**. Revealing verdict in channel!"
+        await inter.response.edit_message(content=msg_conf, view=None)
+        await self.padre_view.ejecutar_revelacion_dramatica(inter.channel, self.autor, elegido)
+
+    async def on_timeout(self):
+        if not self.padre_view._resuelto and self.coincidencias:
+            await self.padre_view.ejecutar_revelacion_dramatica(
+                self.padre_view.partida.canal, self.autor, self.coincidencias[0]
+            )
+
+
+class PanelUltimaOportunidad(discord.ui.View):
+    """
+    Cuando el último impostor es descubierto en Modo Clásico o Extendido,
+    tiene una única oportunidad de adivinar el nombre del Pokémon secreto para
+    robar la victoria.
+    """
+    def __init__(self, partida: Partida, impostor_atrapado: discord.Member):
+        super().__init__(timeout=90)
+        self.partida = partida
+        self.impostor_atrapado = impostor_atrapado
+        self._resuelto = False
+        g = gid(partida)
+        es_es = (get_lang(g) == "es")
+
+        lbl_guess = "🎯 Adivinar Pokémon (Última Oportunidad)" if es_es else "🎯 Guess Pokémon (Last Stand)"
+        lbl_pass  = "🏳️ Rendirse" if es_es else "🏳️ Give Up"
+
+        btn_guess = discord.ui.Button(label=lbl_guess, style=discord.ButtonStyle.danger, row=0)
+        btn_pass  = discord.ui.Button(label=lbl_pass,  style=discord.ButtonStyle.secondary, row=0)
+        btn_guess.callback = self._abrir_buscador
+        btn_pass.callback  = self._rendirse
+        self.add_item(btn_guess)
+        self.add_item(btn_pass)
+
+    def _puede_accionar(self, user: discord.Member, guild: discord.Guild | None) -> bool:
+        if user.id == self.impostor_atrapado.id:
+            return True
+        if getattr(self.impostor_atrapado, "es_dummy", False) and es_anfitrion_o_admin(user, guild):
+            return True
+        return False
+
+    async def on_timeout(self):
+        if self._resuelto:
+            return
+        self._resuelto = True
+        for child in self.children:
+            child.disabled = True
+        if hasattr(self, "message") and self.message:
+            try:
+                await self.message.edit(view=None)
+            except Exception:
+                pass
+        from .final import mostrar_pantalla_final
+        await mostrar_pantalla_final(self.partida, self.partida.canal, victoria_impostores=False)
+
+    async def _rendirse(self, inter: discord.Interaction):
+        g = inter.guild_id
+        if not self._puede_accionar(inter.user, inter.guild):
+            msg = "⛔ Solo el impostor atrapado puede usar su Última Oportunidad." if get_lang(g) == "es" else "⛔ Only the caught impostor can use Last Stand."
+            return await inter.response.send_message(msg, ephemeral=True)
+
+        async with self.partida.lock:
+            if self._resuelto:
+                return
+            self._resuelto = True
+
+        self.stop()
+        try:
+            await inter.message.edit(view=None)
+        except Exception:
+            pass
+
+        es_es = (get_lang(g) == "es")
+        txt = f"🏳️ **{self.impostor_atrapado.display_name}** no supo qué Pokémon era y aceptó su derrota." if es_es else f"🏳️ **{self.impostor_atrapado.display_name}** gave up and accepted defeat."
+        await inter.response.send_message(txt)
+        from .final import mostrar_pantalla_final
+        await mostrar_pantalla_final(self.partida, inter.channel, victoria_impostores=False)
+
+    async def _abrir_buscador(self, inter: discord.Interaction):
+        g = inter.guild_id
+        if not self._puede_accionar(inter.user, inter.guild):
+            msg = "⛔ Solo el impostor atrapado puede usar su Última Oportunidad." if get_lang(g) == "es" else "⛔ Only the caught impostor can use Last Stand."
+            return await inter.response.send_message(msg, ephemeral=True)
+
+        if self._resuelto:
+            return await inter.response.send_message("⏳ Ya se emitió un intento.", ephemeral=True)
+
+        padre = self
+        es_es = (get_lang(g) == "es")
+
+        class ModalBuscarPoke(discord.ui.Modal, title="🎯 Última Oportunidad" if es_es else "🎯 Last Stand"):
+            texto = discord.ui.TextInput(
+                label="Escribe el nombre (o primeras letras)" if es_es else "Type Pokémon name (or first letters)",
+                placeholder="Ej: gar, pangoro, charizard..." if es_es else "E.g.: gar, pangoro, charizard...",
+                min_length=2,
+                max_length=30,
+                required=True,
+            )
+
+            async def on_submit(self, modal_inter: discord.Interaction):
+                from api import buscar_coincidencias_pokemon
+                escrito = self.texto.value.strip()
+                coincidencias = await buscar_coincidencias_pokemon(escrito, limite=25)
+
+                dp = padre.partida.datos_pokemon or {}
+                nombre_real = (dp.get("nombre") or "").lower()
+                nombre_base = (dp.get("nombre_base") or "").lower()
+
+                if escrito.lower() in (nombre_real, nombre_base) or len(coincidencias) == 1:
+                    elegido = coincidencias[0] if len(coincidencias) == 1 else escrito.capitalize()
+                    msg_apuesta = f"🎯 Apostando todo a **{elegido}**..." if es_es else f"🎯 Putting it all on **{elegido}**..."
+                    await modal_inter.response.send_message(msg_apuesta, ephemeral=True)
+                    await padre.ejecutar_revelacion_dramatica(modal_inter.channel, padre.impostor_atrapado, elegido)
+                    return
+
+                if not coincidencias:
+                    msg_apuesta = f"🎯 Apostando todo a **{escrito.capitalize()}**..." if es_es else f"🎯 Putting it all on **{escrito.capitalize()}**..."
+                    await modal_inter.response.send_message(msg_apuesta, ephemeral=True)
+                    await padre.ejecutar_revelacion_dramatica(modal_inter.channel, padre.impostor_atrapado, escrito.capitalize())
+                    return
+
+                vista_auto = _SelectAutocompletadoPokemon(padre, coincidencias, padre.impostor_atrapado)
+                msg_auto = (
+                    f"🔎 Encontré **{len(coincidencias)}** Pokémon que coinciden con `\"{escrito}\"`. "
+                    f"Elige el nombre exacto en la lista de abajo:"
+                    if es_es else
+                    f"🔎 Found **{len(coincidencias)}** Pokémon matching `\"{escrito}\"`. Pick the exact name below:"
+                )
+                await modal_inter.response.send_message(msg_auto, view=vista_auto, ephemeral=True)
+
+        await inter.response.send_modal(ModalBuscarPoke())
+
+    async def ejecutar_revelacion_dramatica(self, canal: discord.TextChannel, autor: discord.Member, intento_nombre: str):
+        async with self.partida.lock:
+            if self._resuelto:
+                return
+            self._resuelto = True
+
+        self.stop()
+        if hasattr(self, "message") and self.message:
+            try:
+                await self.message.edit(view=None)
+            except Exception:
+                pass
+
+        g = gid(self.partida)
+        es_es = (get_lang(g) == "es")
+        dp = self.partida.datos_pokemon or {}
+        real_full = (dp.get("nombre") or "").strip().lower()
+        real_base = (dp.get("nombre_base") or real_full).strip().lower()
+        intento_low = intento_nombre.strip().lower()
+
+        # Acierto si coincide con el nombre completo o especie base
+        acerto = (
+            intento_low == real_full
+            or intento_low == real_base
+            or (len(intento_low) >= 4 and intento_low == real_full.split(" ")[0].lower())
+        )
+
+        titulo_suspenso = "🎭 ¡ÚLTIMA OPORTUNIDAD EN JUEGO!" if es_es else "🎭 LAST STAND IN PLAY!"
+        base_desc = (
+            f"🔪 **{autor.display_name}** se niega a caer sin pelear y asegura que el Pokémon secreto es...\n\n"
+            f"👉 **« {intento_nombre.upper()} »**\n\n"
+            if es_es else
+            f"🔪 **{autor.display_name}** refuses to go down without a fight and claims the secret Pokémon is...\n\n"
+            f"👉 **« {intento_nombre.upper()} »**\n\n"
+        )
+
+        emb_suspenso = discord.Embed(
+            title=titulo_suspenso,
+            description=base_desc + "⏳ **.**",
+            color=discord.Color.from_rgb(255, 140, 0),
+        )
+        msg_drama = await canal.send(embed=emb_suspenso)
+
+        for puntos in ("⏳ **. .**", "⏳ **. . .**"):
+            await asyncio.sleep(1.1)
+            try:
+                emb_suspenso.description = base_desc + puntos
+                await msg_drama.edit(embed=emb_suspenso)
+            except Exception:
+                pass
+
+        await asyncio.sleep(1.2)
+
+        if acerto:
+            self.partida.robo_ultima_oportunidad = True
+            emb_res = discord.Embed(
+                title="💀 ¡ACERTÓ! ¡ROBO MAESTRO DEL IMPOSTOR!" if es_es else "💀 CORRECT! MASTERMIND IMPOSTOR STEAL!",
+                description=(
+                    f"😱 **¡INCREÍBLE!** ¡El Pokémon secreto sí era **{dp.get('nombre')}**!\n\n"
+                    f"Aunque descubrieron a **{autor.display_name}**, dedujo el Pokémon exacto a partir de las pistas del grupo y **roba la victoria para los Impostores**."
+                    if es_es else
+                    f"😱 **UNBELIEVABLE!** The secret Pokémon was indeed **{dp.get('nombre')}**!\n\n"
+                    f"Even though **{autor.display_name}** was caught, they deduced the exact Pokémon from your clues and **stole the win for the Impostors**!"
+                ),
+                color=discord.Color.from_rgb(180, 0, 40),
+            )
+            victoria_imp = True
+        else:
+            emb_res = discord.Embed(
+                title="🎉 ¡SE EQUIVOCÓ! ¡VICTORIA DE LOS TRIPULANTES!" if es_es else "🎉 WRONG GUESS! CREWMATES WIN!",
+                description=(
+                    f"❌ **{autor.display_name}** apostó por **{intento_nombre}**, ¡pero estaba completamente equivocado!\n\n"
+                    f"¡Los tripulantes protegen el secreto y aseguran la victoria definitiva!"
+                    if es_es else
+                    f"❌ **{autor.display_name}** guessed **{intento_nombre}**, but was dead wrong!\n\n"
+                    f"The crewmates protected the secret and secured the victory!"
+                ),
+                color=discord.Color.green(),
+            )
+            victoria_imp = False
+
+        try:
+            await msg_drama.edit(embed=emb_res)
+        except Exception:
+            await canal.send(embed=emb_res)
+
+        from .final import mostrar_pantalla_final
+        await mostrar_pantalla_final(self.partida, canal, victoria_impostores=victoria_imp)

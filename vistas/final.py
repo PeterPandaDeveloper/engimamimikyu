@@ -136,11 +136,84 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
         )
         embed.add_field(name=t("final_impostors_field", g), value=lista_imp  or t("final_none_caos", g), inline=True)
         embed.add_field(name=t("final_crew_field",      g), value=lista_trip or "—",                     inline=True)
+    # ── MODO TORNEO: Acumular puntos de la sesión ────────────────────────────
+    ranking_t = []
+    es_torneo_activo = getattr(partida, "es_torneo", False)
+    if es_torneo_activo:
+        partida.torneo_partida_num += 1
+        impostores_ini_ids = {imp.id for imp in partida.impostores_iniciales}
+        vivos_ids = {j.id for j in partida.jugadores}
+
+        for j in partida.jugadores_iniciales:
+            reg = partida.torneo_puntos.setdefault(
+                j.id, {"nombre": j.display_name, "puntos": 0, "victorias": 0, "robos": 0}
+            )
+            es_imp = j.id in impostores_ini_ids
+            if partida.caos_sin_impostores or getattr(partida, "caos_todos_impostores", False):
+                gano_j = (j.id in vivos_ids)
+                pts = 2 if gano_j else 0
+            elif es_imp and victoria_impostores:
+                gano_j = True
+                pts = 2 if getattr(partida, "robo_ultima_oportunidad", False) else 3
+                if getattr(partida, "robo_ultima_oportunidad", False):
+                    reg["robos"] += 1
+            elif not es_imp and not victoria_impostores:
+                gano_j = True
+                pts = 2
+            else:
+                gano_j = False
+                pts = 0
+
+            reg["puntos"] += pts
+            if gano_j:
+                reg["victorias"] += 1
+
+        ranking_t = sorted(partida.torneo_puntos.values(), key=lambda x: (-x["puntos"], -x["victorias"]))
+        medallas_t = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣"]
+        lineas_t = [
+            f"{medallas_t[i] if i < len(medallas_t) else '▫️'} **{r['nombre']}** — **{r['puntos']} pts** ({r['victorias']}V)"
+            for i, r in enumerate(ranking_t[:8])
+        ]
+        lbl_torneo_field = (
+            f"🏆 Torneo en Curso — Partida {partida.torneo_partida_num} / {partida.torneo_max_partidas}"
+            if get_lang(g) == "es" else
+            f"🏆 Ongoing Tournament — Match {partida.torneo_partida_num} / {partida.torneo_max_partidas}"
+        )
+        embed.add_field(
+            name=lbl_torneo_field,
+            value="\n".join(lineas_t) or "—",
+            inline=False,
+        )
+
     embed.set_footer(text=t("final_footer", g, n=partida.ronda))
     post_view = PanelPostRonda(partida)
     msg = await canal.send(embed=embed, view=post_view)
     post_view.message = msg
     partida.mensaje_post_ronda = msg
+
+    if es_torneo_activo and partida.torneo_partida_num >= partida.torneo_max_partidas:
+        partida.es_torneo = False
+        es_es = (get_lang(g) == "es")
+        podio_lines = []
+        iconos = ["🥇 **CAMPEÓN:**", "🥈 **2.º Lugar:**", "🥉 **3.er Lugar:**"] if es_es else ["🥇 **CHAMPION:**", "🥈 **2nd Place:**", "🥉 **3rd Place:**"]
+        pts_label = "puntos" if es_es else "points"
+        vics_label = "victorias" if es_es else "wins"
+        for idx_p, r_p in enumerate(ranking_t[:3]):
+            icono = iconos[idx_p]
+            podio_lines.append(f"{icono} **{r_p['nombre']}** con **{r_p['puntos']} {pts_label}** ({r_p['victorias']} {vics_label})")
+        titulo_p = f"👑 ¡TORNEO FINALIZADO ({partida.torneo_max_partidas} PARTIDAS)! 👑" if es_es else f"👑 TOURNAMENT CONCLUDED ({partida.torneo_max_partidas} MATCHES)! 👑"
+        desc_p = (
+            "¡La sesión de torneo ha concluido! Aquí está el podio oficial de entrenadores:\n\n" + "\n".join(podio_lines)
+            if es_es else
+            "The tournament session has concluded! Here is the official trainers' podium:\n\n" + "\n".join(podio_lines)
+        )
+        emb_podio = discord.Embed(
+            title=titulo_p,
+            description=desc_p,
+            color=discord.Color.gold(),
+        )
+        emb_podio.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+        await canal.send(embed=emb_podio)
 
     # ── Guardar datos de la partida en DuckDB (asíncrono en segundo plano) ──
     # Si la partida contenía bots fantasma (DummyMember de depuración), no ensuciamos
@@ -218,7 +291,13 @@ class PanelPostRonda(discord.ui.View):
         self.partida = partida
         g = gid(partida)
 
-        b1 = discord.ui.Button(label=t("btn_rematch",       g), style=discord.ButtonStyle.success, row=0)
+        lbl_rematch = t("btn_rematch", g)
+        if getattr(partida, "es_torneo", False):
+            siguiente_num = partida.torneo_partida_num + 1
+            if siguiente_num <= partida.torneo_max_partidas:
+                lbl_rematch = f"⏭️ Siguiente Partida ({siguiente_num}/{partida.torneo_max_partidas})" if get_lang(g) == "es" else f"⏭️ Next Match ({siguiente_num}/{partida.torneo_max_partidas})"
+
+        b1 = discord.ui.Button(label=lbl_rematch,            style=discord.ButtonStyle.success, row=0)
         b2 = discord.ui.Button(label=t("btn_change_config", g), style=discord.ButtonStyle.primary,  row=0)
         b3 = discord.ui.Button(label=t("btn_end_session",   g), style=discord.ButtonStyle.danger,   row=0)
         b1.callback = self._revancha
@@ -295,11 +374,12 @@ class PanelPostRonda(discord.ui.View):
         if self.partida.jugadores_iniciales:
             self.partida.jugadores = self.partida.jugadores_iniciales.copy()
 
-        from .config import PanelConfiguracion
+        from .config import PanelConfiguracion, PanelConfiguracionTorneo
         from .common import build_embed_config
+        vista_cfg = PanelConfiguracionTorneo(self.partida) if getattr(self.partida, "es_torneo", False) else PanelConfiguracion(self.partida)
         await inter.response.send_message(
             embed=build_embed_config(self.partida),
-            view=PanelConfiguracion(self.partida),
+            view=vista_cfg,
             ephemeral=True,
         )
 

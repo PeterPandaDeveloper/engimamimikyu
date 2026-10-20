@@ -87,10 +87,11 @@ class PanelInscripcion(discord.ui.View):
                 t("only_host_or_admin", g, role=obtener_nombre_rol_host(inter.guild)), ephemeral=True
             )
         # Import diferido para evitar import circular (config -> debate -> votacion -> final -> postronda -> config)
-        from .config import PanelConfiguracion
+        from .config import PanelConfiguracion, PanelConfiguracionTorneo
+        vista_cfg = PanelConfiguracionTorneo(self.partida) if getattr(self.partida, "es_torneo", False) else PanelConfiguracion(self.partida)
         await inter.response.send_message(
             embed=build_embed_config(self.partida),
-            view=PanelConfiguracion(self.partida),
+            view=vista_cfg,
             ephemeral=True,
         )
 

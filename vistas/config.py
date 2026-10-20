@@ -275,3 +275,83 @@ class PanelConfiguracion(discord.ui.View):
         view_deb = PanelDebate(self.partida)
         msg = await inter.channel.send(embed=build_embed_ronda(self.partida), view=view_deb)
         view_deb.message = msg
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  PANEL DE CONFIGURACIÓN DE TORNEO (SOLO COMPETITIVO: CLÁSICO Y EXTENDIDO)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class PanelConfiguracionTorneo(PanelConfiguracion):
+    """
+    Hereda toda la lógica de PanelConfiguracion, pero:
+    1. Excluye el Modo Caos (solo permite Clásico y Extendido competitivo).
+    2. Permite elegir la cantidad de partidas del Torneo (3, 5, 7 o 10 partidas).
+    """
+    def _add_select_modo(self, g: int):
+        # Si por alguna razón estaba en Caos antes de abrir el torneo, forzar Clásico
+        if self.partida.config.modo_juego == ModoJuego.CAOS:
+            self.partida.config.modo_juego = ModoJuego.CLASICO
+
+        from i18n import get_lang
+        es_es = (get_lang(g) == "es")
+
+        self._sel_modo = discord.ui.Select(
+            placeholder="🏆 Formato Competitivo (Clásico / Extendido)..." if es_es else "🏆 Competitive Format (Classic / Extended)...",
+            options=[
+                discord.SelectOption(
+                    label=t("mode_classic", g),
+                    value=ModoJuego.CLASICO,
+                    description=t("mode_classic_desc", g),
+                    emoji="⚔️",
+                    default=(self.partida.config.modo_juego == ModoJuego.CLASICO),
+                ),
+                discord.SelectOption(
+                    label=t("mode_extended", g),
+                    value=ModoJuego.EXTENDIDO,
+                    description=t("mode_extended_desc", g),
+                    emoji="🔪",
+                    default=(self.partida.config.modo_juego == ModoJuego.EXTENDIDO),
+                ),
+            ],
+            row=0,
+        )
+        self._sel_modo.callback = self._set_modo
+        self.add_item(self._sel_modo)
+
+    def _add_select_rondas(self, g: int):
+        from i18n import get_lang
+        es_es = (get_lang(g) == "es")
+
+        # En Modo Torneo, el selector de la fila 3 define la Duración del Torneo
+        opciones_torneo = [
+            (3,  "⚡ Torneo Corto (3 Partidas)" if es_es else "⚡ Short Tournament (3 Matches)",
+                 "3 rondas máx. de debate por partida" if es_es else "3 max debate rounds per match"),
+            (5,  "🏆 Torneo Estándar (5 Partidas)" if es_es else "🏆 Standard Tournament (5 Matches)",
+                 "3 rondas máx. de debate por partida" if es_es else "3 max debate rounds per match"),
+            (7,  "🔥 Torneo Largo (7 Partidas)" if es_es else "🔥 Long Tournament (7 Matches)",
+                 "3 rondas máx. de debate por partida" if es_es else "3 max debate rounds per match"),
+            (10, "👑 Gran Torneo (10 Partidas)" if es_es else "👑 Grand Tournament (10 Matches)",
+                 "3 rondas máx. de debate por partida" if es_es else "3 max debate rounds per match"),
+        ]
+        options = [
+            discord.SelectOption(
+                label=label,
+                value=str(cant),
+                description=desc,
+                default=(cant == getattr(self.partida, "torneo_max_partidas", 5)),
+            )
+            for cant, label, desc in opciones_torneo
+        ]
+        self._sel_rondas = discord.ui.Select(
+            placeholder="🏆 Duración del Torneo (N.º de Partidas)..." if es_es else "🏆 Tournament Length (Number of Matches)...",
+            options=options,
+            row=3,
+        )
+        self._sel_rondas.callback = self._set_partidas_torneo
+        self.add_item(self._sel_rondas)
+
+    async def _set_partidas_torneo(self, inter: discord.Interaction):
+        self.partida.torneo_max_partidas = int(inter.data["values"][0])
+        for opt in self._sel_rondas.options:
+            opt.default = (opt.value == str(self.partida.torneo_max_partidas))
+        await inter.response.edit_message(embed=build_embed_config(self.partida), view=self)

@@ -307,3 +307,69 @@ async def obtener_datos_completos_pokemon(
 
     print("[API] Se agotaron los intentos. No se pudo obtener un Pokemon.")
     return None
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  CATÁLOGO DE NOMBRES PARA AUTOCOMPLETADO (ÚLTIMA OPORTUNIDAD / FAVORITO)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_CATALOGO_NOMBRES: list[tuple[int, str]] = []
+
+
+async def asegurar_catalogo_nombres() -> list[tuple[int, str]]:
+    """
+    Carga en memoria la lista ligera de (id, nombre_formateado) de todos los Pokémon
+    para autocompletar búsquedas parciales sin spoilers.
+    """
+    global _CATALOGO_NOMBRES
+    if _CATALOGO_NOMBRES:
+        return _CATALOGO_NOMBRES
+
+    session = await get_session()
+    try:
+        url = "https://pokeapi.co/api/v2/pokemon?limit=1350"
+        async with session.get(url, timeout=aiohttp.ClientTimeout(total=5.0)) as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                temp: list[tuple[int, str]] = []
+                for item in data.get("results", []):
+                    raw_name = item.get("name", "")
+                    url_item = item.get("url", "").rstrip("/")
+                    pk_id_str = url_item.split("/")[-1]
+                    if pk_id_str.isdigit():
+                        pk_id = int(pk_id_str)
+                        if pk_id <= 1025 or pk_id >= 10001:
+                            temp.append((pk_id, _formatear_nombre_pokemon(raw_name, "es")))
+                _CATALOGO_NOMBRES = temp
+    except Exception as e:
+        print(f"[API] No se pudo precargar catálogo de nombres: {e}")
+
+    return _CATALOGO_NOMBRES
+
+
+async def buscar_coincidencias_pokemon(fragmento: str, limite: int = 25) -> list[str]:
+    """
+    Devuelve hasta `limite` nombres de Pokémon que contengan o empiecen por `fragmento`.
+    Ordena primero los que empiezan exactamente por el texto escrito.
+    """
+    catalogo = await asegurar_catalogo_nombres()
+    frag_low = fragmento.strip().lower()
+    if not frag_low:
+        return []
+
+    empiezan: list[str] = []
+    contienen: list[str] = []
+    vistos: set[str] = set()
+
+    for _, nombre in catalogo:
+        nom_low = nombre.lower()
+        if nombre in vistos:
+            continue
+        if nom_low.startswith(frag_low):
+            empiezan.append(nombre)
+            vistos.add(nombre)
+        elif frag_low in nom_low:
+            contienen.append(nombre)
+            vistos.add(nombre)
+
+    return (empiezan + contienen)[:limite]

@@ -15,6 +15,7 @@ from db import (
     verificar_estado_premium_async,
     get_guild_rol_host,
     set_guild_rol_host_async,
+    get_pokemon_favorito_async,
 )
 
 NOMBRE_ROL_HOST = "PokeHost"
@@ -107,9 +108,46 @@ async def reenviar_rol_secreto(partida, user: discord.Member | discord.User, gid
         return False, "impver_dm_blocked"
 
 
+def _calcular_rango_y_medallas(stats: dict, lang: str = "es") -> tuple[str, str]:
+    wins = stats["victorias"]
+    imp_wins = stats["victorias_impostor"]
+    crew_wins = stats["victorias_tripulante"]
+    es_es = (lang == "es")
+
+    # Rango progresivo por victorias
+    if wins >= 50:
+        rango = "👑 Maestro Pokémon / Liga Campeón" if es_es else "👑 Pokémon Master / Champion League"
+    elif wins >= 25:
+        rango = "💎 Alto Mando (Élite)" if es_es else "💎 Elite Four"
+    elif wins >= 10:
+        rango = "🥇 Líder de Gimnasio" if es_es else "🥇 Gym Leader"
+    elif wins >= 3:
+        rango = "⚡ Entrenador Veterano" if es_es else "⚡ Veteran Trainer"
+    else:
+        rango = "🌱 Entrenador Novato" if es_es else "🌱 Rookie Trainer"
+
+    # Medallas desbloqueables
+    medallas = []
+    if wins >= 1:
+        medallas.append("🪨 *Medalla Roca* (1.ª Victoria)" if es_es else "🪨 *Boulder Badge* (1st Win)")
+    if crew_wins >= 5:
+        medallas.append("💧 *Medalla Cascada* (5 Victorias Inocente)" if es_es else "💧 *Cascade Badge* (5 Crew Wins)")
+    if imp_wins >= 3:
+        medallas.append("👻 *Medalla Sombra* (3 Victorias Impostor)" if es_es else "👻 *Shadow Badge* (3 Impostor Wins)")
+    if wins >= 15:
+        medallas.append("🌈 *Medalla Arcoíris* (15 Victorias)" if es_es else "🌈 *Rainbow Badge* (15 Wins)")
+    if wins >= 30:
+        medallas.append("🌋 *Medalla Volcán* (30 Victorias)" if es_es else "🌋 *Volcano Badge* (30 Wins)")
+    if stats["winrate_gral"] >= 60.0 and stats["total_partidas"] >= 5:
+        medallas.append("✨ *Insignia Estratega* (+60% Winrate)" if es_es else "✨ *Strategist Badge* (+60% Winrate)")
+
+    vacio_txt = "*Juega más partidas para ganar medallas*" if es_es else "*Play more matches to earn badges*"
+    return rango, ("\n".join(medallas) if medallas else vacio_txt)
+
+
 async def construir_embed_perfil(gid: int, target: discord.Member | discord.User) -> tuple[discord.Embed | None, str | None]:
     """
-    Construye el embed del perfil de entrenador.
+    Construye el embed del perfil de entrenador / Tarjeta de Entrenador.
     Retorna (embed, None) o (None, clave_i18n_error).
     """
     stats = await obtener_perfil_jugador_async(gid, target.id)
@@ -123,6 +161,18 @@ async def construir_embed_perfil(gid: int, target: discord.Member | discord.User
     )
     if getattr(target, "display_avatar", None) and target.display_avatar.url:
         embed.set_thumbnail(url=target.display_avatar.url)
+
+    from i18n import get_lang
+    lang = get_lang(gid)
+    es_es = (lang == "es")
+
+    fav_custom = await get_pokemon_favorito_async(target.id)
+    rango_txt, medallas_txt = _calcular_rango_y_medallas(stats, lang=lang)
+
+    lbl_rango = "🎖️ **Rango:**" if es_es else "🎖️ **Rank:**"
+    lbl_medallas = "🏅 Medallas Obtenidas" if es_es else "🏅 Badges Earned"
+    embed.description = f"{lbl_rango} {rango_txt}"
+    embed.add_field(name=lbl_medallas, value=medallas_txt, inline=False)
 
     embed.add_field(
         name=t("profile_general_field", gid),
@@ -156,6 +206,17 @@ async def construir_embed_perfil(gid: int, target: discord.Member | discord.User
             value=t("profile_pokemon_value", gid, name=stats["pokemon_frecuente"]),
             inline=True,
         )
+
+    if fav_custom:
+        lbl_fav = "❤️ Pokémon Compañero Favorito" if es_es else "❤️ Favorite Partner Pokémon"
+        embed.add_field(
+            name=lbl_fav,
+            value=f"**#{fav_custom['id']} {fav_custom['nombre']}**",
+            inline=False,
+        )
+        if fav_custom.get("sprite"):
+            embed.set_image(url=fav_custom["sprite"])
+
     embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
     return embed, None
 
