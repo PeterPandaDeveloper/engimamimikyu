@@ -137,6 +137,30 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "🗳️ Open Voting",
         "es": "🗳️ Abrir Votación",
     },
+    "btn_view_role": {
+        "en": "📬 View My Role",
+        "es": "📬 Ver Mi Rol",
+    },
+    "btn_abort_game": {
+        "en": "🛑 Cancel Match",
+        "es": "🛑 Cancelar Partida",
+    },
+    "btn_edit_lobby_players": {
+        "en": "👥 Edit Players (Lobby)",
+        "es": "👥 Editar Jugadores (Sala)",
+    },
+    "match_aborted": {
+        "en": "🛑 **Match cancelled by the host.** You can start a new lobby anytime with `/play-kyu`.",
+        "es": "🛑 **Partida cancelada por el anfitrión.** Pueden abrir una nueva sala en cualquier momento con `/play-kyu`.",
+    },
+    "art_footer": {
+        "en": "🎨 Art: @xeechithecat.bsky.social",
+        "es": "🎨 Arte: @xeechithecat.bsky.social",
+    },
+    "only_servers_error": {
+        "en": "❌ This command only works inside a server. / Este comando solo funciona dentro de un servidor.",
+        "es": "❌ Este comando solo funciona dentro de un servidor. / This command only works inside a server.",
+    },
     "btn_force_close": {
         "en": "⚠️ Close Voting (Admin)",
         "es": "⚠️ Cerrar Votación (Admin)",
@@ -357,12 +381,12 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": (
             "⚠️ **Heads up!** I couldn't send the role via DM to: {mentions}\n"
             "They probably have server DMs disabled. "
-            "Ask them to enable *'Allow direct messages from server members'* and use `/impver`."
+            "Ask them to enable *'Allow direct messages from server members'* and click **📬 View My Role** (or use `/role-kyu`)."
         ),
         "es": (
             "⚠️ **¡Atención!** No pude enviarle el rol por DM a: {mentions}\n"
             "Probablemente tienen los DMs del servidor bloqueados. "
-            "Que habiliten *'Permitir mensajes directos de miembros del servidor'* y usen `/impver`."
+            "Que habiliten *'Permitir mensajes directos de miembros del servidor'* y pulsen **📬 Ver Mi Rol** (o usen `/role-kyu`)."
         ),
     },
 
@@ -583,24 +607,32 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "🗳️ VOTACIÓN ABIERTA",
     },
     "vote_desc": {
-        "en": "**{current} / {total}** votes registered.\nSelect your suspects (anonymous).",
-        "es": "**{current} / {total}** votos registrados.\nSelecciona a tus sospechosos (anónimo).",
+        "en": "**{current} / {total}** votes registered.\nSelect a suspect below (anonymous) — you can change your vote until voting closes.{pending}",
+        "es": "**{current} / {total}** votos registrados.\nSelecciona un sospechoso abajo (anónimo) — puedes cambiar tu voto antes del cierre.{pending}",
+    },
+    "vote_pending_line": {
+        "en": "\n⏳ **Waiting for:** {names}",
+        "es": "\n⏳ **Faltan por votar:** {names}",
     },
     "vote_placeholder": {
-        "en": "🔍 Select your suspects...",
-        "es": "🔍 Selecciona a tus sospechosos...",
+        "en": "🔍 Select 1 suspect (or Skip)...",
+        "es": "🔍 Selecciona a 1 sospechoso (o Pasar)...",
     },
     "vote_only_players": {
-        "en": "👻 Only active players can vote.",
-        "es": "👻 Solo los jugadores activos pueden votar.",
+        "en": "👻 Only active players in this round can vote.",
+        "es": "👻 Solo los jugadores vivos en esta ronda pueden votar.",
     },
     "vote_already_voted": {
         "en": "You already voted.",
         "es": "Ya emitiste tu voto.",
     },
     "vote_registered": {
-        "en": "✅ Your vote was registered anonymously.",
-        "es": "✅ Voto registrado de forma anónima.",
+        "en": "✅ Your anonymous vote for **{target}** was registered. *(Select again anytime before closing to change it)*.",
+        "es": "✅ Tu voto anónimo por **{target}** fue registrado. *(Puedes elegir otra opción antes del cierre si deseas cambiarlo)*.",
+    },
+    "vote_updated": {
+        "en": "🔄 Your anonymous vote was updated to **{target}**.",
+        "es": "🔄 Tu voto anónimo fue actualizado a **{target}**.",
     },
     "vote_force_closed": {
         "en": "🔒 Voting forcibly closed by admin. ({current}/{total} votes received)",
@@ -806,12 +838,12 @@ STRINGS: dict[str, dict[str, str]] = {
     "help_step4_name":  {"en": "4️⃣  Voting",  "es": "4️⃣  Votación"},
     "help_step4_value": {
         "en": (
-            "The admin opens the vote. Choose your suspects (anonymous).\n"
-            "The most voted player is ejected. Find all impostors to win!"
+            "The host opens voting. Pick **1 suspect** (anonymous — changeable until close).\n"
+            "The most voted player is ejected. If the last Impostor is caught, they get **1 Last Stand** guess!"
         ),
         "es": (
-            "El admin abre la votación. Elijan a sus sospechosos (anónimo).\n"
-            "El más votado es expulsado. ¡Descubran a todos los impostores para ganar!"
+            "El anfitrión abre la votación. Elige a **1 sospechoso** (anónimo — modificable antes del cierre).\n"
+            "El más votado es expulsado. ¡Si atrapan al último Impostor, tendrá **1 Última Oportunidad** de adivinar!"
         ),
     },
     "help_modes_name":  {"en": "⚙️  Game Modes",  "es": "⚙️  Modos de Juego"},

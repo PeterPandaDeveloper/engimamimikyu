@@ -202,7 +202,7 @@ async def on_guild_join(guild: discord.Guild):
                 description=t("welcome_desc", gid),
                 color=discord.Color.from_rgb(255, 203, 5),
             )
-            embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+            embed.set_footer(text=t("art_footer", gid))
             client_id = bot.user.id if bot.user else 1135381488775463075
             view = discord.ui.View()
             view.add_item(discord.ui.Button(label=t("vote_btn_label", gid), url=f"https://top.gg/bot/{client_id}/vote?guild={gid}", style=discord.ButtonStyle.link))
@@ -446,7 +446,8 @@ async def stats_kyu(interaction: discord.Interaction):
 # 17 & 18. /impgenkey & /genkey-kyu
 class ModalGenerarKey(discord.ui.Modal):
     def __init__(self, gid: int):
-        super().__init__(title="PokeImpostor — Generar Clave VIP")
+        es_es = (get_lang(gid) == "es")
+        super().__init__(title="PokeImpostor — Generar Clave VIP" if es_es else "PokeImpostor — Generate VIP Key")
         self.gid = gid
         self.password_input = discord.ui.TextInput(
             label="Master Password (MASTER_AUTH_KEY)",
@@ -455,15 +456,15 @@ class ModalGenerarKey(discord.ui.Modal):
             style=discord.TextStyle.short,
         )
         self.tipo_input = discord.ui.TextInput(
-            label="Tipo de Licencia (vitalicio / cargas)",
-            placeholder="vitalicio ($5 USD) o cargas (ej. 10)",
-            default="vitalicio",
+            label="Tipo (vitalicio / cargas)" if es_es else "License Type (lifetime / charges)",
+            placeholder="vitalicio ($5 USD) o cargas" if es_es else "lifetime ($5 USD) or charges",
+            default="vitalicio" if es_es else "lifetime",
             required=True,
             style=discord.TextStyle.short,
         )
         self.valor_input = discord.ui.TextInput(
-            label="Partidas (solo si eliges cargas)",
-            placeholder="10 (por defecto 10 partidas)",
+            label="Partidas (solo si eliges cargas)" if es_es else "Matches (only if charges selected)",
+            placeholder="10",
             default="10",
             required=False,
             style=discord.TextStyle.short,
@@ -473,30 +474,40 @@ class ModalGenerarKey(discord.ui.Modal):
         self.add_item(self.valor_input)
 
     async def on_submit(self, interaction: discord.Interaction):
+        es_es = (get_lang(self.gid) == "es")
         if not verificar_master_password(self.password_input.value.strip()):
             return await interaction.response.send_message(t("license_auth_failed", self.gid), ephemeral=True)
 
         tipo_raw = self.tipo_input.value.strip().lower()
         val_str = self.valor_input.value.strip().lower()
 
-        if "carg" in tipo_raw or "partid" in tipo_raw or "voto" in tipo_raw:
+        if any(w in tipo_raw for w in ("carg", "partid", "voto", "charg", "match")):
             tipo = "cargas"
             import re
             nums = re.findall(r"\d+", val_str)
             cargas = int(nums[0]) if nums else 10
             duracion_dias = 0
-            detalle = f"{cargas} Partidas VIP con todo desbloqueado (Top.gg / Cargas)"
+            detalle = (
+                f"{cargas} Partidas VIP con todo desbloqueado (Top.gg / Cargas)"
+                if es_es else
+                f"{cargas} VIP Matches with everything unlocked (Top.gg / Charges)"
+            )
         else:
             tipo = "permanente"
             duracion_dias = 0
             cargas = 0
-            detalle = "Membresía VIP Vitalicia ($5 USD) Permanente de por vida"
+            detalle = (
+                "Membresía VIP Vitalicia ($5 USD) Permanente de por vida"
+                if es_es else
+                "Lifetime VIP Membership ($5 USD) — Permanent"
+            )
 
         nueva_key = generar_codigo_licencia()
         exito = await crear_licencia_async(nueva_key, tipo, duracion_dias, cargas)
 
         if not exito:
-            return await interaction.response.send_message("❌ Error al registrar la clave en la base de datos.", ephemeral=True)
+            err_db = "❌ Error al registrar la clave en la base de datos." if es_es else "❌ Database error while saving license key."
+            return await interaction.response.send_message(err_db, ephemeral=True)
 
         embed = discord.Embed(
             title=t("license_key_gen_title", self.gid),
@@ -681,7 +692,8 @@ async def _ejecutar_partner_add(interaction: discord.Interaction, servidor_id: s
 
     class ModalPartnerAuth(discord.ui.Modal):
         def __init__(self):
-            super().__init__(title="PokeImpostor — Autorizar Beta Partner")
+            es_es_p = (get_lang(gid) == "es")
+            super().__init__(title="PokeImpostor — Autorizar Beta Partner" if es_es_p else "PokeImpostor — Authorize Beta Partner")
             self.pwd = discord.ui.TextInput(
                 label="Master Password (MASTER_AUTH_KEY)",
                 placeholder="••••••••••••",
@@ -691,18 +703,21 @@ async def _ejecutar_partner_add(interaction: discord.Interaction, servidor_id: s
             self.add_item(self.pwd)
 
         async def on_submit(self, modal_inter: discord.Interaction):
+            es_es_p = (get_lang(gid) == "es")
             if not verificar_master_password(self.pwd.value.strip()):
                 return await modal_inter.response.send_message(t("license_auth_failed", gid), ephemeral=True)
             try:
                 target_gid = int(servidor_id.strip())
             except ValueError:
-                return await modal_inter.response.send_message("❌ ID de servidor inválido.", ephemeral=True)
+                err_id = "❌ ID de servidor inválido." if es_es_p else "❌ Invalid Server ID."
+                return await modal_inter.response.send_message(err_id, ephemeral=True)
 
             ok = await registrar_servidor_partner_async(target_gid, motivo)
             if ok:
                 await modal_inter.response.send_message(t("partner_register_success", gid, guild_id=servidor_id), ephemeral=True)
             else:
-                await modal_inter.response.send_message("❌ Error al registrar partner.", ephemeral=True)
+                err_p = "❌ Error al registrar partner." if es_es_p else "❌ Error registering partner."
+                await modal_inter.response.send_message(err_p, ephemeral=True)
 
     await interaction.response.send_modal(ModalPartnerAuth())
 
@@ -786,10 +801,10 @@ async def favorito_kyu(interaction: discord.Interaction, pokemon: str):
     rondas_max="Max debate rounds per match (default: 3) / Rondas máx de debate por partida",
 )
 @app_commands.choices(partidas=[
-    app_commands.Choice(name="⚡ 3 Partidas (Torneo Rápido)", value=3),
-    app_commands.Choice(name="🏆 5 Partidas (Torneo Estándar)", value=5),
-    app_commands.Choice(name="🔥 7 Partidas (Torneo Largo)", value=7),
-    app_commands.Choice(name="👑 10 Partidas (Gran Torneo de Noche)", value=10),
+    app_commands.Choice(name="⚡ 3 Matches / Partidas (Quick)", value=3),
+    app_commands.Choice(name="🏆 5 Matches / Partidas (Standard)", value=5),
+    app_commands.Choice(name="🔥 7 Matches / Partidas (Long)", value=7),
+    app_commands.Choice(name="👑 10 Matches / Partidas (Grand)", value=10),
 ])
 async def torneo_kyu(
     interaction: discord.Interaction,
@@ -797,7 +812,7 @@ async def torneo_kyu(
     rondas_max: app_commands.Range[int, 1, 9] = 3,
 ):
     if interaction.guild_id is None or interaction.guild is None:
-        return await interaction.response.send_message("❌ Solo en servidores.", ephemeral=True)
+        return await interaction.response.send_message(t("only_servers_error", 0), ephemeral=True)
     gid = interaction.guild_id
     await asegurar_rol_pokehost(interaction.guild)
     if not es_anfitrion_o_admin(interaction.user, interaction.guild):

@@ -10,7 +10,7 @@ import discord
 from dataclasses import dataclass, field
 from enum import Enum
 
-from api import obtener_datos_completos_pokemon
+from api import obtener_datos_completos_pokemon, formatear_tipos_pokemon
 from tipos_pokemon import debilidades_x4, debilidades_x2
 from i18n import t, get_lang
 from pistas import (
@@ -385,9 +385,10 @@ class Partida:
     # ── DM tripulante ────────────────────────────────────────────────────────
     def _build_dm_tripulante(self, dp: dict) -> discord.Embed:
         gid = self.canal.guild.id
+        lang = get_lang(gid)
         embed = discord.Embed(
             title=t("dm_crew_title", gid),
-            description=t("dm_crew_desc", gid, name=dp.get("nombre", "?"), types=" / ".join(dp.get("tipos", ["?"]))),
+            description=t("dm_crew_desc", gid, name=dp.get("nombre", "?"), types=formatear_tipos_pokemon(dp.get("tipos", []), lang)),
             color=discord.Color.from_rgb(30, 160, 80),
         )
         if dp.get("sprite"):

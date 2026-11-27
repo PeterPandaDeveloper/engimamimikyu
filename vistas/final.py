@@ -8,9 +8,10 @@ import asyncio
 import discord
 from motor_juego import Partida, ModoJuego, CaosVariante
 from i18n import t, get_lang
+from api import formatear_tipos_pokemon
 from db import guardar_partida_async, consumir_partida_premium_async, verificar_estado_premium_async
 
-from .common import TIMEOUT_LOBBY, gid, NOMBRE_ROL_HOST, es_anfitrion_o_admin, obtener_nombre_rol_host
+from .common import TIMEOUT_LOBBY, gid, NOMBRE_ROL_HOST, es_anfitrion_o_admin, obtener_nombre_rol_host, build_embed_lobby
 
 
 async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, victoria_impostores: bool):
@@ -40,7 +41,7 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
                 embed.set_image(url=dp["sprite"])
             embed.add_field(
                 name=t("final_pokemon_field", g),
-                value=f"**{dp['nombre']}**\n{' / '.join(dp['tipos'])} · {dp['gen']}",
+                value=f"**{dp['nombre']}**\n{formatear_tipos_pokemon(dp['tipos'], get_lang(g))} · {dp['gen']}",
                 inline=False,
             )
         lines = []
@@ -63,7 +64,7 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
                 embed.set_image(url=dp["sprite"])
             embed.add_field(
                 name=t("final_pokemon_field", g),
-                value=f"**{dp['nombre']}**\n{' / '.join(dp['tipos'])} · {dp['gen']}",
+                value=f"**{dp['nombre']}**\n{formatear_tipos_pokemon(dp['tipos'], get_lang(g))} · {dp['gen']}",
                 inline=False,
             )
         lista_trip = "\n".join(f"✅ {j.display_name}" for j in partida.jugadores_iniciales)
@@ -74,11 +75,12 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
         color_final  = discord.Color.from_rgb(255, 203, 5)
         titulo_final = t("final_title", g)
         embed = discord.Embed(title=titulo_final, color=color_final)
+        lang_f = get_lang(g)
         lines = []
         for j in partida.jugadores_iniciales:
             dp = partida.pokemons_ebrios.get(j.id)
             if dp:
-                lines.append(f"• **{j.display_name}** → {dp['nombre']} ({' / '.join(dp['tipos'])})")
+                lines.append(f"• **{j.display_name}** → {dp['nombre']} ({formatear_tipos_pokemon(dp['tipos'], lang_f)})")
         embed.add_field(name=t("final_ebrios_field", g), value="\n".join(lines) or "—", inline=False)
         lista_trip = "\n".join(f"✅ {j.display_name}" for j in partida.jugadores_iniciales)
         embed.add_field(name=t("final_impostors_field", g), value=t("final_none_caos", g), inline=True)
@@ -111,7 +113,7 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
                 embed.set_image(url=dp["sprite"])
             embed.add_field(
                 name=t("final_pokemon_field", g),
-                value=f"**{dp['nombre']}**\n{' / '.join(dp['tipos'])} · {dp['gen']}",
+                value=f"**{dp['nombre']}**\n{formatear_tipos_pokemon(dp['tipos'], get_lang(g))} · {dp['gen']}",
                 inline=False,
             )
         impostores_actuales_ids = {imp.id for imp in partida.impostores}
@@ -216,7 +218,7 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
             description=desc_p,
             color=discord.Color.gold(),
         )
-        emb_podio.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+        emb_podio.set_footer(text=t("art_footer", g))
         await canal.send(embed=emb_podio)
 
     # ── Guardar datos de la partida en DuckDB (asíncrono en segundo plano) ──
@@ -301,13 +303,15 @@ class PanelPostRonda(discord.ui.View):
             if siguiente_num <= partida.torneo_max_partidas:
                 lbl_rematch = f"⏭️ Siguiente Partida ({siguiente_num}/{partida.torneo_max_partidas})" if get_lang(g) == "es" else f"⏭️ Next Match ({siguiente_num}/{partida.torneo_max_partidas})"
 
-        b1 = discord.ui.Button(label=lbl_rematch,            style=discord.ButtonStyle.success, row=0)
-        b2 = discord.ui.Button(label=t("btn_change_config", g), style=discord.ButtonStyle.primary,  row=0)
-        b3 = discord.ui.Button(label=t("btn_end_session",   g), style=discord.ButtonStyle.danger,   row=0)
+        b1 = discord.ui.Button(label=lbl_rematch,                  style=discord.ButtonStyle.success,   row=0)
+        b2 = discord.ui.Button(label=t("btn_change_config", g),    style=discord.ButtonStyle.primary,   row=0)
+        b_lobby = discord.ui.Button(label=t("btn_edit_lobby_players", g), style=discord.ButtonStyle.secondary, row=1)
+        b3 = discord.ui.Button(label=t("btn_end_session",   g),    style=discord.ButtonStyle.danger,    row=1)
         b1.callback = self._revancha
         b2.callback = self._config
+        b_lobby.callback = self._volver_al_lobby
         b3.callback = self._cerrar
-        self.add_item(b1); self.add_item(b2); self.add_item(b3)
+        self.add_item(b1); self.add_item(b2); self.add_item(b_lobby); self.add_item(b3)
 
     async def on_timeout(self):
         self.partida.limpiar_memoria()
@@ -386,6 +390,36 @@ class PanelPostRonda(discord.ui.View):
             view=vista_cfg,
             ephemeral=True,
         )
+
+    async def _volver_al_lobby(self, inter: discord.Interaction):
+        g = inter.guild_id
+        if not es_anfitrion_o_admin(inter.user, inter.guild):
+            return await inter.response.send_message(
+                t("only_host_or_admin", g, role=obtener_nombre_rol_host(inter.guild)), ephemeral=True
+            )
+
+        async with self.partida.lock:
+            if self.partida._ronda_arrancando:
+                return await inter.response.send_message(t("round_already_started", g), ephemeral=True)
+            if self.partida.jugadores_iniciales:
+                self.partida.jugadores = self.partida.jugadores_iniciales.copy()
+            self.partida.jugadores_iniciales.clear()
+            self.partida.impostores.clear()
+            self.partida.impostores_iniciales.clear()
+            self.partida.terminada = False
+            self.partida.mensaje_post_ronda = None
+
+        self.stop()
+        try:
+            await inter.response.edit_message(view=None)
+        except Exception:
+            pass
+
+        from .lobby import PanelInscripcion
+        view_lobby = PanelInscripcion(self.partida)
+        msg_lobby = await inter.channel.send(embed=build_embed_lobby(self.partida), view=view_lobby)
+        view_lobby.message = msg_lobby
+        self.partida.mensaje_lobby = msg_lobby
 
     async def _cerrar(self, inter: discord.Interaction):
         g = inter.guild_id

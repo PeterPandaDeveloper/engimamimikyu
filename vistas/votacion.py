@@ -31,6 +31,7 @@ class PanelVotacion(discord.ui.View):
         super().__init__(timeout=TIMEOUT_VOTACION)
         self.partida         = partida
         self.votos_emitidos: set[int]            = set()
+        self.votos_por_usuario: dict[int, str]   = {}
         self.votos_urna:     dict[str, set[int]] = {}
         self._resultados_en_proceso: bool = False
         g = gid(partida)
@@ -60,9 +61,51 @@ class PanelVotacion(discord.ui.View):
         self.add_item(sel)
         self.sel_votos = sel
 
+        btn_role = discord.ui.Button(label=t("btn_view_role", g), style=discord.ButtonStyle.secondary, row=1)
         btn_forzar = discord.ui.Button(label=t("btn_force_close", g), style=discord.ButtonStyle.secondary, row=1)
+        btn_abort = discord.ui.Button(label=t("btn_abort_game", g), style=discord.ButtonStyle.danger, row=1)
+        btn_role.callback = self._ver_rol
         btn_forzar.callback = self._forzar_cierre
+        btn_abort.callback = self._cancelar_partida
+        self.add_item(btn_role)
         self.add_item(btn_forzar)
+        self.add_item(btn_abort)
+
+    def build_embed_votacion(self) -> discord.Embed:
+        g = gid(self.partida)
+        total = len(self.partida.jugadores)
+        actual = len(self.votos_emitidos)
+        faltan = [j.display_name for j in self.partida.jugadores if j.id not in self.votos_emitidos]
+        pending_str = ""
+        if faltan and actual < total:
+            nombres_faltan = ", ".join(faltan[:12]) + ("..." if len(faltan) > 12 else "")
+            pending_str = t("vote_pending_line", g, names=nombres_faltan)
+        return discord.Embed(
+            title=t("vote_title_open", g),
+            description=t("vote_desc", g, current=actual, total=total, pending=pending_str),
+            color=discord.Color.red(),
+        )
+
+    async def _ver_rol(self, inter: discord.Interaction):
+        from comandos_comunes import reenviar_rol_secreto
+        g = inter.guild_id or 0
+        _, msg_key = await reenviar_rol_secreto(self.partida, inter.user, g)
+        await inter.response.send_message(t(msg_key, g), ephemeral=True)
+
+    async def _cancelar_partida(self, inter: discord.Interaction):
+        g = inter.guild_id
+        if not es_anfitrion_o_admin(inter.user, inter.guild):
+            return await inter.response.send_message(
+                t("only_host_or_admin", g, role=obtener_nombre_rol_host(inter.guild)), ephemeral=True
+            )
+        async with self.partida.lock:
+            if self._resultados_en_proceso:
+                return await inter.response.send_message(t("vote_already_closed", g), ephemeral=True)
+            self._resultados_en_proceso = True
+            self.partida.terminada = True
+            self.partida.limpiar_memoria()
+        self.stop()
+        await inter.response.edit_message(content=t("match_aborted", g), embed=None, view=None)
 
     async def on_timeout(self):
         self.partida.limpiar_memoria()
@@ -76,31 +119,45 @@ class PanelVotacion(discord.ui.View):
                 pass
 
     # ─────────────────────────────────────────────────────────────────────────
-    #  REGISTRO DE VOTOS
+    #  REGISTRO DE VOTOS (CON CAMBIO DE VOTO PERMITIDO ANTES DEL CIERRE)
     # ─────────────────────────────────────────────────────────────────────────
     async def _registrar_voto(self, inter: discord.Interaction):
         g = inter.guild_id
 
         async with self.partida.lock:
+            if self._resultados_en_proceso:
+                return await inter.response.send_message(t("vote_already_closed", g), ephemeral=True)
             if not any(j.id == inter.user.id for j in self.partida.jugadores):
                 return await inter.response.send_message(t("vote_only_players", g), ephemeral=True)
-            if inter.user.id in self.votos_emitidos:
-                return await inter.response.send_message(t("vote_already_voted", g), ephemeral=True)
+
+            ya_habia_votado = inter.user.id in self.votos_emitidos
+            if ya_habia_votado:
+                prev_target = self.votos_por_usuario.get(inter.user.id)
+                if prev_target and prev_target in self.votos_urna:
+                    self.votos_urna[prev_target].discard(inter.user.id)
+                    if not self.votos_urna[prev_target]:
+                        del self.votos_urna[prev_target]
 
             self.votos_emitidos.add(inter.user.id)
 
             valores = inter.data.get("values", self.sel_votos.values if hasattr(self, "sel_votos") else [])
-            if VOTO_NULO_ID not in valores:
-                for acusado_id in valores:
-                    self.votos_urna.setdefault(acusado_id, set()).add(inter.user.id)
+            elegido_id = valores[0] if valores else VOTO_NULO_ID
+            self.votos_por_usuario[inter.user.id] = elegido_id
+
+            if elegido_id != VOTO_NULO_ID:
+                self.votos_urna.setdefault(elegido_id, set()).add(inter.user.id)
+                miembro_obj = discord.utils.get(self.partida.jugadores, id=int(elegido_id))
+                nombre_objetivo = miembro_obj.display_name if miembro_obj else elegido_id
+            else:
+                nombre_objetivo = t("vote_null_label", g)
 
             # ── AUTO-VOTO DE BOTS FANTASMA (MODO DEBUG) ──
             for j in self.partida.jugadores:
                 if getattr(j, "es_dummy", False) and j.id not in self.votos_emitidos:
                     self.votos_emitidos.add(j.id)
-                    if VOTO_NULO_ID not in valores:
-                        for acusado_id in valores:
-                            self.votos_urna.setdefault(acusado_id, set()).add(j.id)
+                    self.votos_por_usuario[j.id] = elegido_id
+                    if elegido_id != VOTO_NULO_ID:
+                        self.votos_urna.setdefault(elegido_id, set()).add(j.id)
 
             total  = len(self.partida.jugadores)
             actual = len(self.votos_emitidos)
@@ -108,12 +165,9 @@ class PanelVotacion(discord.ui.View):
             if cerrar_ahora:
                 self._resultados_en_proceso = True
 
-        await inter.response.send_message(t("vote_registered", g), ephemeral=True)
-        await inter.message.edit(embed=discord.Embed(
-            title=t("vote_title_open", g),
-            description=t("vote_desc", g, current=actual, total=total),
-            color=discord.Color.red(),
-        ))
+        msg_key = "vote_updated" if ya_habia_votado else "vote_registered"
+        await inter.response.send_message(t(msg_key, g, target=nombre_objetivo), ephemeral=True)
+        await inter.message.edit(embed=self.build_embed_votacion())
 
         if cerrar_ahora:
             await self._mostrar_resultados(inter.channel, inter.message)
@@ -583,7 +637,8 @@ class PanelUltimaOportunidad(discord.ui.View):
             return await inter.response.send_message(msg, ephemeral=True)
 
         if self._resuelto:
-            return await inter.response.send_message("⏳ Ya se emitió un intento.", ephemeral=True)
+            msg_done = "⏳ Ya se emitió un intento." if get_lang(g) == "es" else "⏳ A guess has already been submitted."
+            return await inter.response.send_message(msg_done, ephemeral=True)
 
         padre = self
         es_es = (get_lang(g) == "es")

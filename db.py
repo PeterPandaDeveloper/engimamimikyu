@@ -498,7 +498,31 @@ async def obtener_ranking_async(guild_id: int, categoria: str = "general") -> li
     return await asyncio.to_thread(_obtener_ranking_sync, guild_id, categoria)
 
 
+# Traducción localizada de tipos elementales de Pokémon (PokéAPI -> Español)
+_TIPOS_ES: dict[str, str] = {
+    "normal": "Normal",
+    "fire": "Fuego",
+    "water": "Agua",
+    "electric": "Eléctrico",
+    "grass": "Planta",
+    "ice": "Hielo",
+    "fighting": "Lucha",
+    "poison": "Veneno",
+    "ground": "Tierra",
+    "flying": "Volador",
+    "psychic": "Psíquico",
+    "bug": "Bicho",
+    "rock": "Roca",
+    "ghost": "Fantasma",
+    "dragon": "Dragón",
+    "dark": "Siniestro",
+    "steel": "Acero",
+    "fairy": "Hada",
+}
+
+
 def _obtener_stats_servidor_sync(guild_id: int) -> dict[str, Any] | None:
+    es_es = (_get_lang_sync(guild_id) == "es")
     with _DB_LOCK:
         con = _get_connection()
         query = """
@@ -518,7 +542,7 @@ def _obtener_stats_servidor_sync(guild_id: int) -> dict[str, Any] | None:
         pct_imp  = round((v_imp / total * 100.0), 1) if total > 0 else 0.0
         pct_trip = round((v_trip / total * 100.0), 1) if total > 0 else 0.0
 
-        # Modo de juego favorito
+        # Modo de juego favorito localizado
         modo_query = """
             SELECT modo, COUNT(*) as c
             FROM partidas
@@ -528,7 +552,16 @@ def _obtener_stats_servidor_sync(guild_id: int) -> dict[str, Any] | None:
             LIMIT 1;
         """
         modo_row = con.execute(modo_query, [guild_id]).fetchone()
-        modo_fav = modo_row[0] if modo_row else "—"
+        raw_modo = (modo_row[0] or "").lower() if modo_row else ""
+        modos_map = {
+            "clasico": ("Clásico", "Classic"),
+            "extendido": ("Extendido", "Extended"),
+            "caos": ("Caos", "Chaos"),
+        }
+        if raw_modo in modos_map:
+            modo_fav = modos_map[raw_modo][0] if es_es else modos_map[raw_modo][1]
+        else:
+            modo_fav = modo_row[0] if modo_row else "—"
 
         # Pokémon más letal (con el que más veces ganaron los impostores)
         pk_letal_query = """
@@ -540,7 +573,8 @@ def _obtener_stats_servidor_sync(guild_id: int) -> dict[str, Any] | None:
             LIMIT 1;
         """
         pk_letal_row = con.execute(pk_letal_query, [guild_id]).fetchone()
-        pk_letal = f"{pk_letal_row[0]} ({pk_letal_row[1]} victorias)" if pk_letal_row else "—"
+        lbl_wins = "victorias" if es_es else "wins"
+        pk_letal = f"{pk_letal_row[0]} ({pk_letal_row[1]} {lbl_wins})" if pk_letal_row else "—"
 
         # Pokémon que más veces ha salido
         pk_comun_query = """
@@ -552,7 +586,8 @@ def _obtener_stats_servidor_sync(guild_id: int) -> dict[str, Any] | None:
             LIMIT 1;
         """
         pk_comun_row = con.execute(pk_comun_query, [guild_id]).fetchone()
-        pk_comun = f"{pk_comun_row[0]} ({pk_comun_row[1]} veces)" if pk_comun_row else "—"
+        lbl_times = "veces" if es_es else "times"
+        pk_comun = f"{pk_comun_row[0]} ({pk_comun_row[1]} {lbl_times})" if pk_comun_row else "—"
 
         return {
             "total_partidas": total,
@@ -694,6 +729,7 @@ async def canjear_licencia_async(codigo: str, guild_id: int, user_id: int) -> di
 
 
 def _verificar_estado_premium_sync(guild_id: int) -> dict[str, Any]:
+    es_es = (_get_lang_sync(guild_id) == "es")
     with _DB_LOCK:
         con = _get_connection()
         row = con.execute("""
@@ -706,8 +742,8 @@ def _verificar_estado_premium_sync(guild_id: int) -> dict[str, Any]:
             return {
                 "es_premium": False,
                 "tipo": "gratis",
-                "motivo": "Edición Gratuita Base",
-                "detalle": "Funciones estándar",
+                "motivo": "Edición Gratuita Base" if es_es else "Free Base Edition",
+                "detalle": "Funciones estándar" if es_es else "Standard features",
                 "partidas_restantes": 0,
             }
 
@@ -715,11 +751,12 @@ def _verificar_estado_premium_sync(guild_id: int) -> dict[str, Any]:
         ahora = datetime.now()
 
         if tipo in ("partner", "vip_permanente"):
+            tier_disp = "BETA PARTNER" if tipo == "partner" else ("VIP VITALICIO" if es_es else "LIFETIME VIP")
             return {
                 "es_premium": True,
-                "tipo": tipo,
-                "motivo": motivo or "Membresía Permanente",
-                "detalle": "Acceso ilimitado de por vida",
+                "tipo": tier_disp,
+                "motivo": motivo or ("Membresía Permanente" if es_es else "Permanent Membership"),
+                "detalle": "Acceso ilimitado de por vida" if es_es else "Unlimited lifetime access",
                 "partidas_restantes": -1,
             }
 
@@ -727,16 +764,22 @@ def _verificar_estado_premium_sync(guild_id: int) -> dict[str, Any]:
             if expira_en and expira_en > ahora:
                 dias_restantes = (expira_en - ahora).days
                 if dias_restantes in (28, 29, 30, 31):
-                    tiempo_str = f"1 mes ({dias_restantes} días)"
+                    tiempo_str = f"1 mes ({dias_restantes} días)" if es_es else f"1 month ({dias_restantes} days)"
                 elif dias_restantes > 31:
-                    tiempo_str = f"{dias_restantes // 30} meses ({dias_restantes} días)"
+                    meses = dias_restantes // 30
+                    tiempo_str = f"{meses} meses ({dias_restantes} días)" if es_es else f"{meses} months ({dias_restantes} days)"
                 else:
-                    tiempo_str = f"{dias_restantes} días"
+                    tiempo_str = f"{dias_restantes} días" if es_es else f"{dias_restantes} days"
+                det_str = (
+                    f"Válido hasta {expira_en.strftime('%d/%m/%Y')} ({tiempo_str})"
+                    if es_es else
+                    f"Valid until {expira_en.strftime('%Y-%m-%d')} ({tiempo_str})"
+                )
                 return {
                     "es_premium": True,
-                    "tipo": "vip_dias",
-                    "motivo": motivo or "Pase Temporal",
-                    "detalle": f"Válido hasta {expira_en.strftime('%d/%m/%Y')} ({tiempo_str})",
+                    "tipo": "VIP TEMPORAL" if es_es else "TIMED VIP",
+                    "motivo": motivo or ("Pase Temporal" if es_es else "Timed Pass"),
+                    "detalle": det_str,
                     "expira_en": expira_en,
                     "partidas_restantes": -1,
                 }
@@ -744,8 +787,8 @@ def _verificar_estado_premium_sync(guild_id: int) -> dict[str, Any]:
                 return {
                     "es_premium": False,
                     "tipo": "expirado",
-                    "motivo": "Pase temporal expirado",
-                    "detalle": "Licencia vencida",
+                    "motivo": "Pase temporal expirado" if es_es else "Timed pass expired",
+                    "detalle": "Licencia vencida" if es_es else "License expired",
                     "partidas_restantes": 0,
                 }
 
@@ -753,25 +796,29 @@ def _verificar_estado_premium_sync(guild_id: int) -> dict[str, Any]:
             if (partidas_restantes or 0) > 0:
                 return {
                     "es_premium": True,
-                    "tipo": "cargas",
-                    "motivo": motivo or "Partidas con Cargas",
-                    "detalle": f"{partidas_restantes} partidas premium disponibles",
+                    "tipo": "CARGAS VIP" if es_es else "VIP MATCHES",
+                    "motivo": motivo or ("Partidas con Cargas" if es_es else "Match Charges"),
+                    "detalle": (
+                        f"{partidas_restantes} partidas premium disponibles"
+                        if es_es else
+                        f"{partidas_restantes} premium matches available"
+                    ),
                     "partidas_restantes": partidas_restantes,
                 }
             else:
                 return {
                     "es_premium": False,
                     "tipo": "sin_cargas",
-                    "motivo": "Sin partidas premium",
-                    "detalle": "Cargas agotadas",
+                    "motivo": "Sin partidas premium" if es_es else "Out of premium matches",
+                    "detalle": "Cargas agotadas" if es_es else "No charges remaining",
                     "partidas_restantes": 0,
                 }
 
         return {
             "es_premium": False,
             "tipo": "gratis",
-            "motivo": "Edición Gratuita Base",
-            "detalle": "Funciones estándar",
+            "motivo": "Edición Gratuita Base" if es_es else "Free Base Edition",
+            "detalle": "Funciones estándar" if es_es else "Standard features",
             "partidas_restantes": 0,
         }
 

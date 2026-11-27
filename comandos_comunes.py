@@ -6,7 +6,8 @@ Elimina la duplicación de código y garantiza paridad absoluta entre ambas inte
 from __future__ import annotations
 
 import discord
-from i18n import t
+from i18n import t, get_lang
+from api import formatear_tipos_pokemon
 from db import (
     obtener_perfil_jugador_async,
     obtener_ranking_async,
@@ -80,13 +81,15 @@ async def reenviar_rol_secreto(partida, user: discord.Member | discord.User, gid
         elif es_ebrios:
             dp = partida.pokemons_ebrios.get(user.id)
             if dp:
+                lang = get_lang(gid)
                 emb = discord.Embed(
                     title=t("impver_crew_title", gid),
-                    description=t("dm_crew_desc", gid, name=dp.get("nombre", "?"), types=" / ".join(dp.get("tipos", ["?"]))),
+                    description=t("dm_crew_desc", gid, name=dp.get("nombre", "?"), types=formatear_tipos_pokemon(dp.get("tipos", []), lang)),
                     color=discord.Color.from_rgb(30, 160, 80),
                 )
                 if dp.get("sprite"):
                     emb.set_image(url=dp["sprite"])
+                emb.set_footer(text=t("dm_crew_footer", gid))
                 await user.send(embed=emb)
 
         elif es_impostor:
@@ -94,13 +97,15 @@ async def reenviar_rol_secreto(partida, user: discord.Member | discord.User, gid
         else:
             dp = partida.datos_pokemon
             if dp:
+                lang = get_lang(gid)
                 emb = discord.Embed(
                     title=t("impver_crew_title", gid),
-                    description=t("dm_crew_desc", gid, name=dp.get("nombre", "?"), types=" / ".join(dp.get("tipos", ["?"]))),
+                    description=t("dm_crew_desc", gid, name=dp.get("nombre", "?"), types=formatear_tipos_pokemon(dp.get("tipos", []), lang)),
                     color=discord.Color.from_rgb(30, 160, 80),
                 )
                 if dp.get("sprite"):
                     emb.set_image(url=dp["sprite"])
+                emb.set_footer(text=t("dm_crew_footer", gid))
                 await user.send(embed=emb)
 
         return True, "impver_sent"
@@ -217,7 +222,7 @@ async def construir_embed_perfil(gid: int, target: discord.Member | discord.User
         if fav_custom.get("sprite"):
             embed.set_image(url=fav_custom["sprite"])
 
-    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+    embed.set_footer(text=t("art_footer", gid))
     return embed, None
 
 
@@ -251,7 +256,7 @@ async def construir_embed_ranking(gid: int, categoria: str = "general") -> tuple
               total=row["total"])
         )
     embed.description = "\n".join(lines)
-    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+    embed.set_footer(text=t("art_footer", gid))
     return embed, None
 
 
@@ -281,7 +286,7 @@ async def construir_embed_stats(gid: int) -> tuple[discord.Embed | None, str | N
     )
     embed.add_field(
         name=t("server_stats_fav_mode", gid),
-        value=f"**{stats['modo_favorito'].capitalize()}**",
+        value=f"**{stats['modo_favorito']}**",
         inline=True,
     )
     embed.add_field(
@@ -294,7 +299,7 @@ async def construir_embed_stats(gid: int) -> tuple[discord.Embed | None, str | N
         value=f"**{stats['pokemon_comun']}**",
         inline=True,
     )
-    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+    embed.set_footer(text=t("art_footer", gid))
     return embed, None
 
 
@@ -309,7 +314,7 @@ async def construir_payload_licencia(gid: int, bot_id: int) -> tuple[discord.Emb
             description=t("license_status_premium", gid, tipo=estado["tipo"].upper(), details=estado["detalle"]),
             color=discord.Color.gold(),
         )
-        embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+        embed.set_footer(text=t("art_footer", gid))
         return embed, None
     else:
         vote_url = f"https://top.gg/bot/{bot_id}/vote?guild={gid}" if gid else f"https://top.gg/bot/{bot_id}/vote"
@@ -321,7 +326,7 @@ async def construir_payload_licencia(gid: int, bot_id: int) -> tuple[discord.Emb
             description=t("license_status_free", gid),
             color=discord.Color.light_grey(),
         )
-        embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+        embed.set_footer(text=t("art_footer", gid))
         return embed, view
 
 
@@ -359,7 +364,7 @@ async def canjear_clave_licencia(clave: str, gid: int, user_id: int) -> tuple[di
         description=t("redeem_success_desc", gid, tipo=tipo.upper(), details=det),
         color=discord.Color.green(),
     )
-    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+    embed.set_footer(text=t("art_footer", gid))
     return embed, None
 
 
@@ -376,7 +381,7 @@ def construir_payload_voto(gid: int, bot_id: int) -> tuple[discord.Embed, discor
         description=t("vote_embed_desc", gid),
         color=discord.Color.from_rgb(255, 105, 180),
     )
-    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+    embed.set_footer(text=t("art_footer", gid))
     return embed, view
 
 
@@ -391,7 +396,7 @@ def construir_payload_donar(gid: int) -> tuple[discord.Embed, discord.ui.View]:
         description=t("donate_embed_desc", gid),
         color=discord.Color.gold(),
     )
-    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+    embed.set_footer(text=t("art_footer", gid))
     return embed, view
 
 
@@ -407,7 +412,7 @@ def construir_payload_invitar(gid: int, bot_id: int) -> tuple[discord.Embed, dis
         description=t("invite_embed_desc", gid),
         color=discord.Color.from_rgb(255, 203, 5),
     )
-    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+    embed.set_footer(text=t("art_footer", gid))
     return embed, view
 
 
@@ -513,5 +518,5 @@ async def ejecutar_setrole_comun(
         description=msg,
         color=discord.Color.from_rgb(255, 203, 5),
     )
-    embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+    embed.set_footer(text=t("art_footer", gid))
     return embed, None

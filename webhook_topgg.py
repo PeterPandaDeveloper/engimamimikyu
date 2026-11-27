@@ -89,7 +89,7 @@ async def handle_topgg_webhook(request: aiohttp.web.Request, bot: commands.Bot) 
                     description=t("vote_announced_desc", guild_id, user=f"<@{user_id}>", count=count_display),
                     color=discord.Color.from_rgb(255, 105, 180),
                 )
-                embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
+                embed.set_footer(text=t("art_footer", guild_id))
                 await target_ch.send(embed=embed)
             except Exception as e:
                 print(f"[Top.gg Webhook] No se pudo enviar anuncio en {guild.name}: {e}")

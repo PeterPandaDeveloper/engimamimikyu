@@ -10,6 +10,7 @@ from enum import Enum
 
 from i18n import t, get_lang
 from tipos_pokemon import debilidades_x4, debilidades_x2
+from api import _TIPOS_ES
 
 
 class Ventaja(str, Enum):
@@ -170,15 +171,23 @@ def pista_perfil(dp: dict, gid: int) -> str:
     return t("hint_text_profile", gid, species=especie, habitat=habitat, egg=huevo)
 
 
+def _traducir_lista_tipos(tipos: list[str], gid: int) -> str:
+    if not tipos:
+        return "?"
+    if get_lang(gid) == "es":
+        return ", ".join(_TIPOS_ES.get(tp.lower(), tp.capitalize()) for tp in tipos)
+    return ", ".join(tp.capitalize() for tp in tipos)
+
+
 def pista_debilidades(dp: dict, gid: int) -> str:
     tipos = dp.get("tipos", [])
     x4 = debilidades_x4(tipos)
     if x4:
-        return t("hint_text_weakness_x4", gid, types=", ".join(x4))
+        return t("hint_text_weakness_x4", gid, types=_traducir_lista_tipos(x4, gid))
 
     x2 = debilidades_x2(tipos)
     if x2:
-        return t("hint_text_weakness_x2", gid, types=", ".join(x2[:2]))
+        return t("hint_text_weakness_x2", gid, types=_traducir_lista_tipos(x2[:2], gid))
 
     return t("hint_text_weakness_none", gid)
 
@@ -247,7 +256,7 @@ def generar_pista(dp: dict, ventaja: Ventaja, gid: int, excluir: set[str] | None
 
     opciones: dict[Ventaja, str] = {
         Ventaja.LETRA:           pista_letra_con_color(dp, gid),
-        Ventaja.TIPO:            t("hint_text_type",    gid, v=", ".join(dp.get("tipos", ["?"]))),
+        Ventaja.TIPO:            t("hint_text_type",    gid, v=_traducir_lista_tipos(dp.get("tipos", []), gid)),
         Ventaja.RANGO_REGION:    pista_region_con_color(dp, gid),
         Ventaja.HABILIDAD:       t("hint_text_ability", gid, v=hab_valor),
         Ventaja.PALABRA_AMBIGUA: pista_palabra_ambigua(dp, gid),

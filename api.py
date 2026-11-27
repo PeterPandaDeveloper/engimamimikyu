@@ -20,6 +20,37 @@ _CACHE_POKEMON: dict[tuple[int, str], dict] = {}
 _CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "pokemon_cache.json")
 _CACHE_LOCK = threading.Lock()
 
+_TIPOS_ES = {
+    "normal": "Normal",
+    "fire": "Fuego",
+    "water": "Agua",
+    "electric": "Eléctrico",
+    "grass": "Planta",
+    "ice": "Hielo",
+    "fighting": "Lucha",
+    "poison": "Veneno",
+    "ground": "Tierra",
+    "flying": "Volador",
+    "psychic": "Psíquico",
+    "bug": "Bicho",
+    "rock": "Roca",
+    "ghost": "Fantasma",
+    "dragon": "Dragón",
+    "dark": "Siniestro",
+    "steel": "Acero",
+    "fairy": "Hada",
+}
+
+
+def formatear_tipos_pokemon(tipos: list[str], lang: str = "en") -> str:
+    """Devuelve los tipos separados por ' / ' traducidos al idioma del servidor."""
+    if not tipos:
+        return "?"
+    if lang == "es":
+        return " / ".join(_TIPOS_ES.get(tp.lower(), tp.capitalize()) for tp in tipos)
+    return " / ".join(tp.capitalize() for tp in tipos)
+
+
 _COLORES_ES = {
     "black": "Negro",
     "blue": "Azul",
