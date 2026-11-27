@@ -36,7 +36,7 @@ class PanelConfiguracion(discord.ui.View):
         self._add_select_rondas(g)
         self._add_botones(g)
 
-    # ── Select: modo de juego ────────────────────────────────────────────────
+    # Select: modo de juego
     def _add_select_modo(self, g: int):
         self._sel_modo = discord.ui.Select(
             placeholder=t("sel_gamemode", g),
@@ -49,7 +49,7 @@ class PanelConfiguracion(discord.ui.View):
         self._sel_modo.callback = self._set_modo
         self.add_item(self._sel_modo)
 
-    # ── Select: tipo de pista para el impostor ──────────────────────────────
+    # Select: tipo de pista para el impostor
     def _add_select_pista(self, g: int):
         pista_specs = [
             (Ventaja.ALEATORIO,       "hint_random",      "hint_random_desc"),
@@ -79,7 +79,7 @@ class PanelConfiguracion(discord.ui.View):
         self._sel_pista.callback = self._set_pista
         self.add_item(self._sel_pista)
 
-    # ── Select: regiones y formas especiales de Pokémon ──────────────────────
+    # Select: regiones y formas especiales de Pokémon
     def _add_select_region(self, g: int):
         region_specs = [
             ("todas",    "region_all"),
@@ -112,7 +112,7 @@ class PanelConfiguracion(discord.ui.View):
         self._sel_region.callback = self._set_region
         self.add_item(self._sel_region)
 
-    # ── Select: límite de rondas (Combo Box 1 a 9) ───────────────────────────
+    # Select: límite de rondas (Combo Box 1 a 9)
     def _add_select_rondas(self, g: int):
         options = [
             discord.SelectOption(
@@ -161,7 +161,7 @@ class PanelConfiguracion(discord.ui.View):
             opt.default = (opt.value == str(self.partida.config.max_rondas))
         await inter.response.edit_message(embed=build_embed_config(self.partida), view=self)
 
-    # ── Callbacks de los selects ─────────────────────────────────────────────
+    # Callbacks de los selects
     async def _set_modo(self, inter: discord.Interaction):
         g = gid(self.partida)
         nuevo_modo = ModoJuego(inter.data["values"][0])
@@ -215,7 +215,7 @@ class PanelConfiguracion(discord.ui.View):
             opt.default = (opt.value in self.partida.config.regiones)
         await inter.response.edit_message(embed=build_embed_config(self.partida), view=self)
 
-    # ── Iniciar ronda ─────────────────────────────────────────────────────────
+    # Iniciar ronda
     async def _iniciar(self, inter: discord.Interaction):
         g = inter.guild_id
         if not es_anfitrion_o_admin(inter.user, inter.guild):
@@ -277,9 +277,7 @@ class PanelConfiguracion(discord.ui.View):
         view_deb.message = msg
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
 #  PANEL DE CONFIGURACIÓN DE TORNEO (SOLO COMPETITIVO: CLÁSICO Y EXTENDIDO)
-# ═══════════════════════════════════════════════════════════════════════════════
 
 class PanelConfiguracionTorneo(PanelConfiguracion):
     """

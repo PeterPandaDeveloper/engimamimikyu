@@ -118,9 +118,7 @@ class PanelVotacion(discord.ui.View):
             except Exception:
                 pass
 
-    # ─────────────────────────────────────────────────────────────────────────
     #  REGISTRO DE VOTOS (CON CAMBIO DE VOTO PERMITIDO ANTES DEL CIERRE)
-    # ─────────────────────────────────────────────────────────────────────────
     async def _registrar_voto(self, inter: discord.Interaction):
         g = inter.guild_id
 
@@ -151,7 +149,7 @@ class PanelVotacion(discord.ui.View):
             else:
                 nombre_objetivo = t("vote_null_label", g)
 
-            # ── AUTO-VOTO DE BOTS FANTASMA (MODO DEBUG) ──
+            # AUTO-VOTO DE BOTS FANTASMA (MODO DEBUG)
             for j in self.partida.jugadores:
                 if getattr(j, "es_dummy", False) and j.id not in self.votos_emitidos:
                     self.votos_emitidos.add(j.id)
@@ -189,9 +187,7 @@ class PanelVotacion(discord.ui.View):
         await inter.response.send_message(t("vote_force_closed", g, current=actual, total=total))
         await self._mostrar_resultados(inter.channel, inter.message)
 
-    # ─────────────────────────────────────────────────────────────────────────
     #  RESOLUCIÓN DE RESULTADOS
-    # ─────────────────────────────────────────────────────────────────────────
     async def _mostrar_resultados(self, canal: discord.TextChannel, mensaje: discord.Message):
         g = gid(self.partida)
         self.clear_items()
@@ -230,7 +226,7 @@ class PanelVotacion(discord.ui.View):
 
         return await self._resolver_expulsion_unica(canal, candidatos[0])
 
-    # ── Empate (Anula votación; solo expulsa masivamente si supera 3 empates seguidos) ──
+    # Empate (Anula votación; solo expulsa masivamente si supera 3 empates seguidos)
     async def _resolver_empate(self, canal: discord.TextChannel, candidatos: list[str]):
         g    = gid(self.partida)
         modo = self.partida.config.modo_juego
@@ -339,7 +335,7 @@ class PanelVotacion(discord.ui.View):
 
         return await self._siguiente_ronda(canal)
 
-    # ── Expulsión de un único jugador ────────────────────────────────────────
+    # Expulsión de un único jugador
     async def _resolver_expulsion_unica(self, canal: discord.TextChannel, candidato_id: str):
         g    = gid(self.partida)
         modo = self.partida.config.modo_juego
@@ -418,7 +414,7 @@ class PanelVotacion(discord.ui.View):
 
         await self._siguiente_ronda(canal)
 
-    # ── Victoria de impostores (con caso especial 1 vs 1) ────────────────────
+    # Victoria de impostores (con caso especial 1 vs 1)
     async def _resolver_victoria_impostores(self, canal: discord.TextChannel, tripulantes_vivos: int):
         g = gid(self.partida)
 
@@ -447,9 +443,7 @@ class PanelVotacion(discord.ui.View):
 
         return await self._pantalla_final(canal, victoria_impostores=True)
 
-    # ─────────────────────────────────────────────────────────────────────────
     #  TRANSICIONES
-    # ─────────────────────────────────────────────────────────────────────────
     async def _siguiente_ronda(self, canal: discord.TextChannel):
         g = gid(self.partida)
 
@@ -523,9 +517,7 @@ class PanelVotacion(discord.ui.View):
         await mostrar_pantalla_final(self.partida, canal, victoria_impostores)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
 #  🎯 MECÁNICA SPYFALL: ÚLTIMA OPORTUNIDAD DEL IMPOSTOR (CON PAUSA DRAMÁTICA)
-# ═══════════════════════════════════════════════════════════════════════════════
 
 class _SelectAutocompletadoPokemon(discord.ui.View):
     """Menú efímero sin spoilers (solo nombres) para confirmar el Pokémon tras escribir un fragmento."""

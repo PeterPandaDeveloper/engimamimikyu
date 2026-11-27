@@ -3,11 +3,8 @@
 .env.*
 !.env.example
 
-# Archivos de configuración local y documentación interna
-GEMINI.md
-.gemini/
+# Archivos de configuración local y scripts temporales
 proyecto.txt
-repomix-output*
 simulacion_realista.py
 test_*.py
 scratch/

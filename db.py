@@ -167,9 +167,7 @@ async def init_db() -> None:
     await asyncio.to_thread(_init_db_sync)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
 #  CONFIGURACIÓN / IDIOMAS (Servidores)
-# ═══════════════════════════════════════════════════════════════════════════════
 
 def _get_lang_sync(guild_id: int) -> str:
     with _DB_LOCK:
@@ -225,7 +223,7 @@ def cargar_todos_los_idiomas() -> dict[int, str]:
         return {}
 
 
-# ── Configuración de Rol Host por Servidor ───────────────────────────────────
+# Configuración de Rol Host por Servidor
 
 def _get_rol_host_sync(guild_id: int) -> int | None:
     with _DB_LOCK:
@@ -279,9 +277,7 @@ async def get_guild_rol_host_async(guild_id: int) -> int | None:
     return await asyncio.to_thread(get_guild_rol_host, guild_id)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
 #  REGISTRO DE PARTIDAS
-# ═══════════════════════════════════════════════════════════════════════════════
 
 def _guardar_partida_sync(
     guild_id: int,
@@ -349,9 +345,7 @@ async def guardar_partida_async(
     )
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
 #  CONSULTAS ANALÍTICAS (Perfil, Ranking, Estadísticas)
-# ═══════════════════════════════════════════════════════════════════════════════
 
 def _obtener_perfil_sync(guild_id: int, user_id: int) -> dict[str, Any] | None:
     with _DB_LOCK:
@@ -606,9 +600,7 @@ async def obtener_stats_servidor_async(guild_id: int) -> dict[str, Any] | None:
     return await asyncio.to_thread(_obtener_stats_servidor_sync, guild_id)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
 #  GESTIÓN DE LICENCIAS, CÓDIGOS Y SERVIDORES PREMIUM
-# ═══════════════════════════════════════════════════════════════════════════════
 
 def _crear_licencia_sync(codigo: str, tipo: str, duracion_dias: int = 0, cargas: int = 0) -> bool:
     with _DB_LOCK:
@@ -955,9 +947,7 @@ async def close_db() -> None:
     await asyncio.to_thread(_close_db_sync)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
 #  PREFERENCIAS DE ENTRENADOR (/favorito y /trainer-card)
-# ═══════════════════════════════════════════════════════════════════════════════
 
 def _set_pokemon_favorito_sync(user_id: int, pk_id: int, pk_nombre: str, pk_sprite: str | None) -> None:
     with _DB_LOCK:

@@ -11,9 +11,7 @@ from __future__ import annotations
 import json
 import os
 
-# ═══════════════════════════════════════════════════════════════════════════════
 #  REGISTRO DE IDIOMA POR SERVIDOR  { guild_id: "en" | "es" }  — persistido con DuckDB
-# ═══════════════════════════════════════════════════════════════════════════════
 
 from db import cargar_todos_los_idiomas, get_guild_lang, set_guild_lang
 
@@ -44,15 +42,13 @@ def set_lang(guild_id: int, lang: str) -> None:
     set_guild_lang(guild_id, lang)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
 #  DICCIONARIO DE CADENAS
 #  Estructura: STRINGS["clave"]["en" | "es"]
 #  Para cadenas con variables usa {} y llama con .format(...)
-# ═══════════════════════════════════════════════════════════════════════════════
 
 STRINGS: dict[str, dict[str, str]] = {
 
-    # ── Lobby ─────────────────────────────────────────────────────────────────
+    # Lobby
     "lobby_title": {
         "en": "🎮 PokeImpostor — Waiting Room",
         "es": "🎮 PokeImpostor — Sala de Espera",
@@ -104,7 +100,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "⚠️ El lobby está lleno (máximo 24 jugadores).",
     },
 
-    # ── Botones generales ─────────────────────────────────────────────────────
+    # Botones generales
     "btn_join": {
         "en": "⚡ Join",
         "es": "⚡ Unirse",
@@ -190,7 +186,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "No, era el último impostor",
     },
 
-    # ── Permisos ──────────────────────────────────────────────────────────────
+    # Permisos
     "only_admin": {
         "en": "Only administrators can do that.",
         "es": "Solo administradores pueden hacer eso.",
@@ -204,7 +200,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "Se necesitan al menos **3 jugadores** para iniciar.",
     },
 
-    # ── Configuración ─────────────────────────────────────────────────────────
+    # Configuración
     "config_title": {
         "en": "⚙️ Game Settings",
         "es": "⚙️ Configuración de la Partida",
@@ -366,7 +362,7 @@ STRINGS: dict[str, dict[str, str]] = {
 
     # Opciones de timer — eliminadas (el debate ya no tiene límite de tiempo)
 
-    # ── API / errores ─────────────────────────────────────────────────────────
+    # API / errores
     "api_error": {
         "en": (
             "❌ **Connection error:** Could not fetch a Pokémon from PokéAPI "
@@ -390,7 +386,7 @@ STRINGS: dict[str, dict[str, str]] = {
         ),
     },
 
-    # ── DMs de rol ────────────────────────────────────────────────────────────
+    # DMs de rol
     "dm_impostor_title": {
         "en": "🕵️ YOU ARE THE IMPOSTOR",
         "es": "🕵️ ERES EL IMPOSTOR",
@@ -438,7 +434,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "Usa /role-kyu si necesitas volver a verlo · 🎨 Arte: @xeechithecat.bsky.social",
     },
 
-    # ── Pistas generadas ──────────────────────────────────────────────────────
+    # Pistas generadas
     "hint_text_letter":       {"en": "Its name starts with the letter **{v}**.",  "es": "Su nombre empieza con la letra **{v}**."},
     "hint_text_ends_letter":  {"en": "Its name ends with the letter **{v}**.",    "es": "Su nombre termina con la letra **{v}**."},
     "hint_text_letter_color": {
@@ -526,7 +522,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "No hay entrada de Pokédex disponible para él.",
     },
 
-    # ── Ronda ─────────────────────────────────────────────────────────────────
+    # Ronda
     "round_title": {
         "en": "🏆 ROUND {n}",
         "es": "🏆 RONDA {n}",
@@ -571,7 +567,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "¡Los tripulantes se quedaron sin rondas de debate! Los impostores sobrevivieron al límite de tiempo y ganan la partida.",
     },
 
-    # ── Modo Caos 0 impostores ────────────────────────────────────────────────
+    # Modo Caos 0 impostores
     "caos_zero_title": {
         "en": "🌀 CHAOS MODE — Mystery Round",
         "es": "🌀 MODO CAOS — Ronda Misteriosa",
@@ -591,7 +587,7 @@ STRINGS: dict[str, dict[str, str]] = {
         ),
     },
 
-    # ── Timer ─────────────────────────────────────────────────────────────────
+    # Timer
     "timer_expired_title": {
         "en": "⏰ Time's up!",
         "es": "⏰ ¡Tiempo agotado!",
@@ -601,7 +597,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "El debate ha terminado. **¡La votación comienza ahora!**",
     },
 
-    # ── Votación ──────────────────────────────────────────────────────────────
+    # Votación
     "vote_title_open": {
         "en": "🗳️ VOTING OPEN",
         "es": "🗳️ VOTACIÓN ABIERTA",
@@ -643,7 +639,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "Solo admins pueden forzar el cierre de la votación.",
     },
 
-    # ── Resultados ────────────────────────────────────────────────────────────
+    # Resultados
     "results_tally_title": {
         "en": "📊 Vote Tally",
         "es": "📊 Conteo de Votos",
@@ -705,7 +701,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "{votes} voto(s) — **{name}**",
     },
 
-    # ── Caos pregunta final ───────────────────────────────────────────────────
+    # Caos pregunta final
     "caos_question_title": {
         "en": "🌀 Chaos Mode — Final Question",
         "es": "🌀 Modo Caos — Pregunta Final",
@@ -721,7 +717,7 @@ STRINGS: dict[str, dict[str, str]] = {
         ),
     },
 
-    # ── Pantalla final ────────────────────────────────────────────────────────
+    # Pantalla final
     "final_title": {
         "en": "🎊 GAME OVER",
         "es": "🎊 PARTIDA TERMINADA",
@@ -747,7 +743,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "Ronda {n} completada · 🎨 Arte: @xeechithecat.bsky.social",
     },
 
-    # ── Sesión cerrada ────────────────────────────────────────────────────────
+    # Sesión cerrada
     "session_closed_title": {
         "en": "👋 Session closed",
         "es": "👋 Sesión cerrada",
@@ -757,7 +753,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "Gracias por jugar **PokeImpostor**.\nUsen `/play-kyu` (o `-mimi play`) para abrir un nuevo lobby.",
     },
 
-    # ── /impver ───────────────────────────────────────────────────────────────
+    # /impver
     "impver_no_game": {
         "en": "There is no active game in this channel.",
         "es": "No hay una partida activa en este canal.",
@@ -783,7 +779,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "✅ Tu rol — TRIPULANTE",
     },
 
-    # ── /implanguage ──────────────────────────────────────────────────────────
+    # /implanguage
     "lang_changed_en": {
         "en": "🇬🇧 Language set to **English** for this server.",
         "es": "🇬🇧 Idioma cambiado a **inglés** para este servidor.",
@@ -797,7 +793,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "Solo administradores pueden cambiar el idioma.",
     },
 
-    # ── /imphelp ──────────────────────────────────────────────────────────────
+    # /imphelp
     "help_title": {
         "en": "📖 PokeImpostor — Quick Guide",
         "es": "📖 PokeImpostor — Guía Rápida",
@@ -954,7 +950,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "🎨 Arte por @xeechithecat.bsky.social",
     },
 
-    # ── /impregister ──────────────────────────────────────────────────────────
+    # /impregister
     "register_only_host": {
         "en": "⚠️ Only members with the **{role}** role or Administrators can open game lobbies.",
         "es": "⚠️ Solo los miembros con el rol **{role}** o Administradores pueden abrir salas de juego.",
@@ -966,9 +962,7 @@ STRINGS: dict[str, dict[str, str]] = {
 }
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
 #  FUNCIÓN PRINCIPAL DE TRADUCCIÓN
-# ═══════════════════════════════════════════════════════════════════════════════
 
 def t(key: str, guild_id: int, **kwargs) -> str:
     """
@@ -981,7 +975,7 @@ def t(key: str, guild_id: int, **kwargs) -> str:
     text  = entry.get(lang) or entry.get("en") or key
     return text.format(**kwargs) if kwargs else text
 
-# ── Nuevos modos ──────────────────────────────────────────────────────────────
+# Nuevos modos
 STRINGS["mode_caos_jugador"] = {
     "en": "🕵️ Chaos: Human Target",
     "es": "🕵️ Caos: Objetivo Humano",
@@ -1072,7 +1066,7 @@ STRINGS["dm_danza_caos_footer"] = {
     "es": "Usa /role-kyu si necesitas volver a verlo · 🎨 Arte: @xeechithecat.bsky.social",
 }
 
-# ── Pantalla final nuevos modos ───────────────────────────────────────────────
+# Pantalla final nuevos modos
 STRINGS["final_danza_caos_field"] = {
     "en": "💃 Teeter Dance — Everyone's Pokémon",
     "es": "💃 Danza Caos — El Pokémon de cada uno",
@@ -1082,7 +1076,7 @@ STRINGS["final_caos_jugador_field"] = {
     "es": "👤 El Objetivo Era",
 }
 
-# ── Votación: voto nulo ───────────────────────────────────────────────────────
+# Votación: voto nulo
 STRINGS["vote_null_label"] = {
     "en": "⚪ Skip (Null Vote)",
     "es": "⚪ Pasar (Voto Nulo)",
@@ -1092,7 +1086,7 @@ STRINGS["vote_null_desc"] = {
     "es": "No acuses a nadie esta ronda",
 }
 
-# ── Toggle Danza Caos (modificador del modo CAOS) ─────────────────────────────
+# Toggle Danza Caos (modificador del modo CAOS)
 STRINGS["caos_danza_label"] = {
     "en": "💃 Teeter Dance Mode",
     "es": "💃 Modo Danza Caos",
@@ -1118,7 +1112,7 @@ STRINGS["caos_danza_only_caos"] = {
     "es": "Esta opción solo está disponible en el modo Caos.",
 }
 
-# ── Empate múltiple (CAOS y EXTENDIDO) ───────────────────────────────────────
+# Empate múltiple (CAOS y EXTENDIDO)
 STRINGS["results_tie_multi_title"] = {
     "en": "💥 TIE — MASS EJECTION!",
     "es": "💥 ¡EMPATE — EXPULSIÓN MASIVA!",
@@ -1128,7 +1122,7 @@ STRINGS["results_tie_multi_desc"] = {
     "es": "Todos los que empataron son expulsados: {names}",
 }
 
-# ── Votación CAOS_JUGADOR ─────────────────────────────────────────────────────
+# Votación CAOS_JUGADOR
 STRINGS["caos_jugador_vote_placeholder"] = {
     "en": "🕵️ Who do you think is the target?",
     "es": "🕵️ ¿Quién crees que es el objetivo?",
@@ -1199,7 +1193,7 @@ STRINGS["final_desc_cero_impostores"] = {
     "es": "¡No había ningún impostor! Todos compartían el mismo Pokémon secreto y sospecharon entre sí por pura paranoia.",
 }
 
-# ── Variante de CAOS (radio buttons, solo visible al admin en config) ────────
+# Variante de CAOS (radio buttons, solo visible al admin en config)
 STRINGS["caos_variant_label"] = {
     "en": "🎲 Chaos Variant (random chance each round)",
     "es": "🎲 Variante de Caos (aleatoria cada ronda)",
@@ -1235,7 +1229,7 @@ STRINGS["caos_variant_dance_btn"] = {
     "es": "💃 + Danza Caos",
 }
 
-# ── Cara a cara final (1 vs 1) ────────────────────────────────────────────────
+# Cara a cara final (1 vs 1)
 STRINGS["results_faceoff_title"] = {
     "en": "🎭 FACE TO FACE — THE FINAL REVEAL",
     "es": "🎭 CARA A CARA — LA REVELACIÓN FINAL",
@@ -1255,7 +1249,7 @@ STRINGS["results_faceoff_desc"] = {
     ),
 }
 
-# ── Pantalla final: victoria de impostores ────────────────────────────────────
+# Pantalla final: victoria de impostores
 STRINGS["final_title_impostors_win"] = {
     "en": "💀 GAME OVER — THE IMPOSTORS WON",
     "es": "💀 PARTIDA TERMINADA — LOS IMPOSTORES GANARON",
@@ -1277,7 +1271,7 @@ STRINGS["final_impostor_escaped"] = {
     "es": "🏆 {name} *(escapó sin ser descubierto)*",
 }
 
-# ── Pista pública anti-estancamiento ──────────────────────────────────────────
+# Pista pública anti-estancamiento
 STRINGS["public_hint_title"] = {
     "en": "📢 A clue echoes through the room...",
     "es": "📢 Una pista resuena por la sala...",
@@ -1287,7 +1281,7 @@ STRINGS["public_hint_desc"] = {
     "es": "Hace rato que nadie es expulsado. Ahora todos saben: {hint}",
 }
 
-# ── DM neutro para tripulantes de Objetivo Humano ────────────────────────────
+# DM neutro para tripulantes de Objetivo Humano
 # Tanto el objetivo como los tripulantes normales ven este mensaje.
 # NO revela que hay un "detective" ni que alguien es el "objetivo".
 # Solo ven la foto del jugador misterioso y una instrucción genérica.
@@ -1304,7 +1298,7 @@ STRINGS["dm_caos_jugador_crew_neutral"] = {
     ),
 }
 
-# ── DM para el propio objetivo (Objetivo Humano) — no debe delatarlo ──────────
+# DM para el propio objetivo (Objetivo Humano) — no debe delatarlo
 STRINGS["dm_caos_jugador_target_desc"] = {
     "en": (
         "The others are describing someone in the group, trying to confuse the detective.\n"
@@ -1316,19 +1310,19 @@ STRINGS["dm_caos_jugador_target_desc"] = {
     ),
 }
 
-# ── Concurrencia: votación ya cerrada por otra interacción ────────────────────
+# Concurrencia: votación ya cerrada por otra interacción
 STRINGS["vote_already_closed"] = {
     "en": "This vote was already closed.",
     "es": "Esta votación ya fue cerrada.",
 }
 
-# ── Concurrencia: ronda ya iniciada por otro admin ────────────────────────────
+# Concurrencia: ronda ya iniciada por otro admin
 STRINGS["round_already_started"] = {
     "en": "The round was already started by someone else.",
     "es": "La ronda ya fue iniciada por otra persona.",
 }
 
-# ── Recuperación tras reinicio del bot ────────────────────────────────────────
+# Recuperación tras reinicio del bot
 STRINGS["session_lost_after_restart"] = {
     "en": (
         "🔌 **I just restarted** and lost track of the game that was running in this channel.\n"
@@ -1340,7 +1334,7 @@ STRINGS["session_lost_after_restart"] = {
     ),
 }
 
-# ── Estadísticas y Perfil (/perfil) ──────────────────────────────────────────
+# Estadísticas y Perfil (/perfil)
 STRINGS["profile_title"] = {
     "en": "👤 Trainer Profile — {name}",
     "es": "👤 Perfil de Entrenador — {name}",
@@ -1382,7 +1376,7 @@ STRINGS["profile_pokemon_value"] = {
     "es": "**{name}**",
 }
 
-# ── Tabla de Clasificación (/ranking) ────────────────────────────────────────
+# Tabla de Clasificación (/ranking)
 STRINGS["ranking_title_general"] = {
     "en": "🏆 Server Leaderboard — Most Wins",
     "es": "🏆 Tabla de Clasificación — Más Victorias",
@@ -1404,7 +1398,7 @@ STRINGS["ranking_entry"] = {
     "es": "{medal} **{name}** — **{wins}** victorias ({winrate}% en {total} partidas)",
 }
 
-# ── Estadísticas Globales del Servidor (/stats_partidas) ─────────────────────
+# Estadísticas Globales del Servidor (/stats_partidas)
 STRINGS["server_stats_title"] = {
     "en": "📈 PokeImpostor — Server Analytics",
     "es": "📈 PokeImpostor — Analítica del Servidor",
@@ -1434,7 +1428,7 @@ STRINGS["server_stats_common_pk"] = {
     "es": "✨ Pokémon Más Frecuente",
 }
 
-# ── Sistema de Licencias, Códigos y Monetización ─────────────────────────────
+# Sistema de Licencias, Códigos y Monetización
 STRINGS["license_key_gen_title"] = {
     "en": "🔑 PokeImpostor — VIP License Generator",
     "es": "🔑 PokeImpostor — Generador de Licencias VIP",
@@ -1616,7 +1610,7 @@ STRINGS["partner_register_success"] = {
     "es": "👑 ¡El servidor **{guild_id}** ha sido registrado con éxito como **Beta Partner** permanente!",
 }
 
-# ── Configuración de Rol Host (/impsetrole) ──────────────────────────────────
+# Configuración de Rol Host (/impsetrole)
 STRINGS["setrole_embed_title"] = {
     "en": "👑 PokeImpostor Host Role Setup",
     "es": "👑 Configuración del Rol Host de PokeImpostor",

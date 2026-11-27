@@ -277,7 +277,7 @@ async def obtener_datos_completos_pokemon(
 
             es_legendario = species_data.get("is_legendary", False) or species_data.get("is_mythical", False)
 
-            # ── Color principal localizado ────────────────────────────────────
+            # Color principal localizado
             color_raw = (species_data.get("color") or {}).get("name", "").lower()
             if color_raw:
                 if lang == "es":
@@ -287,7 +287,7 @@ async def obtener_datos_completos_pokemon(
             else:
                 color = "Desconocido" if lang == "es" else "Unknown"
 
-            # ── Hábitat localizado ────────────────────────────────────────────
+            # Hábitat localizado
             habitat_raw = species_data.get("habitat")
             if habitat_raw:
                 habitat_name = habitat_raw.get("name", "")
@@ -340,9 +340,7 @@ async def obtener_datos_completos_pokemon(
     return None
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
 #  CATÁLOGO DE NOMBRES PARA AUTOCOMPLETADO (ÚLTIMA OPORTUNIDAD / FAVORITO)
-# ═══════════════════════════════════════════════════════════════════════════════
 
 _CATALOGO_RAW: list[tuple[int, str]] = []
 _CATALOGO_POR_IDIOMA: dict[str, list[tuple[int, str]]] = {}

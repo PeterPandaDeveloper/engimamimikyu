@@ -70,9 +70,7 @@ class DummyMember:
             print(f"[Debug DM] No se pudo redirigir DM de {self.display_name}: {e}")
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
 #  ENUMS
-# ═══════════════════════════════════════════════════════════════════════════════
 
 class ModoJuego(str, Enum):
     CLASICO   = "clasico"
@@ -106,9 +104,7 @@ class CaosVariante(str, Enum):
 
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
 #  CONFIG DATACLASS
-# ═══════════════════════════════════════════════════════════════════════════════
 
 @dataclass
 class ConfigPartida:
@@ -120,9 +116,7 @@ class ConfigPartida:
     conocer_complices: bool         = True  # Modo extendido: permitir que los impostores sepan quién es impostor
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
 #  RANGOS POR GENERACIÓN Y FORMAS ESPECIALES (MEGAS / GIMMICKS)
-# ═══════════════════════════════════════════════════════════════════════════════
 
 # IDs verificados en PokéAPI v2 (/pokemon/{id})
 IDS_MEGAS_PRIMAL: list[int] = (
@@ -167,9 +161,7 @@ RANGOS_GEN: dict[str, range | list[int]] = {
 }
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
 #  CLASE PARTIDA
-# ═══════════════════════════════════════════════════════════════════════════════
 
 class Partida:
     def __init__(self, canal: discord.TextChannel, partidas_activas: dict):
@@ -225,7 +217,7 @@ class Partida:
         # para detectar intentos concurrentes de iniciar/revancha.
         self._ronda_arrancando: bool = False
 
-        # ── Estado de Modo Torneo (Serie Competitiva) ─────────────────────────
+        # Estado de Modo Torneo (Serie Competitiva)
         self.es_torneo:           bool            = False
         self.torneo_max_partidas: int             = 5
         self.torneo_partida_num:  int             = 0
@@ -241,14 +233,14 @@ class Partida:
         """Contador decremental: rondas que le quedan al grupo antes de que ganen los impostores."""
         return max(0, self.config.max_rondas - self.ronda + 1)
 
-    # ── helpers ───────────────────────────────────────────────────────────────
+    # helpers
     def _t(self, key: str, **kwargs) -> str:
         return t(key, self.canal.guild.id, **kwargs)
 
     def limpiar_memoria(self) -> None:
         self._partidas_activas.pop(self.canal.id, None)
 
-    # ── pista pública anti-estancamiento (visible para TODOS) ────────────────
+    # pista pública anti-estancamiento (visible para TODOS)
     def generar_pista_publica(self) -> str | None:
         """
         Genera un dato público sobre el Pokémon secreto, distinto de las
@@ -265,7 +257,7 @@ class Partida:
         excluir = set(self.pistas_impostores.values())
         return self._generar_pista_para(dp, excluir=excluir)
 
-    # ── selección de ID sin repetición ───────────────────────────────────────
+    # selección de ID sin repetición
     def _elegir_id_pokemon(self) -> int:
         ids_validos: list[int] = []
         if "todas" in self.config.regiones:
@@ -286,7 +278,7 @@ class Partida:
         self._pokemon_usados.add(elegido)
         return elegido
 
-    # ── generación de UNA pista para UN impostor (siempre distinta) ──────────
+    # generación de UNA pista para UN impostor (siempre distinta)
     def _generar_pista_para(self, dp: dict, excluir: set[str] | None = None) -> str:
         """
         Genera una pista aleatoria o según config delegando a pistas.generar_pista.
@@ -302,7 +294,7 @@ class Partida:
     _pista_pokedex         = staticmethod(pista_pokedex)
 
 
-    # ── sorteo de variante Caos por ronda ─────────────────────────────────
+    # sorteo de variante Caos por ronda
     def _sortear_variante_caos(self) -> CaosVariante:
         """
         Caos Total: Al elegir Modo Caos, la ronda es una ruleta rusa impredecible.
@@ -326,7 +318,7 @@ class Partida:
         ]
         return random.choice(opciones)
 
-    # ── cantidad de impostores ─────────────────────────────────────────────
+    # cantidad de impostores
     def _calcular_impostores(self, total: int) -> int:
         modo = self.config.modo_juego
         if modo == ModoJuego.CLASICO:
@@ -354,7 +346,7 @@ class Partida:
             return 0
         return random.randint(0, total - 1)
 
-    # ── DM impostor clásico/extendido/caos ───────────────────────────────────
+    # DM impostor clásico/extendido/caos
     def _build_dm_impostor(self, jugador: discord.Member) -> discord.Embed:
         gid       = self.canal.guild.id
         pista     = self.pistas_impostores.get(jugador.id, self.pista_generada)
@@ -381,7 +373,7 @@ class Partida:
         embed.set_footer(text=t("dm_impostor_footer", gid))
         return embed
 
-    # ── DM tripulante ────────────────────────────────────────────────────────
+    # DM tripulante
     def _build_dm_tripulante(self, dp: dict) -> discord.Embed:
         gid = self.canal.guild.id
         lang = get_lang(gid)
@@ -395,7 +387,7 @@ class Partida:
         embed.set_footer(text=t("dm_crew_footer", gid))
         return embed
 
-    # ── DM variante Objetivo Humano ──────────────────────────────────────────
+    # DM variante Objetivo Humano
     def _build_dm_caos_jugador_impostor(self, pista: str = "") -> discord.Embed:
         gid = self.canal.guild.id
         embed = discord.Embed(
@@ -427,16 +419,14 @@ class Partida:
     def _build_dm_caos_jugador_objetivo(self) -> discord.Embed:
         return self._build_dm_caos_jugador_impostor()
 
-    # ── DM variante Danza Caos — 100% idéntico a tripulante normal ───────────
+    # DM variante Danza Caos — 100% idéntico a tripulante normal
     def _build_dm_danza_caos(self, jugador: discord.Member) -> discord.Embed:
         dp = self.pokemons_danza.get(jugador.id)
         if not dp:
             return discord.Embed(title="Error", description="No se asignó Pokémon.")
         return self._build_dm_tripulante(dp)
 
-    # ─────────────────────────────────────────────────────────────────────────
     #  ARRANCAR RONDA — punto de entrada principal
-    # ─────────────────────────────────────────────────────────────────────────
     async def arrancar_ronda(self) -> bool:
         self.ronda = 1
         self.terminada = False
@@ -457,7 +447,7 @@ class Partida:
 
         modo = self.config.modo_juego
 
-        # Caos: elegir variante aleatoriamente entre las 7 permitidas ─────────
+        # Caos: elegir variante aleatoriamente entre las 7 permitidas
         if modo == ModoJuego.CAOS:
             if self.config.caos_variante not in (CaosVariante.NORMAL, "normal"):
                 variante_elegida = self.config.caos_variante
@@ -472,7 +462,7 @@ class Partida:
             # Las demás variantes (CERO_IMPOSTORES, UN_IMPOSTOR, CINCUENTA_PORCIENTO,
             # SETENTA_Y_CINCO, TODOS_IMPOSTORES) continúan con el flujo estándar
 
-        # ── Modos normales (Clásico / Extendido / Caos) ───────────────────────
+        # Modos normales (Clásico / Extendido / Caos)
         id_elegido         = self._elegir_id_pokemon()
         lang               = get_lang(self.canal.guild.id)
         self.datos_pokemon = await obtener_datos_completos_pokemon(id_elegido, lang=lang)
@@ -528,7 +518,7 @@ class Partida:
 
         return True
 
-    # ── Subrutina: Danza Caos (Teeter Dance) ──────────────────────────────────
+    # Subrutina: Danza Caos (Teeter Dance)
     async def _arrancar_danza_caos(self) -> bool:
         self.jugadores_iniciales  = self.jugadores.copy()
         self.impostores_iniciales = []
@@ -565,7 +555,7 @@ class Partida:
 
         return True
 
-    # ── Subrutina: Caos Jugador (Objetivo Humano) ──────────────────────────────
+    # Subrutina: Caos Jugador (Objetivo Humano)
     async def _arrancar_caos_jugador(self) -> bool:
         # 1. El objetivo humano puede ser cualquier jugador elegido al azar
         self.objetivo_humano = random.choice(self.jugadores)

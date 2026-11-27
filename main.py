@@ -83,7 +83,7 @@ bot = PokeImpostorBot(command_prefix="pkmi!", intents=intents)
 # Servidor central autorizado exclusivamente para generar keys y gestionar partners
 SERVER_ADMIN_CENTRAL_ID = 402155389958881310
 
-# ── Persistencia ligera de sesiones activas ──────────────────────────────────
+# Persistencia ligera de sesiones activas
 _DATA_DIR      = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 _SESSIONS_FILE = os.path.join(_DATA_DIR, "sesiones_activas.json")
 
@@ -132,9 +132,7 @@ def _cargar_sesiones_previas() -> list[int]:
 partidas_activas: dict[int, Partida] = _PartidasActivasDict()
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
 #  EVENTOS
-# ═══════════════════════════════════════════════════════════════════════════════
 
 @bot.event
 async def on_ready():
@@ -168,7 +166,7 @@ async def on_ready():
     # Iniciar listener de webhook Top.gg
     bot.loop.create_task(iniciar_webhook_topgg(bot))
 
-    # ── Recuperación tras reinicio ───────────────────────────────────────────
+    # Recuperación tras reinicio
     canales_previos = _cargar_sesiones_previas()
     for channel_id in canales_previos:
         try:
@@ -225,9 +223,7 @@ async def on_app_command_error(interaction: discord.Interaction, error: app_comm
         pass
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
 #  SLASH COMMANDS (32 GLOBALES LIMPIOS)
-# ═══════════════════════════════════════════════════════════════════════════════
 
 # 1 & 2. /impregister & /play-kyu
 async def _ejecutar_register(interaction: discord.Interaction):
@@ -864,9 +860,7 @@ async def torneo_kyu(
         await interaction.response.send_message(msg_t_active)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
 #  INTERCEPTOR DE MENSAJES DE TEXTO (-imp sufijo y prefijo)
-# ═══════════════════════════════════════════════════════════════════════════════
 
 def _extraer_comando_imp(texto: str) -> tuple[bool, str, list[str]]:
     """
@@ -1297,9 +1291,7 @@ async def on_message(message: discord.Message):
     await bot.process_commands(message)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
 #  ARRANQUE
-# ═══════════════════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
     if not TOKEN:

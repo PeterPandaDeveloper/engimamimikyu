@@ -138,7 +138,7 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
         )
         embed.add_field(name=t("final_impostors_field", g), value=lista_imp  or t("final_none_caos", g), inline=True)
         embed.add_field(name=t("final_crew_field",      g), value=lista_trip or "—",                     inline=True)
-    # ── MODO TORNEO: Acumular puntos de la sesión ────────────────────────────
+    # MODO TORNEO: Acumular puntos de la sesión
     ranking_t = []
     es_torneo_activo = getattr(partida, "es_torneo", False)
     if es_torneo_activo:
@@ -221,7 +221,7 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
         emb_podio.set_footer(text=t("art_footer", g))
         await canal.send(embed=emb_podio)
 
-    # ── Guardar datos de la partida en DuckDB (asíncrono en segundo plano) ──
+    # Guardar datos de la partida en DuckDB (asíncrono en segundo plano)
     # Si la partida contenía bots fantasma (DummyMember de depuración), no ensuciamos
     # la base de datos de producción ni consumimos cargas VIP del servidor.
     hay_dummies = any(getattr(j, "es_dummy", False) for j in partida.jugadores_iniciales)
@@ -287,9 +287,7 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
             print(f"⚠️ [DuckDB] No se pudo encolar el guardado de la partida: {e}")
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
 #  PANEL POST-RONDA
-# ═══════════════════════════════════════════════════════════════════════════════
 
 class PanelPostRonda(discord.ui.View):
     def __init__(self, partida: Partida):
