@@ -312,7 +312,7 @@ async def construir_payload_licencia(gid: int, bot_id: int) -> tuple[discord.Emb
         embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")
         return embed, None
     else:
-        vote_url = f"https://top.gg/bot/{bot_id}/vote"
+        vote_url = f"https://top.gg/bot/{bot_id}/vote?guild={gid}" if gid else f"https://top.gg/bot/{bot_id}/vote"
         view = discord.ui.View()
         view.add_item(discord.ui.Button(label=t("vote_btn_label", gid), url=vote_url, style=discord.ButtonStyle.link))
         view.add_item(discord.ui.Button(label=t("donate_btn_label", gid), url=BUYMEACOFFEE_URL, style=discord.ButtonStyle.link))
@@ -330,6 +330,9 @@ async def canjear_clave_licencia(clave: str, gid: int, user_id: int) -> tuple[di
     Valida y canjea una clave de licencia VIP en DuckDB.
     Retorna (embed, None) o (None, clave_i18n_error).
     """
+    from i18n import get_lang
+    es_es = (get_lang(gid) == "es")
+
     res = await canjear_licencia_async(clave, gid, user_id)
     if not res["exito"]:
         err = res.get("error")
@@ -339,13 +342,17 @@ async def canjear_clave_licencia(clave: str, gid: int, user_id: int) -> tuple[di
 
     tipo = res["tipo"]
     if tipo == "permanente":
-        det = "Pase Vitalicio ($5 USD) Permanente de por vida"
+        det = "Pase Vitalicio ($5 USD) Permanente de por vida" if es_es else "Lifetime VIP Pass ($5 USD) — Permanent"
     elif tipo == "dias":
         exp = res["expira_en"].strftime("%d/%m/%Y") if res.get("expira_en") else "?"
         dias = res.get("duracion_dias", 30)
-        det = f"{dias} días (hasta {exp})"
+        det = f"{dias} días (hasta {exp})" if es_es else f"{dias} days (until {exp})"
     else:
-        det = f"{res['cargas_totales']} partidas VIP disponibles (Top.gg / Cargas)"
+        det = (
+            f"{res['cargas_totales']} partidas VIP disponibles (Top.gg / Cargas)"
+            if es_es else
+            f"{res['cargas_totales']} VIP matches available (Top.gg / Charges)"
+        )
 
     embed = discord.Embed(
         title=t("redeem_success_title", gid),

@@ -9,47 +9,57 @@ Trainers receive secret Pokémon clues via Direct Message. One or more players a
 ## Features
 
 - **3 Game Modes**:
-  - **Classic**: 1 Impostor who knows nothing. Regular crewmates know the exact Pokémon name, types, and generation.
-  - **Extended**: Multiple Impostors scale with lobby size. Impostors receive partial hints (e.g. types or region) to blend in.
-  - **Chaos**: Total unpredictability. Can spawn 0 Impostors (group paranoia), random Impostor counts, **Target Human** (deduce a real lobby member), or **Chaos Dance** (everyone gets a different Pokémon).
-- **Configurable Round Limit (1–9)**: Host sets the maximum rounds before the game starts using a Discord select menu. If players fail to catch all impostors before rounds reach zero, the Impostors win automatically.
-- **1,025+ Pokémon**: Fetches live official artwork, Pokédex flavor text, habitat, types, and stats via PokéAPI.
-- **Bilingual (English / Spanish)**: Switch server language instantly with `/lang`.
-- **DuckDB Analytics & Leaderboards**: Tracks player win rates, favorite Pokémon, most lethal impostor Pokémon, and server leaderboards.
-- **VIP & Partner Licensing**: Built-in cryptographic key redemption system (`/canjear`, `/licencia`).
+  - **Classic**: 1 Impostor who receives a subtle clue. Regular crewmates know the exact Pokémon name, artwork, and types.
+  - **Extended**: Multiple Impostors scale with lobby size (1 per 3 players), with configurable accomplice visibility.
+  - **Chaos**: Total unpredictability. Rolls 1 of 7 wild variants every round: **0% Impostors** (group paranoia), **1 Impostor**, **50% Impostors**, **75% Impostors**, **100% Impostors**, **Drunk Friends / Chaos Dance** (everyone gets a different Pokémon), or **Human Target** (deduce a real lobby member).
+- **Impostor's Last Stand (Spyfall Mechanic)**: When the final Impostor is caught in Classic or Extended mode, they get one dramatic chance to guess the secret Pokémon's name (with spoiler-free autocomplete) to steal the victory!
+- **Competitive Tournament Mode (`/torneo-kyu`)**: Host 3, 5, 7, or 10-match series with live point tracking and an official Champion's Podium.
+- **Trainer Cards, Ranks & Badges (`/trainer-card`, `/favorito-kyu`)**: Unlock gym badges, climb trainer ranks, and display your favorite companion Pokémon sprite.
+- **1,025+ Pokémon + Mega, Regional, Gigantamax & Gimmick Forms**: Fetches live official artwork, Pokédex flavor text, color, habitat, types, and stats via PokéAPI with memory + disk caching.
+- **Configurable Round Limit (1–9)**: Host sets the maximum debate rounds before the game starts.
+- **Bilingual (English / Spanish)**: Switch server language instantly with `/lang-kyu` or `/implang`.
+- **DuckDB Analytics & Top.gg Webhook**: Tracks player win rates, leaderboards, and VIP/Partner licensing (`/redeem-kyu`, `/license-kyu`, `/vote-kyu`).
 
 ---
 
 ## How to Play
 
 ```
-1. Host opens lobby (/impregister)  -->  Players join (3-24 players)
-2. Host picks settings (Mode, Clue type, Region, Round limit 1-9)
+1. Host opens lobby (/play-kyu or /impregister)  -->  Players join (3-24 players)
+2. Host picks settings (Mode, Clue type, Region/Forms, Round limit 1-9)
 3. Secret roles delivered via DM
-4. Word Round: Each player says one word/clue in the chat
-5. Debate & Vote: Lobby votes to eject a suspect
-6. Next Round: Remaining rounds tick down (3 -> 2 -> 1)
-   - Crewmates catch all Impostors  --> Crew wins!
-   - Round counter hits 0           --> Impostors win!
+4. Word Round: Each player gives a clue in chat without saying the name
+5. Debate & Vote: Lobby votes anonymously to eject a suspect
+6. Next Round or Last Stand:
+   - Crewmates catch all Impostors (and survive Last Stand) --> Crew wins!
+   - Caught Impostor guesses the exact Pokémon              --> Impostor steals the win!
+   - Round counter hits 0 or Impostors reach parity         --> Impostors win!
 ```
 
 ---
 
 ## Slash Commands
 
-| Command | Description |
-|---|---|
-| `/impregister` | Open a new PokeImpostor lobby in the current channel |
-| `/impver` | Re-send your secret role card via DM during an active game |
-| `/lang` / `/implanguage` | Switch server language (`English` / `Español`) |
-| `/imphelp` | View game rules, mode breakdown, and instructions |
-| `/perfil` | View trainer stats, games played, win rate, and favorite Pokémon |
-| `/ranking` | Server leaderboard (Crew wins, Impostor wins, Win rate) |
-| `/stats_partidas` | Global match statistics and historical records for the server |
-| `/licencia` | Check the current server's VIP / Partner status and perks |
-| `/canjear` | Redeem a VIP License Key |
+| Command | Alias | Description |
+|---|---|---|
+| `/play-kyu` | `/impregister` | Open a new PokeImpostor lobby in the current channel |
+| `/torneo-kyu` | `-mimi torneo` | Start a competitive Tournament series (3, 5, 7, or 10 matches) with podium |
+| `/role-kyu` | `/impver` | Re-send your secret role card via DM during an active game |
+| `/trainer-card` | `/profile-kyu`, `/impprofile` | View Trainer Card, rank, unlocked badges, and favorite Pokémon |
+| `/favorito-kyu` | `-mimi fav` | Choose your favorite companion Pokémon with live autocomplete |
+| `/leaderboard-kyu` | `/impleaderboard` | Server leaderboard (General, Deadliest Impostors, Best Crewmates) |
+| `/stats-kyu` | `/impstats` | Global match statistics and historical records for the server |
+| `/setrole-kyu` | `/impsetrole` | Configure or auto-create the official `PokeHost` role (Admin) |
+| `/lang-kyu` | `/implang` | Switch server language (`English` / `Español`) |
+| `/help-kyu` | `/imphelp` | View game rules, mode breakdown, and instructions |
+| `/credits-kyu` | `/impcreditos` | View artist and illustration credits |
+| `/license-kyu` | `/implicense` | Check the current server's VIP / Partner status and perks |
+| `/redeem-kyu` | `/impredeem` | Redeem a VIP License Key |
+| `/vote-kyu` | `-mimi vote` | Vote on Top.gg to unlock 10 free premium matches |
+| `/donate-kyu` | `-mimi donate` | Support the bot & get Lifetime VIP ($5 USD) |
+| `/invite-kyu` | `-mimi invite` | Get the invite link to add Mimikyu to your server |
 
-*Owner administration commands (`/generarkey`, `/partner_add`) require bot ownership and cryptographic master password authentication.*
+*Owner administration commands (`/genkey-kyu` / `/impgenkey`, `/partner-kyu` / `/imppartner_add`) require bot ownership, central admin server verification, and cryptographic master password authentication.*
 
 ---
 
@@ -85,6 +95,9 @@ Trainers receive secret Pokémon clues via Direct Message. One or more players a
    ```env
    DISCORD_TOKEN=your_bot_token_here
    ADMIN_MASTER_HASH=6f27fad91d72d87c37223c13f431e09e0aa5a13eb3f4c115be54a95e98b9c9ae
+   OWNER_ID=your_discord_user_id_optional
+   TOPGG_WEBHOOK_PORT=5000
+   TOPGG_WEBHOOK_SECRET=your_topgg_webhook_secret_optional
    ```
 
 5. **Run the bot**:

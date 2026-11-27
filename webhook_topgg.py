@@ -83,9 +83,10 @@ async def handle_topgg_webhook(request: aiohttp.web.Request, bot: commands.Bot) 
                     break
         if target_ch:
             try:
+                count_display = "∞ (VIP)" if nuevas < 0 else str(nuevas)
                 embed = discord.Embed(
                     title=t("vote_announced_title", guild_id),
-                    description=t("vote_announced_desc", guild_id, user=f"<@{user_id}>", count=nuevas),
+                    description=t("vote_announced_desc", guild_id, user=f"<@{user_id}>", count=count_display),
                     color=discord.Color.from_rgb(255, 105, 180),
                 )
                 embed.set_footer(text="🎨 Arte: @xeechithecat.bsky.social")

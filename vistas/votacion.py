@@ -600,7 +600,7 @@ class PanelUltimaOportunidad(discord.ui.View):
             async def on_submit(self, modal_inter: discord.Interaction):
                 from api import buscar_coincidencias_pokemon
                 escrito = self.texto.value.strip()
-                coincidencias = await buscar_coincidencias_pokemon(escrito, limite=25)
+                coincidencias = await buscar_coincidencias_pokemon(escrito, limite=25, lang="es" if es_es else "en")
 
                 dp = padre.partida.datos_pokemon or {}
                 nombre_real = (dp.get("nombre") or "").lower()
@@ -654,7 +654,6 @@ class PanelUltimaOportunidad(discord.ui.View):
         acerto = (
             intento_low == real_full
             or intento_low == real_base
-            or (len(intento_low) >= 4 and intento_low == real_full.split(" ")[0].lower())
         )
 
         titulo_suspenso = "🎭 ¡ÚLTIMA OPORTUNIDAD EN JUEGO!" if es_es else "🎭 LAST STAND IN PLAY!"

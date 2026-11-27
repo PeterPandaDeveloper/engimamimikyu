@@ -7,7 +7,7 @@ from __future__ import annotations
 import asyncio
 import discord
 from motor_juego import Partida, ModoJuego, CaosVariante
-from i18n import t
+from i18n import t, get_lang
 from db import guardar_partida_async, consumir_partida_premium_async, verificar_estado_premium_async
 
 from .common import TIMEOUT_LOBBY, gid, NOMBRE_ROL_HOST, es_anfitrion_o_admin, obtener_nombre_rol_host
@@ -186,13 +186,17 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
         )
 
     embed.set_footer(text=t("final_footer", g, n=partida.ronda))
+
+    es_fin_torneo = (es_torneo_activo and partida.torneo_partida_num >= partida.torneo_max_partidas)
+    if es_fin_torneo:
+        partida.es_torneo = False
+
     post_view = PanelPostRonda(partida)
     msg = await canal.send(embed=embed, view=post_view)
     post_view.message = msg
     partida.mensaje_post_ronda = msg
 
-    if es_torneo_activo and partida.torneo_partida_num >= partida.torneo_max_partidas:
-        partida.es_torneo = False
+    if es_fin_torneo:
         es_es = (get_lang(g) == "es")
         podio_lines = []
         iconos = ["🥇 **CAMPEÓN:**", "🥈 **2.º Lugar:**", "🥉 **3.er Lugar:**"] if es_es else ["🥇 **CHAMPION:**", "🥈 **2nd Place:**", "🥉 **3rd Place:**"]

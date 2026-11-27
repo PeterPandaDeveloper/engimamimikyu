@@ -848,8 +848,10 @@ STRINGS: dict[str, dict[str, str]] = {
     "help_commands_value": {
         "en": (
             "• `/play-kyu` — Start a new game lobby\n"
+            "• `/torneo-kyu` — Start a multi-match Tournament with podium\n"
             "• `/role-kyu` — Re-send your secret role via DM\n"
-            "• `/profile-kyu` — View trainer stats & card\n"
+            "• `/trainer-card` / `/profile-kyu` — View Trainer Card, rank & badges\n"
+            "• `/favorito-kyu` — Pick your companion Pokémon for your card\n"
             "• `/leaderboard-kyu` — Server rankings\n"
             "• `/stats-kyu` — Server game analytics\n"
             "• `/setrole-kyu` — Set or create host role (Admin)\n"
@@ -863,8 +865,10 @@ STRINGS: dict[str, dict[str, str]] = {
         ),
         "es": (
             "• `/play-kyu` — Abrir nueva sala de juego\n"
+            "• `/torneo-kyu` — Iniciar sesión de Torneo con puntos y podio\n"
             "• `/role-kyu` — Reenviar tu rol secreto por DM\n"
-            "• `/profile-kyu` — Ver perfil y estadísticas\n"
+            "• `/trainer-card` / `/profile-kyu` — Ver Tarjeta de Entrenador y medallas\n"
+            "• `/favorito-kyu` — Elegir Pokémon compañero para tu tarjeta\n"
             "• `/leaderboard-kyu` — Tabla de clasificación\n"
             "• `/stats-kyu` — Analítica de partidas del servidor\n"
             "• `/setrole-kyu` — Configurar rol de anfitrión (Admin)\n"
@@ -1424,8 +1428,8 @@ STRINGS["license_auth_failed"] = {
     "es": "❌ Autorización denegada: Contraseña maestra incorrecta.",
 }
 STRINGS["license_key_generated"] = {
-    "en": "✨ **VIP License Key Generated:**\n`{key}`\n\n📌 **Type:** {tipo}\n⌛ **Details:** {details}\n\n*Deliver this key to the supporter to redeem via `/canjear {key}`.*",
-    "es": "✨ **Clave de Licencia VIP Generada:**\n`{key}`\n\n📌 **Tipo:** {tipo}\n⌛ **Detalles:** {details}\n\n*Entrega esta clave al comprador/donador para canjear con `/canjear {key}`.*",
+    "en": "✨ **VIP License Key Generated:**\n`{key}`\n\n📌 **Type:** {tipo}\n⌛ **Details:** {details}\n\n*Deliver this key to the supporter to redeem via `/redeem-kyu {key}`.*",
+    "es": "✨ **Clave de Licencia VIP Generada:**\n`{key}`\n\n📌 **Tipo:** {tipo}\n⌛ **Detalles:** {details}\n\n*Entrega esta clave al comprador/donador para canjear con `/redeem-kyu {key}`.*",
 }
 STRINGS["redeem_only_host"] = {
     "en": "❌ Only an Administrator or a member with the **{role}** role can redeem licenses for this server.",

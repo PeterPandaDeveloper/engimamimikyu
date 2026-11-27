@@ -807,7 +807,7 @@ def _sumar_partidas_voto_sync(guild_id: int, cantidad: int = 10) -> int:
     with _DB_LOCK:
         con = _get_connection()
         prev = con.execute("""
-            SELECT tipo, partidas_restantes
+            SELECT tipo, partidas_restantes, expira_en
             FROM servidores_licencia
             WHERE guild_id = ?;
         """, [guild_id]).fetchone()
@@ -815,12 +815,27 @@ def _sumar_partidas_voto_sync(guild_id: int, cantidad: int = 10) -> int:
         if prev and prev[0] in ("partner", "vip_permanente"):
             return -1
 
+        ahora = datetime.now()
+        if prev and prev[0] == "vip_dias" and prev[2] and prev[2] > ahora:
+            # Si ya tiene un pase temporal activo, acumular las cargas sin sobrescribir su vip_dias
+            cargas_actuales = prev[1] if prev[1] else 0
+            nuevas = cargas_actuales + cantidad
+            con.execute("""
+                UPDATE servidores_licencia
+                SET partidas_restantes = ?,
+                    actualizado_en = CURRENT_TIMESTAMP
+                WHERE guild_id = ?;
+            """, [nuevas, guild_id])
+            return nuevas
+
         cargas_actuales = prev[1] if prev and prev[1] else 0
         nuevas = cargas_actuales + cantidad
         con.execute("""
             INSERT INTO servidores_licencia (guild_id, tipo, motivo, expira_en, partidas_restantes, actualizado_en)
             VALUES (?, 'cargas', 'Recompensa Voto Top.gg (10 Partidas)', NULL, ?, CURRENT_TIMESTAMP)
             ON CONFLICT (guild_id) DO UPDATE SET
+                tipo = 'cargas',
+                motivo = EXCLUDED.motivo,
                 partidas_restantes = EXCLUDED.partidas_restantes,
                 actualizado_en = EXCLUDED.actualizado_en;
         """, [guild_id, nuevas])

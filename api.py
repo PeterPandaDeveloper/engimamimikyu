@@ -313,46 +313,56 @@ async def obtener_datos_completos_pokemon(
 #  CATÁLOGO DE NOMBRES PARA AUTOCOMPLETADO (ÚLTIMA OPORTUNIDAD / FAVORITO)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-_CATALOGO_NOMBRES: list[tuple[int, str]] = []
+_CATALOGO_RAW: list[tuple[int, str]] = []
+_CATALOGO_POR_IDIOMA: dict[str, list[tuple[int, str]]] = {}
 
 
-async def asegurar_catalogo_nombres() -> list[tuple[int, str]]:
+async def asegurar_catalogo_nombres(lang: str = "es") -> list[tuple[int, str]]:
     """
     Carga en memoria la lista ligera de (id, nombre_formateado) de todos los Pokémon
-    para autocompletar búsquedas parciales sin spoilers.
+    en el idioma indicado ('es' o 'en') para autocompletar búsquedas parciales sin spoilers.
     """
-    global _CATALOGO_NOMBRES
-    if _CATALOGO_NOMBRES:
-        return _CATALOGO_NOMBRES
+    global _CATALOGO_RAW
+    lang_key = "es" if lang == "es" else "en"
+    if lang_key in _CATALOGO_POR_IDIOMA and _CATALOGO_POR_IDIOMA[lang_key]:
+        return _CATALOGO_POR_IDIOMA[lang_key]
 
-    session = await get_session()
-    try:
-        url = "https://pokeapi.co/api/v2/pokemon?limit=1350"
-        async with session.get(url, timeout=aiohttp.ClientTimeout(total=5.0)) as resp:
-            if resp.status == 200:
-                data = await resp.json()
-                temp: list[tuple[int, str]] = []
-                for item in data.get("results", []):
-                    raw_name = item.get("name", "")
-                    url_item = item.get("url", "").rstrip("/")
-                    pk_id_str = url_item.split("/")[-1]
-                    if pk_id_str.isdigit():
-                        pk_id = int(pk_id_str)
-                        if pk_id <= 1025 or pk_id >= 10001:
-                            temp.append((pk_id, _formatear_nombre_pokemon(raw_name, "es")))
-                _CATALOGO_NOMBRES = temp
-    except Exception as e:
-        print(f"[API] No se pudo precargar catálogo de nombres: {e}")
+    if not _CATALOGO_RAW:
+        session = await get_session()
+        try:
+            url = "https://pokeapi.co/api/v2/pokemon?limit=1350"
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=5.0)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    temp: list[tuple[int, str]] = []
+                    for item in data.get("results", []):
+                        raw_name = item.get("name", "")
+                        url_item = item.get("url", "").rstrip("/")
+                        pk_id_str = url_item.split("/")[-1]
+                        if pk_id_str.isdigit():
+                            pk_id = int(pk_id_str)
+                            if pk_id <= 1025 or pk_id >= 10001:
+                                temp.append((pk_id, raw_name))
+                    _CATALOGO_RAW = temp
+        except Exception as e:
+            print(f"[API] No se pudo precargar catálogo de nombres: {e}")
 
-    return _CATALOGO_NOMBRES
+    if _CATALOGO_RAW:
+        _CATALOGO_POR_IDIOMA[lang_key] = [
+            (pk_id, _formatear_nombre_pokemon(raw_name, lang_key))
+            for pk_id, raw_name in _CATALOGO_RAW
+        ]
+        return _CATALOGO_POR_IDIOMA[lang_key]
+
+    return []
 
 
-async def buscar_coincidencias_pokemon(fragmento: str, limite: int = 25) -> list[str]:
+async def buscar_coincidencias_pokemon(fragmento: str, limite: int = 25, lang: str = "es") -> list[str]:
     """
     Devuelve hasta `limite` nombres de Pokémon que contengan o empiecen por `fragmento`.
     Ordena primero los que empiezan exactamente por el texto escrito.
     """
-    catalogo = await asegurar_catalogo_nombres()
+    catalogo = await asegurar_catalogo_nombres(lang=lang)
     frag_low = fragmento.strip().lower()
     if not frag_low:
         return []
