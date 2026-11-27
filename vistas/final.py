@@ -22,7 +22,7 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
     # (_variante_ronda), NO config.caos_variante (que puede haber cambiado
     # si el admin re-configuró entre rondas)
     variante = partida._variante_ronda
-    es_danza_caos       = (modo == ModoJuego.CAOS and (variante in (CaosVariante.AMIGOS_BORRACHOS, CaosVariante.DANZA_CAOS) or bool(partida.pokemons_ebrios)))
+    es_danza_caos       = (modo == ModoJuego.CAOS and (variante == CaosVariante.DANZA_CAOS or bool(partida.pokemons_danza)))
     es_objetivo_humano  = (modo == ModoJuego.CAOS and (variante == CaosVariante.OBJETIVO_HUMANO or partida.objetivo_humano is not None))
     es_todos_impostores = (modo == ModoJuego.CAOS and (variante == CaosVariante.TODOS_IMPOSTORES or getattr(partida, "caos_todos_impostores", False)))
     es_cero_impostores  = (modo == ModoJuego.CAOS and (variante == CaosVariante.CERO_IMPOSTORES or getattr(partida, "caos_sin_impostores", False)) and not es_danza_caos and not es_todos_impostores)
@@ -78,10 +78,10 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
         lang_f = get_lang(g)
         lines = []
         for j in partida.jugadores_iniciales:
-            dp = partida.pokemons_ebrios.get(j.id)
+            dp = partida.pokemons_danza.get(j.id)
             if dp:
                 lines.append(f"• **{j.display_name}** → {dp['nombre']} ({formatear_tipos_pokemon(dp['tipos'], lang_f)})")
-        embed.add_field(name=t("final_ebrios_field", g), value="\n".join(lines) or "—", inline=False)
+        embed.add_field(name=t("final_danza_caos_field", g), value="\n".join(lines) or "—", inline=False)
         lista_trip = "\n".join(f"✅ {j.display_name}" for j in partida.jugadores_iniciales)
         embed.add_field(name=t("final_impostors_field", g), value=t("final_none_caos", g), inline=True)
         embed.add_field(name=t("final_crew_field",      g), value=lista_trip or "—",                     inline=True)
@@ -242,7 +242,7 @@ async def mostrar_pantalla_final(partida: Partida, canal: discord.TextChannel, v
 
                 expulsado = (j.id not in jugadores_actuales_ids)
                 if partida.caos_sin_impostores:
-                    # En Caos sin impostores (0 Impostores / Amigos Borrachos), ganan los tripulantes que sobrevivieron a la paranoia
+                    # En Caos sin impostores (0 Impostores / Danza Caos), ganan los tripulantes que sobrevivieron a la paranoia
                     gano = not expulsado
                 elif getattr(partida, "caos_todos_impostores", False):
                     # En Caos 100% impostores, los que sobrevivieron a la paranoia ganan y el expulsado pierde

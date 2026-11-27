@@ -89,7 +89,7 @@ class CaosVariante(str, Enum):
       - CINCUENTA_PORCIENTO: 50% de la sala impostor.
       - SETENTA_Y_CINCO: 75% de la sala impostor.
       - TODOS_IMPOSTORES: 100% de impostores (todos impostores).
-      - AMIGOS_BORRACHOS: 0 impostores, cada jugador recibe un Pokémon diferente.
+      - DANZA_CAOS: 0 impostores, cada jugador recibe un Pokémon diferente (Teeter Dance).
       - OBJETIVO_HUMANO: un jugador de la sala es el secreto (foto y nombre).
     """
     CERO_IMPOSTORES      = "cero_impostores"
@@ -97,12 +97,11 @@ class CaosVariante(str, Enum):
     CINCUENTA_PORCIENTO  = "cincuenta_pct"
     SETENTA_Y_CINCO      = "setenta_y_cinco_pct"
     TODOS_IMPOSTORES     = "todos_impostores"
-    AMIGOS_BORRACHOS     = "amigos_borrachos"
+    DANZA_CAOS           = "danza_caos"
     OBJETIVO_HUMANO      = "objetivo_humano"
 
-    # Aliases retrocompatibles
+    # Alias retrocompatible
     NORMAL               = "normal"
-    DANZA_CAOS           = "amigos_borrachos"
 
 
 
@@ -204,9 +203,9 @@ class Partida:
         # variante Objetivo Humano: quién es el "objetivo" (jugador que los demás describen)
         self.objetivo_humano: discord.Member | None = None
 
-        # variante Danza Caos: cada tripulante tiene su propio Pokémon
+        # variante Danza Caos (Teeter Dance): cada tripulante tiene su propio Pokémon
         # { jugador.id: dict_pokemon }
-        self.pokemons_ebrios: dict[int, dict] = {}
+        self.pokemons_danza: dict[int, dict] = {}
 
         # Variante efectiva de esta ronda (puede diferir de config.caos_variante
         # porque se sortea aleatoriamente en cada arrancar_ronda)
@@ -313,7 +312,7 @@ class Partida:
           3. 50% de la sala impostor
           4. 75% de la sala impostor
           5. 100% de impostores (todos impostores)
-          6. Amigos borrachos / Danza Caos (0 impostores, cada jugador un Pokémon)
+          6. Danza Caos / Teeter Dance (0 impostores, cada jugador un Pokémon diferente)
           7. Objetivo humano (un jugador actual al azar es el objetivo con foto y nombre)
         """
         opciones = [
@@ -322,7 +321,7 @@ class Partida:
             CaosVariante.CINCUENTA_PORCIENTO,
             CaosVariante.SETENTA_Y_CINCO,
             CaosVariante.TODOS_IMPOSTORES,
-            CaosVariante.AMIGOS_BORRACHOS,
+            CaosVariante.DANZA_CAOS,
             CaosVariante.OBJETIVO_HUMANO,
         ]
         return random.choice(opciones)
@@ -336,7 +335,7 @@ class Partida:
             return min(max(1, total // 3), total - 1)
         if modo == ModoJuego.CAOS:
             var = self._variante_ronda
-            if var == CaosVariante.CERO_IMPOSTORES or var == CaosVariante.AMIGOS_BORRACHOS:
+            if var == CaosVariante.CERO_IMPOSTORES or var == CaosVariante.DANZA_CAOS:
                 return 0
             if var == CaosVariante.UN_IMPOSTOR or var == CaosVariante.OBJETIVO_HUMANO:
                 return 1
@@ -429,8 +428,8 @@ class Partida:
         return self._build_dm_caos_jugador_impostor()
 
     # ── DM variante Danza Caos — 100% idéntico a tripulante normal ───────────
-    def _build_dm_amigos_ebrios(self, jugador: discord.Member) -> discord.Embed:
-        dp = self.pokemons_ebrios.get(jugador.id)
+    def _build_dm_danza_caos(self, jugador: discord.Member) -> discord.Embed:
+        dp = self.pokemons_danza.get(jugador.id)
         if not dp:
             return discord.Embed(title="Error", description="No se asignó Pokémon.")
         return self._build_dm_tripulante(dp)
@@ -449,7 +448,7 @@ class Partida:
         self.caos_sin_impostores = False
         self.caos_todos_impostores = False
         self.objetivo_humano  = None
-        self.pokemons_ebrios.clear()
+        self.pokemons_danza.clear()
         self._variante_ronda = CaosVariante.NORMAL
         self.rondas_sin_expulsion   = 0
         self.pista_publica_revelada = False
@@ -466,8 +465,8 @@ class Partida:
             else:
                 variante_elegida = self._sortear_variante_caos()
             self._variante_ronda = variante_elegida   # usada por _calcular_impostores
-            if variante_elegida in (CaosVariante.AMIGOS_BORRACHOS, CaosVariante.DANZA_CAOS):
-                return await self._arrancar_amigos_ebrios()
+            if variante_elegida == CaosVariante.DANZA_CAOS:
+                return await self._arrancar_danza_caos()
             if variante_elegida == CaosVariante.OBJETIVO_HUMANO:
                 return await self._arrancar_caos_jugador()
             # Las demás variantes (CERO_IMPOSTORES, UN_IMPOSTOR, CINCUENTA_PORCIENTO,
@@ -529,8 +528,8 @@ class Partida:
 
         return True
 
-    # ── Subrutina: Amigos Ebrios ──────────────────────────────────────────────
-    async def _arrancar_amigos_ebrios(self) -> bool:
+    # ── Subrutina: Danza Caos (Teeter Dance) ──────────────────────────────────
+    async def _arrancar_danza_caos(self) -> bool:
         self.jugadores_iniciales  = self.jugadores.copy()
         self.impostores_iniciales = []
         self.impostores          = []
@@ -540,22 +539,22 @@ class Partida:
         dm_fallidos: list[discord.Member] = []
         lang = get_lang(self.canal.guild.id)
 
-        async def _preparar_ebrio(jugador: discord.Member, idx: int):
+        async def _preparar_danza(jugador: discord.Member, idx: int):
             id_pk = self._elegir_id_pokemon()
             dp = await obtener_datos_completos_pokemon(id_pk, lang=lang)
             if dp is None:
                 return False
-            self.pokemons_ebrios[jugador.id] = dp
+            self.pokemons_danza[jugador.id] = dp
             if idx == 0:
                 self.datos_pokemon = dp  # para la pantalla final
             try:
-                await jugador.send(embed=self._build_dm_amigos_ebrios(jugador))
+                await jugador.send(embed=self._build_dm_danza_caos(jugador))
             except Exception as e:
                 print(f"[DM] Falló con {jugador.display_name}: {e}")
                 dm_fallidos.append(jugador)
             return True
 
-        resultados = await asyncio.gather(*(_preparar_ebrio(j, i) for i, j in enumerate(self.jugadores)))
+        resultados = await asyncio.gather(*(_preparar_danza(j, i) for i, j in enumerate(self.jugadores)))
         if not all(resultados):
             await self.canal.send(self._t("api_error"))
             return False

@@ -11,7 +11,7 @@ Trainers receive secret Pokémon clues via Direct Message. One or more players a
 - **3 Game Modes**:
   - **Classic**: 1 Impostor who receives a subtle clue. Regular crewmates know the exact Pokémon name, artwork, and types.
   - **Extended**: Multiple Impostors scale with lobby size (1 per 3 players), with configurable accomplice visibility.
-  - **Chaos**: Total unpredictability. Rolls 1 of 7 wild variants every round: **0% Impostors** (group paranoia), **1 Impostor**, **50% Impostors**, **75% Impostors**, **100% Impostors**, **Drunk Friends / Chaos Dance** (everyone gets a different Pokémon), or **Human Target** (deduce a real lobby member).
+  - **Chaos**: Total unpredictability. Rolls 1 of 7 wild variants every round: **0% Impostors** (group paranoia), **1 Impostor**, **50% Impostors**, **75% Impostors**, **100% Impostors**, **Teeter Dance** (everyone gets a different Pokémon), or **Human Target** (deduce a real lobby member).
 - **Impostor's Last Stand (Spyfall Mechanic)**: When the final Impostor is caught in Classic or Extended mode, they get one dramatic chance to guess the secret Pokémon's name (with spoiler-free autocomplete) to steal the victory!
 - **Competitive Tournament Mode (`/torneo-kyu`)**: Host 3, 5, 7, or 10-match series with live point tracking and an official Champion's Podium.
 - **Trainer Cards, Ranks & Badges (`/trainer-card`, `/favorito-kyu`)**: Unlock gym badges, climb trainer ranks, and display your favorite companion Pokémon sprite.

@@ -857,7 +857,7 @@ STRINGS: dict[str, dict[str, str]] = {
             "   ▫️ *50% of the Room:* Half the room are impostors with unique hints.\n"
             "   ▫️ *75% of the Room:* 75% impostors with unique hints.\n"
             "   ▫️ *100% Impostors:* Everyone is an impostor trying to bluff each other!\n"
-            "   ▫️ *Drunk Friends:* 0 impostors; each player gets a different Pokémon.\n"
+            "   ▫️ *Teeter Dance:* 0 impostors; each player gets a different Pokémon.\n"
             "   ▫️ *Human Target:* A server player is the target (photo & name shown)."
         ),
         "es": (
@@ -869,7 +869,7 @@ STRINGS: dict[str, dict[str, str]] = {
             "   ▫️ *50% de la Sala:* La mitad de la sala son impostores con pistas únicas.\n"
             "   ▫️ *75% de la Sala:* El 75% son impostores con pistas únicas.\n"
             "   ▫️ *100% Impostores:* ¡Todos son impostores intentando engañarse entre sí!\n"
-            "   ▫️ *Amigos Borrachos:* 0 impostores; cada jugador recibe un Pokémon diferente.\n"
+            "   ▫️ *Danza Caos:* 0 impostores; cada jugador recibe un Pokémon diferente.\n"
             "   ▫️ *Objetivo Humano:* Un jugador de la sala es el objetivo (foto y nombre)."
         ),
     },
@@ -1049,11 +1049,11 @@ STRINGS["caos_jugador_hint_join"] = {
     "en": "The target is a member of this server.",
     "es": "El objetivo es miembro de este servidor.",
 }
-STRINGS["dm_ebrios_title"] = {
+STRINGS["dm_danza_caos_title"] = {
     "en": "✅ YOU ARE A CREWMATE",
     "es": "✅ ERES TRIPULANTE",
 }
-STRINGS["dm_ebrios_desc"] = {
+STRINGS["dm_danza_caos_desc"] = {
     "en": (
         "The secret Pokémon is: **{name}**\n"
         "Type: {types}\n\n"
@@ -1067,15 +1067,15 @@ STRINGS["dm_ebrios_desc"] = {
         "¡Descubre quién no sabe de qué están hablando!"
     ),
 }
-STRINGS["dm_ebrios_footer"] = {
+STRINGS["dm_danza_caos_footer"] = {
     "en": "Use /role-kyu to see again · 🎨 Art: @xeechithecat.bsky.social",
     "es": "Usa /role-kyu si necesitas volver a verlo · 🎨 Arte: @xeechithecat.bsky.social",
 }
 
 # ── Pantalla final nuevos modos ───────────────────────────────────────────────
-STRINGS["final_ebrios_field"] = {
-    "en": "🍻 Everyone's Pokémon",
-    "es": "🍻 El Pokémon de cada uno",
+STRINGS["final_danza_caos_field"] = {
+    "en": "💃 Teeter Dance — Everyone's Pokémon",
+    "es": "💃 Danza Caos — El Pokémon de cada uno",
 }
 STRINGS["final_caos_jugador_field"] = {
     "en": "👤 The Target Was",
@@ -1092,28 +1092,28 @@ STRINGS["vote_null_desc"] = {
     "es": "No acuses a nadie esta ronda",
 }
 
-# ── Toggle Ebrios (modificador del modo CAOS) ─────────────────────────────────
-STRINGS["caos_ebrios_label"] = {
-    "en": "🍻 Drunk Friends Mode",
-    "es": "🍻 Modo Amigos Ebrios",
+# ── Toggle Danza Caos (modificador del modo CAOS) ─────────────────────────────
+STRINGS["caos_danza_label"] = {
+    "en": "💃 Teeter Dance Mode",
+    "es": "💃 Modo Danza Caos",
 }
-STRINGS["caos_ebrios_on"] = {
+STRINGS["caos_danza_on"] = {
     "en": "✅ Active — everyone gets their own Pokémon",
     "es": "✅ Activo — cada uno tiene su propio Pokémon",
 }
-STRINGS["caos_ebrios_off"] = {
+STRINGS["caos_danza_off"] = {
     "en": "⬜ Inactive (normal Chaos)",
     "es": "⬜ Inactivo (Caos normal)",
 }
-STRINGS["caos_ebrios_btn_on"] = {
-    "en": "🍻 Drunk Friends: ON",
-    "es": "🍻 Amigos Ebrios: ACTIVO",
+STRINGS["caos_danza_btn_on"] = {
+    "en": "💃 Teeter Dance: ON",
+    "es": "💃 Danza Caos: ACTIVO",
 }
-STRINGS["caos_ebrios_btn_off"] = {
-    "en": "🍻 Drunk Friends: OFF",
-    "es": "🍻 Amigos Ebrios: INACTIVO",
+STRINGS["caos_danza_btn_off"] = {
+    "en": "💃 Teeter Dance: OFF",
+    "es": "💃 Danza Caos: INACTIVO",
 }
-STRINGS["caos_ebrios_only_caos"] = {
+STRINGS["caos_danza_only_caos"] = {
     "en": "This option is only available in Chaos mode.",
     "es": "Esta opción solo está disponible en el modo Caos.",
 }
@@ -1492,8 +1492,8 @@ STRINGS["license_status_premium"] = {
     "es": "🌟 **Estado:** PREMIUM ACTIVO\n💎 **Membresía:** {tipo}\n📝 **Detalles:** {details}",
 }
 STRINGS["license_status_free"] = {
-    "en": "🌱 **Status:** Free Base Edition\n\nTo unlock all game modes (Extended, Chaos, Chaos Dance, Human Target, all generations 1-9, and advanced hints):\n1. 🗳️ **Vote on Top.gg**: 1 vote = **10 unlocked matches** for your server! (Use `/vote-kyu`)\n2. 👑 **Lifetime Pass ($5 USD)**: Permanent lifetime access with no limits! [Buy Me a Coffee](https://buymeacoffee.com/peterpandadeveloperz)",
-    "es": "🌱 **Estado:** Edición Gratuita Base\n\nPara desbloquear todos los modos (Extendido, Caos, Danza, Objetivo Humano, todas las generaciones 1-9 y pistas avanzadas):\n1. 🗳️ **Votar en Top.gg**: ¡1 voto = **10 partidas** con todo desbloqueado para tu servidor! (Usa `/vote-kyu`)\n2. 👑 **Pase Vitalicio ($5 USD)**: Desbloqueo permanente de por vida sin límites! [Buy Me a Coffee](https://buymeacoffee.com/peterpandadeveloperz)",
+    "en": "🌱 **Status:** Free Base Edition\n\nTo unlock all game modes (Extended, Chaos, Teeter Dance, Human Target, all generations 1-9, and advanced hints):\n1. 🗳️ **Vote on Top.gg**: 1 vote = **10 unlocked matches** for your server! (Use `/vote-kyu`)\n2. 👑 **Lifetime Pass ($5 USD)**: Permanent lifetime access with no limits! [Buy Me a Coffee](https://buymeacoffee.com/peterpandadeveloperz)",
+    "es": "🌱 **Estado:** Edición Gratuita Base\n\nPara desbloquear todos los modos (Extendido, Caos, Danza Caos, Objetivo Humano, todas las generaciones 1-9 y pistas avanzadas):\n1. 🗳️ **Votar en Top.gg**: ¡1 voto = **10 partidas** con todo desbloqueado para tu servidor! (Usa `/vote-kyu`)\n2. 👑 **Pase Vitalicio ($5 USD)**: Desbloqueo permanente de por vida sin límites! [Buy Me a Coffee](https://buymeacoffee.com/peterpandadeveloperz)",
 }
 STRINGS["vote_embed_title"] = {
     "en": "🗳️ Vote on Top.gg — Free 10 Premium Matches!",
@@ -1529,7 +1529,7 @@ STRINGS["donate_embed_desc"] = {
     "en": (
         "Get **permanent, unlimited access** to all game modes and expansions of PokeImpostor for your server!\n\n"
         "• 👑 **Lifetime VIP ($5 USD)**: No expiration, no limits, no renewals.\n"
-        "• 🔓 **Everything Unlocked**: Extended, Chaos, Chaos Dance, Human Target, all Gens 1-9 & future modes.\n\n"
+        "• 🔓 **Everything Unlocked**: Extended, Chaos, Teeter Dance, Human Target, all Gens 1-9 & future modes.\n\n"
         "👉 **Donate on Buy Me a Coffee:**\n"
         "https://buymeacoffee.com/peterpandadeveloperz\n\n"
         "⚠️ **Important:** In the Buy Me a Coffee message box, write your Discord username to receive your VIP Key to redeem with `/redeem-kyu <KEY>`."

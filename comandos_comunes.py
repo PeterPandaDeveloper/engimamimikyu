@@ -60,7 +60,7 @@ async def reenviar_rol_secreto(partida, user: discord.Member | discord.User, gid
     Reenvía por mensaje directo el rol secreto asignado en la partida actual.
     Retorna (éxito, clave_i18n_o_mensaje).
     """
-    if partida is None or (partida.datos_pokemon is None and not partida.pokemons_ebrios and partida.objetivo_humano is None):
+    if partida is None or (partida.datos_pokemon is None and not partida.pokemons_danza and partida.objetivo_humano is None):
         return False, "impver_no_game"
 
     if not any(j.id == user.id for j in partida.jugadores_iniciales):
@@ -68,7 +68,7 @@ async def reenviar_rol_secreto(partida, user: discord.Member | discord.User, gid
 
     try:
         es_impostor = any(imp.id == user.id for imp in partida.impostores_iniciales)
-        es_ebrios = bool(partida.pokemons_ebrios)
+        es_danza = bool(partida.pokemons_danza)
         es_cj = partida.objetivo_humano is not None
 
         if es_cj:
@@ -78,8 +78,8 @@ async def reenviar_rol_secreto(partida, user: discord.Member | discord.User, gid
             else:
                 await user.send(embed=partida._build_dm_caos_jugador_tripulante(partida.objetivo_humano))
 
-        elif es_ebrios:
-            dp = partida.pokemons_ebrios.get(user.id)
+        elif es_danza:
+            dp = partida.pokemons_danza.get(user.id)
             if dp:
                 lang = get_lang(gid)
                 emb = discord.Embed(
